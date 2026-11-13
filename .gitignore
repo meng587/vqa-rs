@@ -1,0 +1,18 @@
+# Rust 构建产物
+/target/
+**/*.rs.bk
+
+# 工具链二进制（体积原因不入库，见 README 定位链）
+/bin/
+crates/vqa-app/bin/
+
+# 密钥与本地状态
+secret*.json
+.mimosa/
+/dist/
+*.log
+crash/
+
+# IDE
+.idea/
+.vscode/

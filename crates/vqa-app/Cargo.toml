@@ -1,0 +1,23 @@
+[package]
+name = "vqa-app"
+version.workspace = true
+edition.workspace = true
+description = "视听质量检测工作站（VQA Workbench，Rust 版）"
+
+[[bin]]
+name = "vqa-app"
+path = "src/main.rs"
+
+[dependencies]
+vqa-core = { path = "../vqa-core" }
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+eframe.workspace = true
+egui.workspace = true
+egui_extras.workspace = true
+egui_plot.workspace = true
+rfd.workspace = true
+raw-window-handle = "0.6"
+windows.workspace = true

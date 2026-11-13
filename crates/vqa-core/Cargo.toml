@@ -1,0 +1,20 @@
+[package]
+name = "vqa-core"
+version.workspace = true
+edition.workspace = true
+description = "视听质量检测工作站核心库（Rust 版）—— TS 分析/TR290/网络/ffmpeg 编排/mpv 播放内核"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+miow.workspace = true
+socket2.workspace = true
+encoding_rs = "0.8"
+windows.workspace = true
+
+[[example]]
+name = "scan"
+path = "examples/scan.rs"
