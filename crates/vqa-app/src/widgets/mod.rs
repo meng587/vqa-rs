@@ -106,24 +106,23 @@ pub fn chip(ui: &mut Ui, text: impl Into<String>, color: Color32) {
     p.text(rect.center(), egui::Align2::CENTER_CENTER, t, font, color);
 }
 
-/// 级别徽章 P1/P2/P3（TR290 表）。
+/// 级别徽章 P1/P2/P3（TR290 表）。底色 = 语义色 14% 半透明（双主题自适应）。
 pub fn lv_badge(ui: &mut Ui, level: u8) {
-    let (bg, fg, t) = match level {
-        1 => (
-            Color32::from_rgba_premultiplied(64, 22, 22, 255),
-            theme::BAD,
-            "P1",
-        ),
-        2 => (
-            Color32::from_rgba_premultiplied(64, 51, 12, 255),
-            theme::WARN,
-            "P2",
-        ),
-        _ => (
-            Color32::from_rgba_premultiplied(38, 44, 52, 255),
-            theme::FAINT,
-            "P3",
-        ),
+    let fg = match level {
+        1 => theme::BAD,
+        2 => theme::WARN,
+        _ => theme::FAINT,
+    };
+    let bg = Color32::from_rgba_premultiplied(
+        (fg.r() as f32 * 0.14) as u8,
+        (fg.g() as f32 * 0.14) as u8,
+        (fg.b() as f32 * 0.14) as u8,
+        255,
+    );
+    let t = match level {
+        1 => "P1",
+        2 => "P2",
+        _ => "P3",
     };
     let (rect, _) = ui.allocate_exact_size(Vec2::new(28.0, 18.0), Sense::hover());
     let p = ui.painter_at(rect);
@@ -197,7 +196,7 @@ pub fn icon_button_tinted(ui: &mut Ui, icon: Lucide, tint: Color32) -> egui::Res
     let (rect, resp) = ui.allocate_exact_size(Vec2::new(28.0, 28.0), Sense::click());
     let p = ui.painter_at(rect);
     if resp.hovered() {
-        p.rect_filled(rect, 7.0, Color32::from_rgba_premultiplied(34, 42, 52, 255));
+        p.rect_filled(rect, 7.0, theme::ACC_SOFT);
     }
     let fg = if resp.hovered() { theme::TEXT } else { tint };
     p.text(rect.center(), egui::Align2::CENTER_CENTER, icon.glyph(), egui::FontId::new(15.0, egui::FontFamily::Name(crate::widgets::lucide::LUCIDE_FAMILY.into())), fg);

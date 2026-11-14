@@ -147,7 +147,7 @@ fn action_button(ui: &mut egui::Ui, running: bool) -> bool {
     let (rect, resp) = ui.allocate_exact_size(egui::vec2(76.0, 32.0), egui::Sense::click());
     let p = ui.painter_at(rect);
     let bg = if running { crate::theme::BAD } else { crate::theme::ACC };
-    p.rect_filled(rect, 8.0, if resp.hovered() { crate::theme::lighten(bg, 0.18) } else { bg });
+    p.rect_filled(rect, 8.0, if resp.hovered() { crate::theme::darken(bg, 0.15) } else { bg });
     let icon = if running { crate::widgets::lucide::Lucide::Square } else { crate::widgets::lucide::Lucide::Play };
     p.text(
         egui::pos2(rect.left() + 20.0, rect.center().y),
