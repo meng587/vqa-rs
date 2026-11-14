@@ -331,8 +331,8 @@ impl PlayerPage {
         let snap = self.mpv.as_ref().map(|m| m.snapshot()).unwrap_or_default();
         let has_media = !self.playing_url.is_empty() && !snap.idle;
         let avail = ui.available_size();
-        // 卡片下方：chips 28 + 强制桥接 24 + 行距 ~12
-        let card_size = Vec2::new(avail.x, (avail.y - 66.0).max(220.0));
+        // 卡片下方仅 chips 一行（强制桥接已并入 chips 行尾，设计稿口径）
+        let card_size = Vec2::new(avail.x, (avail.y - 40.0).max(220.0));
         let (card_rect, _) = ui.allocate_exact_size(card_size, egui::Sense::hover());
         let p = ui.painter_at(card_rect);
         p.rect_filled(card_rect, 10.0, theme::DARK);
@@ -352,17 +352,34 @@ impl PlayerPage {
             p.circle_filled(c, base * 0.66, Color32::from_rgba_premultiplied(13, 29, 44, 255));
             p.circle_filled(c, base * 0.38, Color32::from_rgba_premultiplied(17, 38, 56, 255));
         }
-        // 角标：左上编码信息 / 右上转码桥警示（待机/加载时可见；播放中被画面覆盖，
-        // 信息由下方 chips 行承载——mpv 原生子窗物理上盖住 egui 绘制）
-        if snap.width > 0 {
-            let mut tag = format!("{}×{}", snap.width, snap.height);
+        // 角标：左上编码信息 / 右上转码桥警示。
+        // 数据源：播放快照优先；待机时用起播探测结果（设计稿待机也显示 tag）
+        let tag_src = if snap.width > 0 {
+            let mut t = format!("{}×{}", snap.width, snap.height);
             if !snap.video_codec.is_empty() {
-                tag += &format!(" · {}", short_codec(&snap.video_codec));
+                t += &format!(" · {}", short_codec(&snap.video_codec));
             }
             if !snap.hwdec.is_empty() && snap.hwdec != "no" {
-                tag += &format!(" · 硬解 {}", snap.hwdec);
+                t += &format!(" · 硬解 {}", snap.hwdec);
             }
-            draw_tag(ui, card_rect, tag, egui::Align2::LEFT_TOP, theme::MUT);
+            Some(t)
+        } else if let Some(q) = &self.probe_info {
+            if q.video.width > 0 {
+                Some(format!(
+                    "{}×{} · {}{}",
+                    q.video.width,
+                    q.video.height,
+                    if q.video.codec.is_empty() { "未知编码".to_string() } else { short_codec(&q.video.codec) },
+                    if q.video.pix_fmt.contains("10") { " · 10-bit" } else { "" },
+                ))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        if let Some(t) = tag_src {
+            draw_tag(ui, card_rect, t, egui::Align2::LEFT_TOP, theme::MUT);
         }
         if !self.bridge_note.is_empty() {
             draw_tag(
@@ -416,20 +433,24 @@ impl PlayerPage {
             egui::Pos2::new(card_rect.left(), card_rect.bottom() - ctrl_h),
             egui::Pos2::new(card_rect.right(), card_rect.bottom()),
         );
-        p.rect_filled(ctrl_rect, 0.0, Color32::from_rgba_premultiplied(6, 8, 12, 215));
+        // 控制条背景：顶点色渐变（上透明 → 下黑，设计稿的渐隐过渡）
+        let mut mesh = egui::Mesh::default();
+        mesh.reserve_triangles(2);
+        mesh.colored_vertex(ctrl_rect.left_top(), Color32::from_rgba_premultiplied(0, 0, 0, 0));
+        mesh.colored_vertex(ctrl_rect.right_top(), Color32::from_rgba_premultiplied(0, 0, 0, 0));
+        mesh.colored_vertex(ctrl_rect.left_bottom(), Color32::from_rgba_premultiplied(6, 8, 12, 225));
+        mesh.colored_vertex(ctrl_rect.right_bottom(), Color32::from_rgba_premultiplied(6, 8, 12, 225));
+        mesh.add_triangle(0, 2, 3);
+        mesh.add_triangle(0, 3, 1);
+        p.add(mesh);
         ui.allocate_ui_at_rect(ctrl_rect.shrink2(Vec2::new(10.0, 6.0)), |ctrl| {
             ctrl.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                 self.controls(ui, &snap);
             });
         });
 
-        // 信息 chips（带小图标）
+        // 信息 chips（带小图标）+ 行尾强制桥接开关（设计稿卡片下仅此一行）
         self.chips(ui, &snap);
-        // 强制桥接开关
-        ui.horizontal(|ui| {
-            ui.checkbox(&mut self.force_bridge, "强制走转码桥")
-                .on_hover_text("下次起播强制经 ffmpeg 转码（排查直放崩溃时用）");
-        });
 
         // 进度轮询刷新（~10Hz 足够；mpv 管道排空已在帧头做过）
         let now = Instant::now();
@@ -588,16 +609,8 @@ impl PlayerPage {
             });
     }
 
-    /// 信息 chips 行（图标 + 文本，设计稿口径）。
-    /// 待机无数据时整行不画（避免孤立 chip）。
-    fn chips(&self, ui: &mut Ui, snap: &Snapshot) {
-        let has_any = snap.width > 0
-            || !self.bridge_note.is_empty()
-            || snap.vf_fps > 0.0
-            || !snap.audio_codec.is_empty();
-        if !has_any {
-            return;
-        }
+    /// 信息 chips 行（图标 + 文本，设计稿口径）+ 行尾强制桥接开关。
+    fn chips(&mut self, ui: &mut Ui, snap: &Snapshot) {
         ui.horizontal_wrapped(|ui| {
             if snap.width > 0 {
                 let mut t = format!("{}×{}", snap.width, snap.height);
@@ -643,6 +656,10 @@ impl PlayerPage {
                     if snap.avsync.abs() > 0.1 { theme::WARN } else { theme::MUT },
                 );
             }
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.checkbox(&mut self.force_bridge, "强制走转码桥")
+                    .on_hover_text("下次起播强制经 ffmpeg 转码（排查直放崩溃时用）");
+            });
         });
     }
 }
