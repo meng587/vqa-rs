@@ -146,6 +146,7 @@ impl PlayerPage {
     // ------------------------------------------------------------ 起播
 
     fn play(&mut self, url: String, nic_ip: String) {
+        vqa_core::config::log_line("player", &format!("play() url={url} nic={nic_ip}"));
         self.stop_bridge();
         self.err = None;
         self.playing_url = url.clone();

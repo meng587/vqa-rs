@@ -87,6 +87,12 @@ impl SourceBar {
             // 设计稿顺序：网卡 → 开始(主色+播放三角) → folder ghost
             let enter_start = resp_url.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
             let clicked = action_button(ui, running);
+            if clicked {
+                vqa_core::config::log_line(
+                    "srcbar",
+                    &format!("action clicked, running={running} url={:?} enter={enter_start}", self.url),
+                );
+            }
             if clicked || enter_start {
                 if running {
                     action = SourceAction::Stop;
