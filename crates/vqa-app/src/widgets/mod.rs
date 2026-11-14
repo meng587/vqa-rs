@@ -155,6 +155,29 @@ pub fn pill(ui: &mut Ui, text: &str, color: Color32) {
     );
 }
 
+/// 信息 chip：图标 + 圆角描边小标签（设计稿 chips 带 lucide 小图标）。
+pub fn chip_icon(ui: &mut Ui, icon: Option<Icon>, text: impl Into<String>, color: Color32) {
+    let t = text.into();
+    let font = egui::FontId::proportional(11.5);
+    let galley = ui.painter().layout_no_wrap(t.clone(), font.clone(), color);
+    let ic_w = if icon.is_some() { 15.0 } else { 0.0 };
+    let size = galley.size() + Vec2::new(20.0 + ic_w, 9.0);
+    let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
+    let p = ui.painter_at(rect);
+    p.rect_filled(rect, 99.0, theme::PANEL);
+    p.rect_stroke(rect, 99.0, egui::Stroke::new(1.0, theme::BORDER));
+    if let Some(ic) = icon {
+        ic.draw(&p, rect.left_center() + Vec2::new(8.0 + ic_w * 0.5, 0.0), color);
+    }
+    p.text(
+        rect.right_center() - Vec2::new(10.0 + 0.0, 0.0) - Vec2::new(0.0, 0.0),
+        egui::Align2::RIGHT_CENTER,
+        t,
+        font,
+        color,
+    );
+}
+
 // ---------------------------------------------------------------- 图标按钮
 
 /// 简单矢量图标（painter 直绘，不依赖图标字体）。
@@ -174,6 +197,11 @@ pub enum Icon {
     NavShield,
     NavTower,
     NavInfo,
+    // chips 小图标（gauge / wifi / check / audio-lines）
+    Gauge,
+    Wifi,
+    Check,
+    Audio,
 }
 
 impl Icon {
@@ -361,23 +389,69 @@ impl Icon {
                 );
             }
             Icon::Scan => {
-                p.circle_stroke(c, 0.85 * s, egui::Stroke::new(1.4_f32, color));
+                p.circle_stroke(c, 0.85 * s, egui::Stroke::new(1.4, color));
                 p.line_segment(
                     [c + Vec2::new(-1.3 * s, 0.0), c + Vec2::new(-0.5 * s, 0.0)],
-                    egui::Stroke::new(1.4_f32, color),
+                    egui::Stroke::new(1.4, color),
                 );
                 p.line_segment(
                     [c + Vec2::new(0.5 * s, 0.0), c + Vec2::new(1.3 * s, 0.0)],
-                    egui::Stroke::new(1.4_f32, color),
+                    egui::Stroke::new(1.4, color),
                 );
                 p.line_segment(
                     [c + Vec2::new(0.0, -1.3 * s), c + Vec2::new(0.0, -0.5 * s)],
-                    egui::Stroke::new(1.4_f32, color),
+                    egui::Stroke::new(1.4, color),
                 );
                 p.line_segment(
                     [c + Vec2::new(0.0, 0.5 * s), c + Vec2::new(0.0, 1.3 * s)],
-                    egui::Stroke::new(1.4_f32, color),
+                    egui::Stroke::new(1.4, color),
                 );
+            }
+            // chips 小图标
+            Icon::Gauge => {
+                p.circle_stroke(c, 0.85 * s, egui::Stroke::new(1.3, color));
+                p.line_segment(
+                    [c + Vec2::new(0.0, 0.1 * s), c + Vec2::new(0.55 * s, -0.45 * s)],
+                    egui::Stroke::new(1.3, color),
+                );
+            }
+            Icon::Wifi => {
+                // 两道扇形弧近似 + 顶点
+                p.line_segment(
+                    [c + Vec2::new(-0.8 * s, -0.25 * s), c + Vec2::new(0.0, 0.35 * s)],
+                    egui::Stroke::new(1.3, color),
+                );
+                p.line_segment(
+                    [c + Vec2::new(0.8 * s, -0.25 * s), c + Vec2::new(0.0, 0.35 * s)],
+                    egui::Stroke::new(1.3, color),
+                );
+                p.line_segment(
+                    [c + Vec2::new(-0.4 * s, 0.15 * s), c + Vec2::new(0.0, 0.45 * s)],
+                    egui::Stroke::new(1.3, color),
+                );
+                p.line_segment(
+                    [c + Vec2::new(0.4 * s, 0.15 * s), c + Vec2::new(0.0, 0.45 * s)],
+                    egui::Stroke::new(1.3, color),
+                );
+                p.circle_filled(c + Vec2::new(0.0, 0.7 * s), 0.16 * s, color);
+            }
+            Icon::Check => {
+                p.line_segment(
+                    [c + Vec2::new(-0.7 * s, 0.05 * s), c + Vec2::new(-0.15 * s, 0.6 * s)],
+                    egui::Stroke::new(1.5, color),
+                );
+                p.line_segment(
+                    [c + Vec2::new(-0.15 * s, 0.6 * s), c + Vec2::new(0.75 * s, -0.55 * s)],
+                    egui::Stroke::new(1.5, color),
+                );
+            }
+            Icon::Audio => {
+                for (dx, h) in [(-0.65, 0.45), (0.0, 0.85), (0.65, 0.35)] {
+                    p.line_segment(
+                        [c + Vec2::new(dx * s, -h * s), c + Vec2::new(dx * s, h * s)],
+                        egui::Stroke::new(1.4, color),
+                    );
+                }
             }
         }
     }

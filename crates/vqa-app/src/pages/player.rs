@@ -324,90 +324,96 @@ impl PlayerPage {
             ui.label(RichText::new(&self.hint).size(12.0).color(theme::MUT));
         }
 
-        // 视频区（占剩余高度；mpv 是原生子窗，永远盖住 egui 绘制——
-        // 控制条/信息行必须在视频区**之外**，否则会被视频覆盖或压到别的行）
+        // 视频卡片（设计稿：控制条叠层在卡片内部底部）。
+        // mpv 原生子窗只占卡片**上半**（画面子矩形）；底部 44px 控制条带
+        // 仍是 egui 地盘——播放时按钮不被视频盖住，观感与叠层一致。
         let snap = self.mpv.as_ref().map(|m| m.snapshot()).unwrap_or_default();
         let has_media = !self.playing_url.is_empty() && !snap.idle;
         let avail = ui.available_size();
-        // 下方固定行：控制条 40 + chips 26 + 开关 22 + 行距 ~20
-        let video_size = Vec2::new(avail.x, (avail.y - 112.0).max(140.0));
-        let (video_rect, _) =
-            ui.allocate_exact_size(video_size, egui::Sense::hover());
-        let p = ui.painter_at(video_rect);
-        p.rect_filled(video_rect, 10.0, theme::DARK);
-        // 中央辉光：三层同心圆递进，模拟设计稿的径向渐变（单圆边缘生硬）
-        if video_rect.width() > 120.0 && video_rect.height() > 90.0 {
-            let c = video_rect.center();
-            let base = (video_rect.height() * 0.46).min(220.0);
+        // 卡片下方：chips 28 + 强制桥接 24 + 行距 ~12
+        let card_size = Vec2::new(avail.x, (avail.y - 66.0).max(220.0));
+        let (card_rect, _) = ui.allocate_exact_size(card_size, egui::Sense::hover());
+        let p = ui.painter_at(card_rect);
+        p.rect_filled(card_rect, 10.0, theme::DARK);
+        p.rect_stroke(card_rect, 10.0, egui::Stroke::new(1.0, theme::BORDER2));
+
+        let ctrl_h = 44.0;
+        // mpv 画面子矩形（卡片内、控制条上方；留 1px 露出圆角底色）
+        let mpv_rect = egui::Rect::from_min_max(
+            card_rect.left_top() + Vec2::new(1.0, 1.0),
+            card_rect.right_bottom() + Vec2::new(-1.0, -ctrl_h),
+        );
+        // 辉光：三层同心圆（画在画面子矩形；播放时被视频盖住，待机可见）
+        if mpv_rect.width() > 120.0 && mpv_rect.height() > 90.0 {
+            let c = mpv_rect.center();
+            let base = (mpv_rect.height() * 0.44).min(210.0);
             p.circle_filled(c, base, Color32::from_rgba_premultiplied(10, 22, 34, 255));
             p.circle_filled(c, base * 0.66, Color32::from_rgba_premultiplied(13, 29, 44, 255));
             p.circle_filled(c, base * 0.38, Color32::from_rgba_premultiplied(17, 38, 56, 255));
         }
-        // 待机中央：提示文字 + 大播放键（有源未播时可点击）
-        if !has_media && !self.playing_url.is_empty() {
-            let c = video_rect.center() + Vec2::new(0.0, -8.0);
-            p.circle_filled(c, 29.0, Color32::from_rgba_premultiplied(255, 255, 255, 26));
+        // 角标：左上编码信息 / 右上转码桥警示（待机/加载时可见；播放中被画面覆盖，
+        // 信息由下方 chips 行承载——mpv 原生子窗物理上盖住 egui 绘制）
+        if snap.width > 0 {
+            let mut tag = format!("{}×{}", snap.width, snap.height);
+            if !snap.video_codec.is_empty() {
+                tag += &format!(" · {}", short_codec(&snap.video_codec));
+            }
+            if !snap.hwdec.is_empty() && snap.hwdec != "no" {
+                tag += &format!(" · 硬解 {}", snap.hwdec);
+            }
+            draw_tag(ui, card_rect, tag, egui::Align2::LEFT_TOP, theme::MUT);
+        }
+        if !self.bridge_note.is_empty() {
+            draw_tag(
+                ui,
+                card_rect,
+                format!("⚠ {}", self.bridge_note),
+                egui::Align2::RIGHT_TOP,
+                theme::WARN,
+            );
+        }
+        // 中央：大播放键（设计稿待机即显示；空源点击给提示）
+        if !has_media {
+            let c = mpv_rect.center() + Vec2::new(0.0, -6.0);
+            p.circle_filled(c, 29.0, Color32::from_rgba_unmultiplied(255, 255, 255, 26));
             crate::widgets::Icon::Play.draw_big(&p, c, Color32::WHITE, 2.4);
             let hit = egui::Rect::from_center_size(c, Vec2::new(70.0, 70.0));
             let resp = ui.allocate_rect(hit, egui::Sense::click());
             if resp.clicked() {
-                if let Some(m) = &self.mpv {
+                if self.playing_url.is_empty() {
+                    self.show_hint("请先在上方填写来源");
+                } else if let Some(m) = &self.mpv {
                     let _ = m.loadfile(&self.playing_url);
                 }
             }
-        } else if !has_media {
             p.text(
-                video_rect.center(),
+                mpv_rect.center() + Vec2::new(0.0, 46.0),
                 egui::Align2::CENTER_CENTER,
                 "输入来源后点「开始」播放",
-                egui::FontId::proportional(14.0),
+                egui::FontId::proportional(13.0),
                 theme::MUT,
             );
         }
         if let Some(c) = self.child.as_mut() {
-            c.place(video_rect, ctx.pixels_per_point(), has_media);
+            c.place(mpv_rect, ctx.pixels_per_point(), has_media);
         }
 
-        // 控制条（独立行；seek 条按右侧控件簇的实测宽度让位，防溢出压行）
+        // 控制条：卡片内底部黑带（叠层观感；mpv 子矩形不含此区域，永不被盖）
         let dur = snap.duration_ms / 1000.0;
         let pos = snap.time_ms / 1000.0;
         let seekable = snap.seekable && dur > 0.0;
-        let right_cluster = 430.0_f32; // 时间+音量+快照+录制+倍速 预留
-        ui.horizontal(|ui| {
-            self.controls_left(ui, &snap);
-            let frac = if seekable {
-                if self.dragging {
-                    (self.seek_val / 1000.0).clamp(0.0, 1.0)
-                } else {
-                    ((pos / dur) as f32).clamp(0.0, 1.0)
-                }
-            } else if dur > 0.0 {
-                ((pos / dur) as f32).clamp(0.0, 1.0)
-            } else {
-                0.0
-            };
-            if let Some(x) = crate::widgets::seek_bar_at(
-                ui,
-                (ui.available_width() - right_cluster).max(60.0),
-                frac,
-                seekable,
-            ) {
-                self.dragging = true;
-                self.seek_val = x * 1000.0;
-                if seekable {
-                    if let Some(m) = &self.mpv {
-                        let _ = m.seek_percent((x * 100.0) as f64);
-                    }
-                }
-            }
-            if !ui.input(|i| i.pointer.any_down()) {
-                self.dragging = false;
-            }
-            self.controls_right(ui, &snap);
+        let ctrl_rect = egui::Rect::from_min_max(
+            egui::Pos2::new(card_rect.left(), card_rect.bottom() - ctrl_h),
+            egui::Pos2::new(card_rect.right(), card_rect.bottom()),
+        );
+        p.rect_filled(ctrl_rect, 0.0, Color32::from_rgba_premultiplied(6, 8, 12, 215));
+        ui.allocate_ui_at_rect(ctrl_rect.shrink2(Vec2::new(10.0, 6.0)), |ctrl| {
+            ctrl.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                self.controls(ui, &snap);
+            });
         });
-        ui.separator();
 
-        // 信息 chips（含分辨率/编码/硬解/转码桥——视频上的角标会被 mpv 盖住）
+        // 信息 chips（带小图标）
         self.chips(ui, &snap);
         // 强制桥接开关
         ui.horizontal(|ui| {
@@ -425,8 +431,8 @@ impl PlayerPage {
         }
     }
 
-    /// 控制条左侧簇：播放/暂停 + 停止。
-    fn controls_left(&mut self, ui: &mut Ui, snap: &Snapshot) {
+    /// 控制条（叠层内）：左簇 + seek + 右簇。
+    fn controls(&mut self, ui: &mut Ui, snap: &Snapshot) {
         let paused = snap.paused || snap.idle;
         if crate::widgets::icon_button(ui, if paused { Icon::Play } else { Icon::Pause }).clicked() {
             if let Some(m) = &self.mpv {
@@ -444,6 +450,40 @@ impl PlayerPage {
                 let _ = m.stop();
             }
         }
+        // seek：右侧控件簇实测预留，防溢出
+        let dur = snap.duration_ms / 1000.0;
+        let pos = snap.time_ms / 1000.0;
+        let seekable = snap.seekable && dur > 0.0;
+        let right_cluster = 430.0_f32;
+        let frac = if seekable {
+            if self.dragging {
+                (self.seek_val / 1000.0).clamp(0.0, 1.0)
+            } else {
+                ((pos / dur) as f32).clamp(0.0, 1.0)
+            }
+        } else if dur > 0.0 {
+            ((pos / dur) as f32).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        if let Some(x) = crate::widgets::seek_bar_at(
+            ui,
+            (ui.available_width() - right_cluster).max(60.0),
+            frac,
+            seekable,
+        ) {
+            self.dragging = true;
+            self.seek_val = x * 1000.0;
+            if seekable {
+                if let Some(m) = &self.mpv {
+                    let _ = m.seek_percent((x * 100.0) as f64);
+                }
+            }
+        }
+        if !ui.input(|i| i.pointer.any_down()) {
+            self.dragging = false;
+        }
+        self.controls_right(ui, snap);
     }
 
     /// 控制条右侧簇：时间 + 音量 + 快照 + 录制 + 倍速。
@@ -538,7 +578,7 @@ impl PlayerPage {
             });
     }
 
-    /// 信息 chips 行（分辨率/编码/硬解/桥 + fps/码率/丢帧/音频）。
+    /// 信息 chips 行（图标 + 文本，设计稿口径）。
     /// 待机无数据时整行不画（避免孤立 chip）。
     fn chips(&self, ui: &mut Ui, snap: &Snapshot) {
         let has_any = snap.width > 0
@@ -557,35 +597,38 @@ impl PlayerPage {
                 if !snap.hwdec.is_empty() && snap.hwdec != "no" {
                     t += &format!(" · 硬解 {}", snap.hwdec);
                 }
-                crate::widgets::chip(ui, t, theme::MUT);
+                crate::widgets::chip_icon(ui, None, t, theme::MUT);
             }
             if !self.bridge_note.is_empty() {
-                crate::widgets::chip(ui, format!("⚠ {}", self.bridge_note), theme::WARN);
+                crate::widgets::chip_icon(ui, Some(Icon::Scan), format!("⚠ {}", self.bridge_note), theme::WARN);
             }
             if snap.vf_fps > 0.0 {
-                crate::widgets::chip(ui, format!("{:.1} fps", snap.vf_fps), theme::MUT);
+                crate::widgets::chip_icon(ui, Some(Icon::Gauge), format!("{:.1} fps", snap.vf_fps), theme::MUT);
             }
             if snap.v_bitrate > 0.0 {
-                crate::widgets::chip(
+                crate::widgets::chip_icon(
                     ui,
+                    Some(Icon::Wifi),
                     format!("{:.0} kbps", snap.v_bitrate / 1000.0),
                     theme::MUT,
                 );
             }
             if snap.width > 0 {
                 let drops = snap.decoder_drop + snap.render_drop;
-                crate::widgets::chip(
+                crate::widgets::chip_icon(
                     ui,
+                    Some(Icon::Check),
                     format!("丢帧 {}/{}", snap.decoder_drop, snap.render_drop),
                     if drops > 0 { theme::WARN } else { theme::OK },
                 );
             }
             if !snap.audio_codec.is_empty() {
-                crate::widgets::chip(ui, snap.audio_codec.clone(), theme::MUT);
+                crate::widgets::chip_icon(ui, Some(Icon::Audio), snap.audio_codec.clone(), theme::MUT);
             }
             if snap.avsync.abs() > 0.001 {
-                crate::widgets::chip(
+                crate::widgets::chip_icon(
                     ui,
+                    None,
                     format!("avsync {:+.3}s", snap.avsync),
                     if snap.avsync.abs() > 0.1 { theme::WARN } else { theme::MUT },
                 );
@@ -602,4 +645,26 @@ fn fmt_hms(s: f64) -> String {
 /// 长 codec 名取首段（"H.264 / AVC / …" → "H.264"）。
 fn short_codec(c: &str) -> String {
     c.split('/').next().unwrap_or(c).trim().to_string()
+}
+
+/// 角标（半透明黑底小标签）。
+fn draw_tag(
+    ui: &mut Ui,
+    area: egui::Rect,
+    text: impl Into<String>,
+    anchor: egui::Align2,
+    color: Color32,
+) {
+    let font = egui::FontId::proportional(10.5);
+    let text = text.into();
+    let g = ui.painter().layout_no_wrap(text.clone(), font.clone(), color);
+    let size = g.size() + Vec2::new(16.0, 7.0);
+    let pos = match anchor {
+        egui::Align2::LEFT_TOP => area.left_top() + Vec2::new(10.0, 10.0),
+        _ => area.right_top() + Vec2::new(-10.0 - size.x, 10.0),
+    };
+    let rect = egui::Rect::from_min_size(pos, size);
+    let p = ui.painter_at(rect);
+    p.rect_filled(rect, 6.0, Color32::from_rgba_premultiplied(0, 0, 0, 115));
+    p.text(rect.center(), egui::Align2::CENTER_CENTER, text, font, color);
 }

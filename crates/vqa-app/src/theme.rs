@@ -15,7 +15,8 @@ pub const TEXT: Color32 = Color32::from_rgb(0xe8, 0xee, 0xf5);
 pub const MUT: Color32 = Color32::from_rgb(0x8a, 0x99, 0xab);
 pub const FAINT: Color32 = Color32::from_rgb(0x5b, 0x6b, 0x7d);
 pub const ACC: Color32 = Color32::from_rgb(0x38, 0xbd, 0xf8); // 青蓝主色
-pub const ACC_SOFT: Color32 = Color32::from_rgba_premultiplied(14, 48, 66, 255); // 主色 14% 底
+/// 主色 14% 底（预乘：56/189/248 × 36/255 ≈ 8/27/35）
+pub const ACC_SOFT: Color32 = Color32::from_rgba_premultiplied(8, 27, 35, 36);
 pub const OK: Color32 = Color32::from_rgb(0x34, 0xd3, 0x99);
 pub const WARN: Color32 = Color32::from_rgb(0xfb, 0xbf, 0x24);
 pub const BAD: Color32 = Color32::from_rgb(0xf8, 0x71, 0x71);
