@@ -122,13 +122,22 @@ impl eframe::App for VqaApp {
                         );
                         ui.allocate_rect(logo, egui::Sense::hover());
                         let p = ui.painter_at(logo);
-                        p.rect_filled(logo, 9.0, theme::ACC_SOFT);
+                        // 品牌渐变方块（indigo→violet 对角，现代化签名元素）
+                        let mut lg = egui::Mesh::default();
+                        lg.reserve_triangles(2);
+                        lg.colored_vertex(logo.left_top(), Color32::from_rgb(0x63, 0x66, 0xf1));
+                        lg.colored_vertex(logo.right_top(), Color32::from_rgb(0x8b, 0x5c, 0xf6));
+                        lg.colored_vertex(logo.left_bottom(), Color32::from_rgb(0x8b, 0x5c, 0xf6));
+                        lg.colored_vertex(logo.right_bottom(), Color32::from_rgb(0xa8, 0x55, 0xf7));
+                        lg.add_triangle(0, 1, 2);
+                        lg.add_triangle(1, 3, 2);
+                        p.add(lg);
                         p.text(
                             logo.center(),
                             egui::Align2::CENTER_CENTER,
                             "◉",
                             FontId::proportional(15.0),
-                            theme::ACC,
+                            Color32::WHITE,
                         );
                         ui.add_space(10.0);
                         ui.vertical(|ui| {

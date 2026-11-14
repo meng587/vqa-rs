@@ -10,24 +10,28 @@
 
 use egui::{Color32, RichText, Vec2};
 
-// ---- 方案 A · 播控室暗色（高对比修订版）----
-pub const BG: Color32 = Color32::from_rgb(0x09, 0x0d, 0x12); // 外围
-pub const WIN: Color32 = Color32::from_rgb(0x10, 0x18, 0x24); // 中央面板
-pub const PANEL: Color32 = Color32::from_rgb(0x17, 0x20, 0x2c); // 卡片/面板
-pub const PANEL2: Color32 = Color32::from_rgb(0x0d, 0x14, 0x1e); // 侧栏/输入
-pub const BORDER: Color32 = Color32::from_rgb(0x2a, 0x37, 0x45);
-pub const BORDER2: Color32 = Color32::from_rgb(0x3a, 0x4a, 0x5f);
-pub const TEXT: Color32 = Color32::from_rgb(0xf2, 0xf7, 0xfc);
-pub const MUT: Color32 = Color32::from_rgb(0xa9, 0xb8, 0xca);
-pub const FAINT: Color32 = Color32::from_rgb(0x84, 0x96, 0xab);
-pub const ACC: Color32 = Color32::from_rgb(0x4c, 0xc2, 0xf7); // 青蓝主色（提亮一档）
-/// 主色 15% 底（预乘：76/194/247 × 38/255 ≈ 11/29/37）
-pub const ACC_SOFT: Color32 = Color32::from_rgba_premultiplied(11, 29, 37, 38);
-pub const OK: Color32 = Color32::from_rgb(0x3b, 0xdc, 0x9d);
-pub const WARN: Color32 = Color32::from_rgb(0xfc, 0xc5, 0x2f);
-pub const BAD: Color32 = Color32::from_rgb(0xfb, 0x7b, 0x7b);
+// ---- 现代化风格（Linear/Vercel 系深色：层叠表面 + 靛紫渐变主色）----
+pub const BG: Color32 = Color32::from_rgb(0x09, 0x09, 0x0b); // 外围 zinc-950
+pub const WIN: Color32 = Color32::from_rgb(0x11, 0x11, 0x13); // 中央面板
+pub const PANEL: Color32 = Color32::from_rgb(0x18, 0x18, 0x1b); // 卡片 zinc-900
+pub const PANEL2: Color32 = Color32::from_rgb(0x0c, 0x0c, 0x0e); // 侧栏（更沉，层叠感）
+pub const BORDER: Color32 = Color32::from_rgb(0x27, 0x27, 0x2a); // zinc-800
+pub const BORDER2: Color32 = Color32::from_rgb(0x3f, 0x3f, 0x46); // zinc-700
+pub const TEXT: Color32 = Color32::from_rgb(0xfa, 0xfa, 0xfa);
+pub const MUT: Color32 = Color32::from_rgb(0xa1, 0xa1, 0xaa);
+pub const FAINT: Color32 = Color32::from_rgb(0x71, 0x71, 0x7a);
+pub const ACC: Color32 = Color32::from_rgb(0x81, 0x8c, 0xf8); // indigo-400
+/// 主色渐变左端（按钮底）：indigo-500
+pub const ACC_GRAD_L: Color32 = Color32::from_rgb(0x63, 0x66, 0xf1);
+/// 主色渐变右端：violet-500
+pub const ACC_GRAD_R: Color32 = Color32::from_rgb(0x8b, 0x5c, 0xf6);
+/// 主色 12% 底（预乘：129/140/248 × 31/255 ≈ 16/17/30）
+pub const ACC_SOFT: Color32 = Color32::from_rgba_premultiplied(16, 17, 30, 31);
+pub const OK: Color32 = Color32::from_rgb(0x34, 0xd3, 0x99);
+pub const WARN: Color32 = Color32::from_rgb(0xfb, 0xbf, 0x24);
+pub const BAD: Color32 = Color32::from_rgb(0xf8, 0x71, 0x71);
 /// 视频卡内部（播放器本色，恒为深色）
-pub const DARK: Color32 = Color32::from_rgb(0x06, 0x09, 0x0d);
+pub const DARK: Color32 = Color32::from_rgb(0x05, 0x05, 0x07);
 
 #[allow(dead_code)]
 pub const MONO: &str = "Consolas";
@@ -67,10 +71,10 @@ pub fn install(ctx: &egui::Context) {
     vs.panel_fill = WIN;
     vs.window_fill = PANEL;
     vs.extreme_bg_color = PANEL2;
-    vs.faint_bg_color = Color32::from_rgb(0x1a, 0x24, 0x31); // 条纹
-    vs.window_rounding = egui::Rounding::same(10.0);
+    vs.faint_bg_color = Color32::from_rgb(0x1c, 0x1c, 0x1f); // 条纹
+    vs.window_rounding = egui::Rounding::same(12.0);
     vs.window_stroke = egui::Stroke::new(1.0_f32, BORDER2);
-    let r = egui::Rounding::same(8.0);
+    let r = egui::Rounding::same(10.0);
     vs.widgets.noninteractive.rounding = r;
     vs.widgets.noninteractive.bg_fill = PANEL;
     vs.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0_f32, TEXT);
@@ -129,16 +133,16 @@ pub fn darken(c: Color32, f: f32) -> Color32 {
     )
 }
 
-/// 面板框（卡片/分组的统一容器；白卡 + 描边 + 轻阴影）。
+/// 面板框（卡片/分组的统一容器；层叠表面 + 轻投影）。
 pub fn panel_frame() -> egui::Frame {
     egui::Frame::none()
         .fill(PANEL)
         .stroke(egui::Stroke::new(1.0_f32, BORDER))
-        .rounding(10.0)
+        .rounding(12.0)
         .inner_margin(egui::Margin::same(12.0))
         .shadow(egui::epaint::Shadow {
-            offset: Vec2::new(0.0, 1.0),
-            blur: 3.0,
+            offset: Vec2::new(0.0, 2.0),
+            blur: 8.0,
             ..Default::default()
         })
 }

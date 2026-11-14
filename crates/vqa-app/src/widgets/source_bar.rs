@@ -152,13 +152,38 @@ impl SourceBar {
     }
 }
 
-/// 来源栏主行动钮（设计稿口径）：主色填充 + 白色图标 + 文字，76×32 圆角 8。
-/// running=true 时为红底「停止」。
+/// 来源栏主行动钮（现代化口径）：靛紫渐变填充 + 白色图标 + 文字，76×32 圆角 8。
+/// running=true 时为红底「停止」（纯色）。
 fn action_button(ui: &mut egui::Ui, running: bool) -> bool {
     let (rect, resp) = ui.allocate_exact_size(egui::vec2(76.0, 32.0), egui::Sense::click());
     let p = ui.painter_at(rect);
-    let bg = if running { crate::theme::BAD } else { crate::theme::ACC };
-    p.rect_filled(rect, 8.0, if resp.hovered() { crate::theme::lighten(bg, 0.15) } else { bg });
+    if running {
+        let bg = if resp.hovered() {
+            crate::theme::lighten(crate::theme::BAD, 0.12)
+        } else {
+            crate::theme::BAD
+        };
+        p.rect_filled(rect, 8.0, bg);
+    } else {
+        // 渐变底：indigo-500 → violet-500 横向（hover 提亮一档）
+        let (cl, cr) = if resp.hovered() {
+            (
+                crate::theme::lighten(crate::theme::ACC_GRAD_L, 0.12),
+                crate::theme::lighten(crate::theme::ACC_GRAD_R, 0.12),
+            )
+        } else {
+            (crate::theme::ACC_GRAD_L, crate::theme::ACC_GRAD_R)
+        };
+        let mut mesh = egui::Mesh::default();
+        mesh.reserve_triangles(2);
+        mesh.colored_vertex(rect.left_top(), cl);
+        mesh.colored_vertex(rect.right_top(), cr);
+        mesh.colored_vertex(rect.left_bottom(), crate::theme::darken(cl, 0.12));
+        mesh.colored_vertex(rect.right_bottom(), crate::theme::darken(cr, 0.12));
+        mesh.add_triangle(0, 1, 2);
+        mesh.add_triangle(1, 3, 2);
+        p.add(mesh);
+    }
     let icon = if running { crate::widgets::lucide::Lucide::Square } else { crate::widgets::lucide::Lucide::Play };
     p.text(
         egui::pos2(rect.left() + 20.0, rect.center().y),
