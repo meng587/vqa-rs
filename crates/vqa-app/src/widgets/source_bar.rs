@@ -84,7 +84,12 @@ impl SourceBar {
             });
             let _ = resp_url;
             nic.show(ui);
-            if self.show_file_browse && ui.add_sized([64.0, 26.0], egui::Button::new("浏览…")).clicked() {
+            // 设计稿口径：ghost 文件夹图标按钮（无文字）
+            if self.show_file_browse
+                && crate::widgets::icon_button(ui, crate::widgets::Icon::Folder)
+                    .on_hover_text("浏览本地文件…")
+                    .clicked()
+            {
                 if let Some(p) = rfd::FileDialog::new()
                     .add_filter("媒体文件", self.file_filter)
                     .pick_file()

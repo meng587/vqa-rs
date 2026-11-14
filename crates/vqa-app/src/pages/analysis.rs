@@ -287,6 +287,7 @@ impl AnalysisPage {
             ui.add_space(4.0);
             for (i, t) in TABS.iter().enumerate() {
                 let on = self.tab == i;
+                // 设计稿口径：文字式页签，选中 = 主色文字 + 2px 底线（无背景填充）
                 let txt = RichText::new(*t).size(12.5).color(if on {
                     theme::ACC
                 } else {
@@ -294,15 +295,16 @@ impl AnalysisPage {
                 });
                 let resp = ui.add(
                     egui::Button::new(txt)
-                        .fill(if on { theme::ACC_SOFT } else { egui::Color32::TRANSPARENT })
-                        .rounding(6.0),
+                        .fill(egui::Color32::TRANSPARENT)
+                        .stroke(egui::Stroke::NONE)
+                        .rounding(0.0),
                 );
                 if on {
                     let rect = resp.rect;
                     ui.painter().rect_filled(
                         egui::Rect::from_min_size(
-                            rect.left_bottom() + egui::vec2(4.0, 1.0),
-                            egui::vec2(rect.width() - 8.0, 2.0),
+                            rect.left_bottom() + egui::vec2(3.0, -1.0),
+                            egui::vec2(rect.width() - 6.0, 2.0),
                         ),
                         1.0,
                         theme::ACC,
@@ -385,6 +387,7 @@ fn render_tabs(
 }
 
 fn overview(ui: &mut Ui, res: &ScanResult) {
+    // 设计稿口径：统计卡 + 两栏面板（节目结构 | PCR 抖动）
     let (mut n1, mut n2, mut n3) = (0u64, 0u64, 0u64);
     for it in &res.tr290 {
         match it.level {
@@ -419,37 +422,103 @@ fn overview(ui: &mut Ui, res: &ScanResult) {
         stat_card_sub(ui, "TS 包长", res.packet_size.to_string(), &format!("{} 包", res.packets), theme::MUT);
     });
     ui.add_space(6.0);
-    theme::panel(ui, "流信息", |ui| {
-        egui::Grid::new("ov_grid").num_columns(2).striped(true).show(ui, |ui| {
-            kv(ui, "文件", res.path.clone());
-            ui.end_row();
-            kv(ui, "大小", format!("{} bytes", res.file_size));
-            ui.end_row();
-            kv(ui, "包数", res.packets.to_string());
-            ui.end_row();
-            kv(ui, "PCR 时长", format!("{:.3} s", res.duration_pcr()));
-            ui.end_row();
-            kv(ui, "PCR PID", res.pcr_pid.map_or("—".into(), |p| format!("0x{p:04X}")));
-            ui.end_row();
-            kv(ui, "加密", if res.encrypted() { "是" } else { "否" }.to_string());
-            ui.end_row();
-            kv(ui, "码率点", res.rate.len().to_string());
-            ui.end_row();
-            if let Some(p) = res.main_program() {
-                kv(ui, "主节目", format!("{}（PMT 0x{:04X}）", p.number, p.pmt_pid));
-                ui.end_row();
+    // 两栏：节目结构 | PCR 抖动（设计稿 grid2）
+    ui.columns(2, |cols| {
+        cols[0].add_space(2.0);
+        theme::panel(&mut cols[0], "节目结构", |ui| {
+            if res.programs.is_empty() {
+                ui.label(RichText::new("—").color(theme::FAINT));
             }
-            kv(ui, "SI 表", {
-                let names: Vec<String> = res.si.keys().cloned().collect();
-                if names.is_empty() { "—".into() } else { names.join(", ") }
-            });
-            ui.end_row();
+            for p in &res.programs {
+                ui.horizontal(|ui| {
+                    crate::widgets::pill(ui, &format!("节目 {}", p.number), theme::ACC);
+                    ui.label(
+                        RichText::new(format!("PMT 0x{:04X} · PCR 0x{:04X}", p.pmt_pid, p.pcr_pid))
+                            .monospace()
+                            .size(11.0)
+                            .color(theme::MUT),
+                    );
+                });
+                egui::Grid::new(format!("prog{}", p.number))
+                    .num_columns(3)
+                    .striped(true)
+                    .show(ui, |ui| {
+                        for s in &p.streams {
+                            ui.label(RichText::new(format!("0x{:04X}", s.pid)).monospace());
+                            ui.label(s.type_name());
+                            ui.label(RichText::new(s.kind.clone()).size(10.5).color(theme::FAINT));
+                            ui.end_row();
+                        }
+                    });
+                ui.add_space(4.0);
+            }
+        });
+        cols[1].add_space(2.0);
+        theme::panel(&mut cols[1], "PCR 抖动", |ui| {
+            if res.pcr_samples.is_empty() {
+                ui.label(RichText::new("无 PCR 采样").color(theme::FAINT));
+            } else {
+                let avg_iv = res.pcr_samples.iter().map(|s| s.interval_ms).sum::<f64>()
+                    / res.pcr_samples.len() as f64;
+                let max_oj = res
+                    .pcr_samples
+                    .iter()
+                    .map(|s| s.oj_ms.abs())
+                    .fold(0.0f64, f64::max);
+                for (k, v, c) in [
+                    ("平均间隔", format!("{avg_iv:.2} ms"), theme::TEXT),
+                    ("最大 |OJ|", format!("{max_oj:.3} ms"), if max_oj > 1.0 { theme::WARN } else { theme::TEXT }),
+                    ("CBR 判定", if res.pcr_cbr { "CBR" } else { "VBR" }.to_string(), theme::TEXT),
+                ] {
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new(k).size(12.0).color(theme::MUT));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.label(RichText::new(v).monospace().size(12.0).color(c));
+                        });
+                    });
+                    ui.separator();
+                }
+                let last = res.pcr_samples.last().copied().unwrap();
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("最近间隔").size(12.0).color(theme::MUT));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label(RichText::new(format!("{:.2} ms", last.interval_ms)).monospace().size(12.0));
+                    });
+                });
+            }
         });
     });
 }
 
 fn structure(ui: &mut Ui, res: &ScanResult) {
     egui::ScrollArea::vertical().id_source("struct").show(ui, |ui| {
+        // 容器信息（概览页移入；设计稿流结构含完整容器数据）
+        theme::panel(ui, "容器信息", |ui| {
+            egui::Grid::new("container_grid").num_columns(2).striped(true).show(ui, |ui| {
+                kv(ui, "文件", res.path.clone());
+                ui.end_row();
+                kv(ui, "大小", format!("{} bytes", res.file_size));
+                ui.end_row();
+                kv(ui, "包数", res.packets.to_string());
+                ui.end_row();
+                kv(ui, "同步错误字节", res.sync_errors.to_string());
+                ui.end_row();
+                kv(ui, "PCR 时长", format!("{:.3} s", res.duration_pcr()));
+                ui.end_row();
+                kv(ui, "PCR PID", res.pcr_pid.map_or("—".into(), |p| format!("0x{p:04X}")));
+                ui.end_row();
+                kv(ui, "加密", if res.encrypted() { "是" } else { "否" }.to_string());
+                ui.end_row();
+                kv(ui, "码率点", res.rate.len().to_string());
+                ui.end_row();
+                kv(ui, "SI 表", {
+                    let names: Vec<String> = res.si.keys().cloned().collect();
+                    if names.is_empty() { "—".into() } else { names.join(", ") }
+                });
+                ui.end_row();
+            });
+        });
+        ui.add_space(8.0);
         theme::panel(ui, "节目与流", |ui| {
             for p in &res.programs {
                 ui.add_space(2.0);
@@ -694,6 +763,7 @@ fn self_render_live_packets(ui: &mut Ui, core: &mut vqa_core::live::LiveCore) {
 }
 
 fn tr290_tab(ui: &mut Ui, items: &[Tr290Item]) {
+    use egui_extras::{Column, TableBuilder};
     let counts: std::collections::HashMap<&str, u64> =
         items.iter().map(|i| (i.name.as_str(), i.count)).collect();
     let firsts: std::collections::HashMap<&str, &str> =
@@ -710,48 +780,77 @@ fn tr290_tab(ui: &mut Ui, items: &[Tr290Item]) {
             (3, "三级错误（轻微/辅助错误）", &TR_LEVEL3[..]),
         ] {
             ui.add_space(4.0);
-            theme::panel(ui, title, |ui| {
-                egui::Grid::new(format!("tr{level}"))
-                    .num_columns(5)
-                    .striped(true)
-                    .show(ui, |ui| {
-                        for h in ["级别", "检测项", "状态", "次数", "最近发生 / 影响"] {
-                            ui.label(RichText::new(h).size(10.5).color(theme::FAINT));
-                        }
-                        ui.end_row();
-                        for (disp, key, impact) in rows {
-                            let cnt = counts.get(key).copied().unwrap_or(0);
-                            crate::widgets::lv_badge(ui, level);
-                            ui.label(*disp);
-                            if cnt == 0 {
-                                ui.label(RichText::new("正常").size(12.0).color(theme::OK));
-                                ui.label(RichText::new("0").monospace().color(theme::MUT));
-                                ui.label(RichText::new(*impact).size(11.5).color(theme::FAINT));
-                            } else {
-                                crate::widgets::pill(
-                                    ui,
-                                    &format!("{} 次", cnt),
-                                    theme::WARN,
-                                );
-                                ui.label(
-                                    RichText::new(cnt.to_string())
-                                        .monospace()
-                                        .color(theme::WARN),
-                                );
-                                ui.label(
-                                    RichText::new(format!(
-                                        "{} · {}",
-                                        firsts.get(key).copied().unwrap_or("—"),
-                                        impact
-                                    ))
-                                    .size(11.5)
-                                    .color(theme::MUT),
-                                );
+            // push_id：三张 TableBuilder 共享同一父 ui.id()，需独立命名空间
+            ui.push_id(level, |ui| {
+                theme::panel(ui, title, |ui| {
+                    // TableBuilder：末列 remainder 吃满剩余宽度 → 表格通栏（设计稿口径）
+                    TableBuilder::new(ui)
+                        .striped(true)
+                        .vscroll(false)
+                        .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                        .column(Column::auto())
+                        .column(Column::auto())
+                        .column(Column::auto())
+                        .column(Column::auto().at_least(48.0))
+                        .column(Column::remainder())
+                        .header(22.0, |mut h| {
+                            for t in ["级别", "检测项", "状态", "次数", "最近发生 / 影响"] {
+                                h.col(|ui| {
+                                    ui.label(RichText::new(t).size(10.5).color(theme::FAINT));
+                                });
                             }
-                            ui.end_row();
-                        }
-                    });
+                        })
+                        .body(|mut body| {
+                            for (disp, key, impact) in rows {
+                                let cnt = counts.get(key).copied().unwrap_or(0);
+                                body.row(26.0, |mut r| {
+                                    r.col(|ui| crate::widgets::lv_badge(ui, level));
+                                    r.col(|ui| {
+                                        ui.label(*disp);
+                                    });
+                                    r.col(|ui| {
+                                        if cnt == 0 {
+                                            ui.label(
+                                                RichText::new("正常").size(12.0).color(theme::OK),
+                                            );
+                                        } else {
+                                            crate::widgets::pill(
+                                                ui,
+                                                &format!("{} 次", cnt),
+                                                theme::WARN,
+                                            );
+                                        }
+                                    });
+                                    r.col(|ui| {
+                                        ui.label(
+                                            RichText::new(cnt.to_string())
+                                                .monospace()
+                                                .color(if cnt == 0 { theme::MUT } else { theme::WARN }),
+                                        );
+                                    });
+                                    r.col(|ui| {
+                                        if cnt == 0 {
+                                            ui.label(
+                                                RichText::new(*impact).size(11.5).color(theme::FAINT),
+                                            );
+                                        } else {
+                                            ui.label(
+                                                RichText::new(format!(
+                                                    "{} · {}",
+                                                    firsts.get(key).copied().unwrap_or("—"),
+                                                    impact
+                                                ))
+                                                .size(11.5)
+                                                .color(theme::MUT),
+                                            );
+                                        }
+                                    });
+                                });
+                            }
+                        });
+                });
             });
+            ui.add_space(8.0);
         }
     });
 }

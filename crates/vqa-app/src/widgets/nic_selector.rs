@@ -51,9 +51,7 @@ impl NicSelector {
                     );
                 }
             }
-            if ui.button("⟳").clicked() {
-                // 重新枚举即生效（choices 每次现算）
-            }
+            // 设计稿来源栏无 ⟳：choices 每次现算，无需刷新按钮
         });
     }
 }

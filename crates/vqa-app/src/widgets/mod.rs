@@ -159,7 +159,6 @@ pub fn pill(ui: &mut Ui, text: &str, color: Color32) {
 
 /// 简单矢量图标（painter 直绘，不依赖图标字体）。
 #[derive(Clone, Copy, PartialEq)]
-#[allow(dead_code)] // Folder/Scan 供后续页（浏览/扫描）复用
 pub enum Icon {
     Play,
     Pause,
@@ -169,6 +168,12 @@ pub enum Icon {
     Volume,
     Folder,
     Scan,
+    // 侧栏导航图标（对应设计稿 lucide：monitor-play / activity / shield-check / radio-tower / info）
+    NavPlayer,
+    NavActivity,
+    NavShield,
+    NavTower,
+    NavInfo,
 }
 
 impl Icon {
@@ -182,8 +187,95 @@ impl Icon {
         self.draw_impl(p, c, color, 5.0);
     }
 
+    /// 供外部（如导航行）以自定义倍率绘制（scale=1 与 icon_button 等大）。
+    pub fn draw_impl_pub(&self, p: &egui::Painter, c: egui::Pos2, color: Color32, scale: f32) {
+        self.draw_impl(p, c, color, 5.0 * scale);
+    }
+
     fn draw_impl(&self, p: &egui::Painter, c: egui::Pos2, color: Color32, s: f32) {
         match self {
+            // 侧栏小图标（描边风格，lucide 近似）
+            Icon::NavPlayer => {
+                let r = Rect::from_center_size(c, Vec2::new(2.0 * s, 1.5 * s));
+                p.rect_stroke(r, 2.0, egui::Stroke::new(1.3, color));
+                p.add(egui::Shape::convex_polygon(
+                    vec![
+                        c + Vec2::new(-0.3 * s, -0.4 * s),
+                        c + Vec2::new(-0.3 * s, 0.4 * s),
+                        c + Vec2::new(0.5 * s, 0.0),
+                    ],
+                    color,
+                    egui::Stroke::NONE,
+                ));
+            }
+            Icon::NavActivity => {
+                let pts = [
+                    c + Vec2::new(-s, 0.2 * s),
+                    c + Vec2::new(-0.55 * s, 0.2 * s),
+                    c + Vec2::new(-0.3 * s, -0.7 * s),
+                    c + Vec2::new(0.0, 0.8 * s),
+                    c + Vec2::new(0.3 * s, -0.4 * s),
+                    c + Vec2::new(0.55 * s, 0.2 * s),
+                    c + Vec2::new(s, 0.2 * s),
+                ];
+                let stroke = egui::Stroke::new(1.4, color);
+                for w in pts.windows(2) {
+                    p.line_segment([w[0], w[1]], stroke);
+                }
+            }
+            Icon::NavShield => {
+                p.add(egui::Shape::convex_polygon(
+                    vec![
+                        c + Vec2::new(-0.8 * s, -0.8 * s),
+                        c + Vec2::new(0.8 * s, -0.8 * s),
+                        c + Vec2::new(0.8 * s, 0.2 * s),
+                        c + Vec2::new(0.0, 0.95 * s),
+                        c + Vec2::new(-0.8 * s, 0.2 * s),
+                    ],
+                    Color32::TRANSPARENT,
+                    egui::Stroke::new(1.3, color),
+                ));
+                p.line_segment(
+                    [c + Vec2::new(-0.3 * s, 0.0), c + Vec2::new(-0.05 * s, 0.3 * s)],
+                    egui::Stroke::new(1.3, color),
+                );
+                p.line_segment(
+                    [c + Vec2::new(-0.05 * s, 0.3 * s), c + Vec2::new(0.4 * s, -0.3 * s)],
+                    egui::Stroke::new(1.3, color),
+                );
+            }
+            Icon::NavTower => {
+                p.line_segment(
+                    [
+                        c + Vec2::new(0.0, -0.9 * s),
+                        c + Vec2::new(-0.55 * s, 0.95 * s),
+                    ],
+                    egui::Stroke::new(1.3, color),
+                );
+                p.line_segment(
+                    [
+                        c + Vec2::new(0.0, -0.9 * s),
+                        c + Vec2::new(0.55 * s, 0.95 * s),
+                    ],
+                    egui::Stroke::new(1.3, color),
+                );
+                p.line_segment(
+                    [
+                        c + Vec2::new(-0.32 * s, 0.2 * s),
+                        c + Vec2::new(0.32 * s, 0.2 * s),
+                    ],
+                    egui::Stroke::new(1.3, color),
+                );
+                p.circle_filled(c + Vec2::new(0.0, -0.9 * s), 0.18 * s, color);
+            }
+            Icon::NavInfo => {
+                p.circle_stroke(c, 0.9 * s, egui::Stroke::new(1.3, color));
+                p.circle_filled(c + Vec2::new(0.0, -0.4 * s), 0.12 * s, color);
+                p.line_segment(
+                    [c + Vec2::new(0.0, 0.0), c + Vec2::new(0.0, 0.45 * s)],
+                    egui::Stroke::new(1.4, color),
+                );
+            }
             Icon::Play => {
                 let s = s * 0.62; // 三角形略收，视觉居中
                 p.add(egui::Shape::convex_polygon(

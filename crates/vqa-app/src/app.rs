@@ -143,10 +143,10 @@ impl eframe::App for VqaApp {
                     ui.separator();
                     ui.add_space(6.0);
 
-                    // 功能导航（自绘行：激活态左缘条 + 强调底色）
-                    for (name, id) in [
-                        ("播放器", PageId::Player),
-                        ("视频分析", PageId::Analysis),
+                    // 功能导航（自绘行：图标 + 激活态左缘条 + 强调底色）
+                    for (name, id, icon) in [
+                        ("播放器", PageId::Player, crate::widgets::Icon::NavPlayer),
+                        ("视频分析", PageId::Analysis, crate::widgets::Icon::NavActivity),
                     ] {
                         let selected = self.page == id;
                         let state = self.nav_states[id as usize];
@@ -169,8 +169,10 @@ impl eframe::App for VqaApp {
                         } else if resp.hovered() {
                             p.rect_filled(rect, 8.0, theme::ACC_SOFT);
                         }
+                        let ic_color = if selected { theme::ACC } else { theme::MUT };
+                        icon.draw_impl_pub(&p, egui::pos2(rect.left() + 22.0, rect.center().y), ic_color, 1.15);
                         p.text(
-                            egui::pos2(rect.left() + 14.0, rect.center().y),
+                            egui::pos2(rect.left() + 40.0, rect.center().y),
                             egui::Align2::LEFT_CENTER,
                             name,
                             FontId::proportional(13.0),
@@ -193,16 +195,21 @@ impl eframe::App for VqaApp {
                             self.page = id;
                         }
                     }
-                    // 后续版本占位（灰色 + 三期徽标）
-                    for name in ["合规检测", "直播转码", "微突发巡检"] {
+                    // 后续版本占位（灰色图标 + 三期徽标）
+                    for (name, icon) in [
+                        ("合规检测", crate::widgets::Icon::NavShield),
+                        ("直播转码", crate::widgets::Icon::NavTower),
+                        ("微突发巡检", crate::widgets::Icon::NavActivity),
+                    ] {
                         let (rect, _) = ui.allocate_exact_size(
                             [NAV_WIDTH - 20.0, 34.0].into(),
                             egui::Sense::hover(),
                         );
                         ui.add_space(3.0);
                         let p = ui.painter_at(rect);
+                        icon.draw_impl_pub(&p, egui::pos2(rect.left() + 22.0, rect.center().y), theme::FAINT.gamma_multiply(0.7), 1.15);
                         p.text(
-                            egui::pos2(rect.left() + 14.0, rect.center().y),
+                            egui::pos2(rect.left() + 40.0, rect.center().y),
                             egui::Align2::LEFT_CENTER,
                             name,
                             FontId::proportional(13.0),
@@ -245,8 +252,15 @@ impl eframe::App for VqaApp {
                     } else if resp.hovered() {
                         p.rect_filled(rect, 8.0, theme::ACC_SOFT);
                     }
+                    let ic_color = if selected { theme::ACC } else { theme::MUT };
+                    crate::widgets::Icon::NavInfo.draw_impl_pub(
+                        &p,
+                        egui::pos2(rect.left() + 22.0, rect.center().y),
+                        ic_color,
+                        1.15,
+                    );
                     p.text(
-                        egui::pos2(rect.left() + 14.0, rect.center().y),
+                        egui::pos2(rect.left() + 40.0, rect.center().y),
                         egui::Align2::LEFT_CENTER,
                         "关于",
                         FontId::proportional(13.0),
