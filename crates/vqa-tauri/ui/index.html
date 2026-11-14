@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>视听质量检测工作站</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <aside class="side">
+    <div class="brand">
+      <span class="logo" data-ic="circledot"></span>
+      <div><b>VQA</b><small>Workbench v0.2</small></div>
+    </div>
+    <nav id="nav">
+      <button class="mn is-on" data-goto="player"><span data-ic="monitorplay"></span>播放器<span class="lamp" id="lamp-player"></span></button>
+      <button class="mn" data-goto="analysis"><span data-ic="activity"></span>视频分析<span class="lamp" id="lamp-analysis"></span></button>
+      <button class="mn is-dim" disabled><span data-ic="shieldcheck"></span>合规检测<em>三期</em></button>
+      <button class="mn is-dim" disabled><span data-ic="radiotower"></span>直播转码<em>三期</em></button>
+      <button class="mn is-dim" disabled><span data-ic="activity"></span>微突发巡检<em>三期</em></button>
+      <button class="mn" data-goto="about"><span data-ic="info"></span>关于</button>
+    </nav>
+    <div class="engine">
+      <span class="dot"></span>引擎就绪
+      <span class="mpv">mpv 0.41</span>
+    </div>
+  </aside>
+
+  <main>
+    <!-- ══════════ 播放器页 ══════════ -->
+    <section class="pg" data-page="player">
+      <div class="srcbar">
+        <span class="lbl">来源</span>
+        <input class="src" id="p-url" placeholder="本地文件 / udp://@239.x.x.x:port / rtsp://…" spellcheck="false" />
+        <div style="position:relative">
+          <button class="iconbtn" id="p-hist" title="历史" data-ic="chevrondown"></button>
+          <div class="histpop" id="p-histpop" hidden></div>
+        </div>
+        <span class="lbl">网卡</span>
+        <select class="nic" id="p-nic"></select>
+        <button class="gradbtn" id="p-act"><span data-ic="play"></span>开始</button>
+        <button class="iconbtn" id="p-browse" title="浏览本地文件…" data-ic="folder"></button>
+      </div>
+
+      <div class="noteline" id="p-note"></div>
+
+      <div class="vcard" id="vcard">
+        <div id="v-rect" style="position:absolute;left:0;top:0;right:0;bottom:46px;pointer-events:none;"></div>
+        <span class="tag tl" id="tag-tl"></span>
+        <span class="tag tr" id="tag-tr" hidden></span>
+        <div class="v-empty" id="v-empty">
+          <div class="inner">
+            <button class="bigplay" id="v-replay" data-ic="play"></button>
+            <div class="hint" id="v-hint">输入来源后点「开始」播放</div>
+          </div>
+        </div>
+        <div class="ctrl" id="ctrl">
+          <button class="cbtn" id="c-play" title="播放/暂停" data-ic="pause"></button>
+          <button class="cbtn stop-glyph" id="c-stop" title="停止"></button>
+          <div class="seek off" id="c-seek"><div class="track"><div class="fill" id="c-seekfill"></div></div></div>
+          <span class="ctime" id="c-time">00:00:00 / --:--</span>
+          <button class="cbtn" id="c-mute" title="静音" data-ic="volume"></button>
+          <div class="vol" id="c-vol"><div class="track"><div class="fill" id="c-volfill"></div><div class="thumb" id="c-volthumb"></div></div></div>
+          <button class="cbtn" id="c-snap" title="快照到图片目录" data-ic="camera"></button>
+          <button class="cbtn" id="c-rec" title="录制（stream-record 直拷）" data-ic="circledot"></button>
+          <div class="speed">
+            <button id="c-speedbtn">1x ▾</button>
+            <div class="menu" id="c-speedmenu" hidden></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chips" id="p-chips">
+        <span class="chip-m">◦ 待机 · 无流数据</span>
+        <label class="force-bridge">
+          <input type="checkbox" id="p-force" />强制走转码桥
+        </label>
+      </div>
+    </section>
+
+    <!-- ══════════ 视频分析页 ══════════ -->
+    <section class="pg" data-page="analysis" hidden>
+      <div class="srcbar">
+        <span class="lbl">来源</span>
+        <input class="src" id="a-url" placeholder="TS 文件 / udp://@239.x.x.port / rtp://port" spellcheck="false" />
+        <div style="position:relative">
+          <button class="iconbtn" id="a-hist" title="历史" data-ic="chevrondown"></button>
+          <div class="histpop" id="a-histpop" hidden></div>
+        </div>
+        <span class="lbl">网卡</span>
+        <select class="nic" id="a-nic"></select>
+        <button class="gradbtn" id="a-act"><span data-ic="search"></span>开始扫描</button>
+        <button class="iconbtn" id="a-browse" title="浏览本地文件…" data-ic="folder"></button>
+      </div>
+
+      <div class="statusline" id="a-status">
+        <span class="dot" id="a-dot"></span><span class="txt" id="a-status-text">待机</span>
+      </div>
+
+      <div class="sgrid" id="a-stats" hidden></div>
+
+      <div class="tabs" id="a-tabs" hidden>
+        <button class="tab is-on" data-tab="overview">概览</button>
+        <button class="tab" data-tab="structure">流结构</button>
+        <button class="tab" data-tab="errors">错误与抖动</button>
+        <button class="tab" data-tab="bitrate">码率</button>
+        <button class="tab" data-tab="packets">TS包视图</button>
+        <button class="tab" data-tab="tr290">TR101290</button>
+        <button class="tab" data-tab="logs">日志</button>
+      </div>
+
+      <div id="a-panels" style="flex:1;min-height:0;display:flex;flex-direction:column;">
+        <div class="empty" data-panel="overview" style="flex:1">输入 TS 文件或 UDP/RTP 组播地址后点「开始扫描」</div>
+        <div data-panel="structure" hidden style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:10px;"></div>
+        <div data-panel="errors" hidden style="flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;"></div>
+        <div data-panel="bitrate" hidden style="flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;"></div>
+        <div data-panel="packets" hidden style="flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;"></div>
+        <div data-panel="tr290" hidden class="tblwrap" style="flex:1"></div>
+        <div data-panel="logs" hidden style="flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+    </section>
+
+    <!-- ══════════ 关于页 ══════════ -->
+    <section class="pg" data-page="about" hidden>
+      <div class="about-cols">
+        <div class="panel"><h4>版本</h4>
+          <div class="kvgrid">
+            <span class="k">工作站</span><span class="v" id="ab-ver">v0.2.0（Tauri/Web UI 版）</span>
+            <span class="k">核心库</span><span class="v">vqa-core（TS 解析 / TR101 290 / PCR 双环 PLL）</span>
+          </div>
+        </div>
+        <div class="panel"><h4>工具链</h4>
+          <div class="kvgrid" id="ab-tools"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

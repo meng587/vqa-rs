@@ -1,0 +1,22 @@
+[package]
+name = "vqa-tauri"
+version.workspace = true
+edition.workspace = true
+description = "视听质量检测工作站 —— Tauri/Web UI 版（vqa-core 复用）"
+
+[[bin]]
+name = "vqa-tauri"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+vqa-core = { path = "../vqa-core" }
+tauri = { version = "2", features = [] }
+tauri-plugin-single-instance = "2"
+tauri-plugin-dialog = "2"
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+windows.workspace = true

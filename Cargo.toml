@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/vqa-core", "crates/vqa-app"]
+members = ["crates/vqa-core", "crates/vqa-app", "crates/vqa-tauri"]
 
 [workspace.package]
 version = "0.1.0"

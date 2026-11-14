@@ -16,3 +16,10 @@ crash/
 # IDE
 .idea/
 .vscode/
+
+# 前端依赖与构建产物
+node_modules/
+crates/vqa-tauri/ui/dist/
+crates/vqa-tauri/icons/android/
+crates/vqa-tauri/icons/ios/
+crates/vqa-tauri/gen/
