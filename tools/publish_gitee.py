@@ -94,9 +94,10 @@ def create_repo(token: str, repo: str, description: str) -> bool:
 
 
 def create_release(token: str, owner: str, repo: str, tag: str,
-                   name: str, body: str) -> int:
+                   name: str, body: str, commitish: str = "master") -> int:
     code, d = api(f"/repos/{owner}/{repo}/releases", token, {
         "tag_name": tag,
+        "target_commitish": commitish,
         "name": name,
         "body": body,
         "prerelease": "false",
@@ -119,6 +120,9 @@ def upload_attachment(token: str, owner: str, repo: str, release_id: int,
     ).encode() + data + f"\r\n--{boundary}--\r\n".encode()
     url = _guard_url(
         f"{API}/repos/{owner}/{repo}/releases/{release_id}/attach_files")
+    # multipart 不走 api() 的表单通道，令牌经查询串传递
+    url += ("&" if "?" in url else "?") + urllib.parse.urlencode(
+        {"access_token": token})
     req = urllib.request.Request(url, data=payload)
     req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
     try:
@@ -165,6 +169,7 @@ def main() -> int:
             "- 播放器页：mpv 进程外 IPC + AVS 自动转码桥\n"
             "- 视频分析页：7 页签 + 实时 UDP/RTP + Markdown 报告\n\n"
             "附件为 exe 便携包（工具链不入包，见包内说明）。",
+            commitish="master",
         )
         upload_attachment(token, owner, args.repo, rid, zip_path)
     print("完成。")
