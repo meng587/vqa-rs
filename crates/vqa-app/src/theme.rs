@@ -101,6 +101,16 @@ pub fn install(ctx: &egui::Context) {
     ctx.set_style(style);
 }
 
+/// 向白插值提亮（hover 态；egui gamma_multiply 只接受 ≤1.0 的压暗系数）。
+pub fn lighten(c: Color32, f: f32) -> Color32 {
+    let f = f.clamp(0.0, 1.0);
+    Color32::from_rgb(
+        (c.r() as f32 + (255.0 - c.r() as f32) * f) as u8,
+        (c.g() as f32 + (255.0 - c.g() as f32) * f) as u8,
+        (c.b() as f32 + (255.0 - c.b() as f32) * f) as u8,
+    )
+}
+
 /// 面板框（卡片/分组的统一容器）。
 pub fn panel_frame() -> egui::Frame {
     egui::Frame::none()

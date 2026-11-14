@@ -84,36 +84,13 @@ impl SourceBar {
             });
             let _ = resp_url;
             nic.show(ui);
-            // 设计稿口径：ghost 文件夹图标按钮（无文字）
-            if self.show_file_browse
-                && crate::widgets::icon_button(ui, crate::widgets::Icon::Folder)
-                    .on_hover_text("浏览本地文件…")
-                    .clicked()
-            {
-                if let Some(p) = rfd::FileDialog::new()
-                    .add_filter("媒体文件", self.file_filter)
-                    .pick_file()
-                {
-                    self.url = p.to_string_lossy().to_string();
-                }
-            }
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            // 设计稿顺序：网卡 → 开始(主色+播放三角) → folder ghost
+            let enter_start = resp_url.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+            let clicked = action_button(ui, running);
+            if clicked || enter_start {
                 if running {
-                    if ui
-                        .add(egui::Button::new("停止").fill(crate::theme::BAD))
-                        .clicked()
-                    {
-                        action = SourceAction::Stop;
-                    }
-                } else if ui
-                    .add(
-                        egui::Button::new(egui::RichText::new("开始").color(egui::Color32::WHITE))
-                            .fill(crate::theme::ACC),
-                    )
-                    .clicked()
-                    || resp_url.lost_focus()
-                        && ui.input(|i| i.key_pressed(egui::Key::Enter))
-                {
+                    action = SourceAction::Stop;
+                } else {
                     let url = crate::widgets::clean_stream_url(&self.url);
                     self.url = url.clone();
                     if !url.is_empty() {
@@ -122,8 +99,55 @@ impl SourceBar {
                         action = SourceAction::Start { url, nic_ip };
                     }
                 }
-            });
+            }
+            // folder ghost 图标钮（描边，设计稿末位）
+            if self.show_file_browse {
+                let (frect, fresp) = ui.allocate_exact_size(
+                    egui::vec2(32.0, 32.0),
+                    egui::Sense::click(),
+                );
+                let fp = ui.painter_at(frect);
+                fp.rect_filled(frect, 8.0, if fresp.hovered() {
+                    crate::theme::ACC_SOFT
+                } else {
+                    egui::Color32::TRANSPARENT
+                });
+                fp.rect_stroke(frect, 8.0, egui::Stroke::new(1.0, crate::theme::BORDER2));
+                crate::widgets::Icon::Folder.draw(
+                    &fp,
+                    frect.center(),
+                    if fresp.hovered() { crate::theme::TEXT } else { crate::theme::MUT },
+                );
+                if fresp.clicked() {
+                    if let Some(p) = rfd::FileDialog::new()
+                        .add_filter("媒体文件", self.file_filter)
+                        .pick_file()
+                    {
+                        self.url = p.to_string_lossy().to_string();
+                    }
+                }
+                fresp.on_hover_text("浏览本地文件…");
+            }
         });
         action
     }
+}
+
+/// 来源栏主行动钮（设计稿口径）：主色填充 + 白色图标 + 文字，76×32 圆角 8。
+/// running=true 时为红底「停止」。
+fn action_button(ui: &mut egui::Ui, running: bool) -> bool {
+    let (rect, resp) = ui.allocate_exact_size(egui::vec2(76.0, 32.0), egui::Sense::click());
+    let p = ui.painter_at(rect);
+    let bg = if running { crate::theme::BAD } else { crate::theme::ACC };
+    p.rect_filled(rect, 8.0, if resp.hovered() { crate::theme::lighten(bg, 0.18) } else { bg });
+    let icon = if running { crate::widgets::Icon::Stop } else { crate::widgets::Icon::Play };
+    icon.draw(&p, egui::pos2(rect.left() + 20.0, rect.center().y), egui::Color32::WHITE);
+    p.text(
+        egui::pos2(rect.left() + 32.0, rect.center().y),
+        egui::Align2::LEFT_CENTER,
+        if running { "停止" } else { "开始" },
+        egui::FontId::proportional(12.5),
+        egui::Color32::WHITE,
+    );
+    resp.clicked()
 }
