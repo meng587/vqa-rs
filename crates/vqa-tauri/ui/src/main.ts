@@ -87,6 +87,58 @@ api.toolPaths().then((t) => {
     row("ffmpeg", t.ffmpeg) + row("ffprobe", t.ffprobe) + row("mpv", t.mpv) + row("davs2", t.davs2);
 });
 
+// ---- 关于页：在线更新 ----
+const upStatus = document.getElementById("up-status") as HTMLElement;
+const upBtn = document.getElementById("up-check") as HTMLButtonElement;
+const upInstall = document.getElementById("up-install") as HTMLButtonElement;
+
+if (import.meta.env.MODE !== "dev") {
+  upBtn.addEventListener("click", async () => {
+    upBtn.disabled = true;
+    upStatus.textContent = "正在检查…";
+    try {
+      const { check } = await import("@tauri-apps/plugin-updater");
+      const upd = await check();
+      if (!upd) {
+        upStatus.textContent = "当前已是最新版本 ✓";
+        upBtn.disabled = false;
+        return;
+      }
+      upStatus.innerHTML = `发现新版本 <b style="color:var(--acc)">${upd.version}</b>`;
+      upInstall.hidden = false;
+      upInstall.onclick = async () => {
+        upInstall.disabled = true;
+        upStatus.textContent = "下载中…（完成后自动重启安装）";
+        try {
+          let last = 0;
+          await upd.downloadAndInstall((ev) => {
+            if (ev.event === "Started" && ev.data.contentLength) {
+              last = ev.data.contentLength;
+              upStatus.textContent = `下载中… 0 / ${(last / 1048576).toFixed(1)} MB`;
+            } else if (ev.event === "Progress" && ev.data.chunkLength) {
+              // 简化：不做逐块累计 UI，避免频繁 DOM 更新
+            } else if (ev.event === "Finished") {
+              upStatus.textContent = `下载完成（${(last / 1048576).toFixed(1)} MB），正在重启安装…`;
+            }
+          });
+          const { relaunch } = await import("@tauri-apps/plugin-process");
+          await relaunch();
+        } catch (e: any) {
+          upStatus.textContent = `更新失败：${e}`;
+          upInstall.disabled = false;
+        }
+      };
+      upBtn.disabled = false;
+    } catch (e: any) {
+      upStatus.textContent = `检查失败：${e}`;
+      upBtn.disabled = false;
+    }
+  });
+} else {
+  upBtn.disabled = true;
+  upStatus.textContent = "dev 模式不支持在线更新（构建版可用）";
+}
+
 // ---- 页面初始化 ----
 initPlayer();
 initAnalysis();

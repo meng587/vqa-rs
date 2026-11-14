@@ -22,10 +22,20 @@
     ],
     "security": {
       "csp": null
+    },
+    "withGlobalTauri": false
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE3RURBODhBQ0JGQUU2NTgKUldSWTV2ckxpcWp0RjU1aEZPTzh5cTl3UmZraEJ2RTR2aEZCbS9aRUJQV3lLWEtCVXAwVzRISTgK",
+      "endpoints": [
+        "https://gitee.com/meng587/video-analysis-toolkit-rs/raw/master/update/latest.json"
+      ]
     }
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "icon": ["icons/icon.ico"]
   }
 }
