@@ -108,7 +108,7 @@ impl eframe::App for VqaApp {
             .frame(
                 egui::Frame::none()
                     .fill(theme::PANEL2)
-                    .inner_margin(egui::Margin::same(0.0)),
+                    .inner_margin(egui::Margin::same(10.0)),
             )
             .show(ctx, |ui| {
                 ui.vertical(|ui| {
@@ -161,7 +161,7 @@ impl eframe::App for VqaApp {
                             p.rect_filled(rect, 8.0, theme::ACC_SOFT);
                             p.rect_filled(
                                 egui::Rect::from_min_size(
-                                    rect.left_top() + Vec2::new(0.0, 8.0),
+                                    rect.left_top() + Vec2::new(-10.0, 8.0),
                                     Vec2::new(3.0, rect.height() - 16.0),
                                 ),
                                 2.0,
@@ -172,14 +172,14 @@ impl eframe::App for VqaApp {
                         }
                         let ic_color = if selected { theme::ACC } else { theme::MUT };
                         p.text(
-                            egui::pos2(rect.left() + 22.0, rect.center().y),
+                            egui::pos2(rect.left() + 12.0, rect.center().y),
                             egui::Align2::CENTER_CENTER,
                             icon.glyph(),
                             egui::FontId::new(16.0, egui::FontFamily::Name(crate::widgets::lucide::LUCIDE_FAMILY.into())),
                             ic_color,
                         );
                         p.text(
-                            egui::pos2(rect.left() + 40.0, rect.center().y),
+                            egui::pos2(rect.left() + 30.0, rect.center().y),
                             egui::Align2::LEFT_CENTER,
                             name,
                             FontId::proportional(13.0),
@@ -215,14 +215,14 @@ impl eframe::App for VqaApp {
                         ui.add_space(3.0);
                         let p = ui.painter_at(rect);
                         p.text(
-                            egui::pos2(rect.left() + 22.0, rect.center().y),
+                            egui::pos2(rect.left() + 12.0, rect.center().y),
                             egui::Align2::CENTER_CENTER,
                             icon.glyph(),
                             egui::FontId::new(16.0, egui::FontFamily::Name(crate::widgets::lucide::LUCIDE_FAMILY.into())),
                             theme::FAINT.gamma_multiply(0.7),
                         );
                         p.text(
-                            egui::pos2(rect.left() + 40.0, rect.center().y),
+                            egui::pos2(rect.left() + 30.0, rect.center().y),
                             egui::Align2::LEFT_CENTER,
                             name,
                             FontId::proportional(13.0),
@@ -256,7 +256,7 @@ impl eframe::App for VqaApp {
                         p.rect_filled(rect, 8.0, theme::ACC_SOFT);
                         p.rect_filled(
                             egui::Rect::from_min_size(
-                                rect.left_top() + Vec2::new(0.0, 8.0),
+                                rect.left_top() + Vec2::new(-10.0, 8.0),
                                 Vec2::new(3.0, rect.height() - 16.0),
                             ),
                             2.0,
@@ -267,14 +267,14 @@ impl eframe::App for VqaApp {
                     }
                     let ic_color = if selected { theme::ACC } else { theme::MUT };
                     p.text(
-                        egui::pos2(rect.left() + 22.0, rect.center().y),
+                        egui::pos2(rect.left() + 12.0, rect.center().y),
                         egui::Align2::CENTER_CENTER,
                         crate::widgets::lucide::Lucide::Info.glyph(),
                         egui::FontId::new(16.0, egui::FontFamily::Name(crate::widgets::lucide::LUCIDE_FAMILY.into())),
                         ic_color,
                     );
                     p.text(
-                        egui::pos2(rect.left() + 40.0, rect.center().y),
+                        egui::pos2(rect.left() + 30.0, rect.center().y),
                         egui::Align2::LEFT_CENTER,
                         "关于",
                         FontId::proportional(13.0),
