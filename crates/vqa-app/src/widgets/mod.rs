@@ -56,17 +56,23 @@ pub fn stat_card(ui: &mut Ui, label: &str, value: impl Into<String>, color: Colo
 pub fn stat_card_sub(ui: &mut Ui, label: &str, value: impl Into<String>, sub: &str, color: Color32) {
     let (rect, _) = ui.allocate_at_least(Vec2::new(112.0, 66.0), Sense::hover());
     let p = ui.painter_at(rect);
-    p.rect_filled(rect, 8.0, theme::PANEL);
-    p.rect_stroke(rect, 8.0, egui::Stroke::new(1.0_f32, theme::BORDER));
-    // 左缘强调条
-    p.rect_filled(
-        Rect::from_min_size(
-            rect.left_top() + Vec2::new(0.0, 8.0),
-            Vec2::new(3.0, rect.height() - 16.0),
-        ),
-        1.5,
-        color,
+    p.rect_filled(rect, 12.0, theme::PANEL);
+    p.rect_stroke(rect, 12.0, egui::Stroke::new(1.0_f32, theme::BORDER));
+    // 左缘强调条（渐变：主色上 → 语义色下，设计稿口径）
+    let mut mesh = egui::Mesh::default();
+    mesh.reserve_triangles(2);
+    mesh.colored_vertex(rect.left_top() + Vec2::new(0.0, 6.0), crate::theme::ACC_GRAD_L);
+    mesh.colored_vertex(rect.left_top() + Vec2::new(3.0, 6.0), crate::theme::ACC_GRAD_R);
+    mesh.colored_vertex(
+        rect.left_bottom() + Vec2::new(0.0, -6.0),
+        crate::theme::darken(color, 0.1),
     );
+    mesh.colored_vertex(
+        rect.left_bottom() + Vec2::new(3.0, -6.0),
+        crate::theme::darken(color, 0.1),
+    );
+    mesh.add_triangle(0, 1, 2);
+    mesh.add_triangle(1, 3, 2);
     let pad = 12.0;
     p.text(
         rect.left_top() + Vec2::new(pad, 6.0),

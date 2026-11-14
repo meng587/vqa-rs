@@ -219,6 +219,12 @@ impl AnalysisPage {
             SourceAction::None => {}
         }
 
+        // 扫描/实时期间主动请求重绘——egui 无输入事件时不会自发刷帧，
+        // 否则进度与「扫描完成」状态会一直停在旧帧不上屏
+        if !matches!(self.mode, Mode::Idle) {
+            ctx.request_repaint_after(std::time::Duration::from_millis(120));
+        }
+
         // 文件扫描收割
         if let Some(rx) = &self.scan_rx {
             if let Ok(msg) = rx.try_recv() {

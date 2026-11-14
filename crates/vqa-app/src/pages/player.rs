@@ -344,13 +344,23 @@ impl PlayerPage {
             card_rect.left_top() + Vec2::new(1.0, 1.0),
             card_rect.right_bottom() + Vec2::new(-1.0, -ctrl_h),
         );
-        // 辉光：三层同心圆（画在画面子矩形；播放时被视频盖住，待机可见）
+        // 辉光：八层同心圆渐进（平滑模拟设计稿 radial-gradient）
         if mpv_rect.width() > 120.0 && mpv_rect.height() > 90.0 {
             let c = mpv_rect.center();
-            let base = (mpv_rect.height() * 0.44).min(210.0);
-            p.circle_filled(c, base, Color32::from_rgba_premultiplied(10, 22, 34, 255));
-            p.circle_filled(c, base * 0.66, Color32::from_rgba_premultiplied(13, 29, 44, 255));
-            p.circle_filled(c, base * 0.38, Color32::from_rgba_premultiplied(17, 38, 56, 255));
+            let base = (mpv_rect.height() * 0.46).min(220.0);
+            // 外圈接近卡底色，向中心逐层提亮
+            const STEPS: f32 = 8.0;
+            for i in 0..8u32 {
+                let t = (i as f32) / (STEPS - 1.0); // 0..1
+                let r = base * (1.0 - 0.62 * t);
+                let ch = |a: f32, b: f32| (a + (b - a) * t) as u8;
+                let col = Color32::from_rgb(
+                    ch(9.0, 22.0),
+                    ch(14.0, 38.0),
+                    ch(22.0, 58.0),
+                );
+                p.circle_filled(c, r, col);
+            }
         }
         // 角标：左上编码信息 / 右上转码桥警示。
         // 数据源：播放快照优先；待机时用起播探测结果（设计稿待机也显示 tag）
