@@ -1,28 +1,33 @@
-//! 主题 —— 方案 B「清爽工作台」浅色设计系统（vqa-ui-redesign.html 方案 B 落地）。
+//! 主题 —— 方案 A「播控室暗色」· 高对比修订版（vqa-ui-redesign.html 方案 A）。
 //!
 //! 「唯一色源」纪律：页面禁止硬编码色值，一律引这里。
 //! 例外：视频卡片内部（播放器本色）保持深色，硬编码于 player.rs。
+//!
+//! 对比度修订（相对初版 A）：
+//! * 文字三阶全部提亮：TEXT #f2f7fc / MUT #a9b8ca / FAINT #8496ab
+//! * 面板与底色层次拉开：卡片 #17202c 明显浮于底色 #0a0e13
+//! * 边框整体加强一档：BORDER #2a3745 / BORDER2 #3a4a5f
 
 use egui::{Color32, RichText, Vec2};
 
-// ---- 方案 B · 清爽工作台（浅色）----
-pub const BG: Color32 = Color32::from_rgb(0xee, 0xf1, 0xf5); // 外围灰底
-pub const WIN: Color32 = Color32::from_rgb(0xff, 0xff, 0xff); // 中央面板
-pub const PANEL: Color32 = Color32::from_rgb(0xff, 0xff, 0xff); // 卡片
-pub const PANEL2: Color32 = Color32::from_rgb(0xfb, 0xfc, 0xfe); // 侧栏/输入
-pub const BORDER: Color32 = Color32::from_rgb(0xe4, 0xe8, 0xee);
-pub const BORDER2: Color32 = Color32::from_rgb(0xd3, 0xda, 0xe3);
-pub const TEXT: Color32 = Color32::from_rgb(0x15, 0x1b, 0x23);
-pub const MUT: Color32 = Color32::from_rgb(0x5f, 0x6b, 0x7a);
-pub const FAINT: Color32 = Color32::from_rgb(0x9a, 0xa5, 0xb1);
-pub const ACC: Color32 = Color32::from_rgb(0x4f, 0x46, 0xe5); // 靛蓝主色
-/// 主色 10% 底（预乘：79/70/229 × 26/255 ≈ 8/7/23）
-pub const ACC_SOFT: Color32 = Color32::from_rgba_premultiplied(8, 7, 23, 26);
-pub const OK: Color32 = Color32::from_rgb(0x05, 0x96, 0x69);
-pub const WARN: Color32 = Color32::from_rgb(0xd9, 0x77, 0x06);
-pub const BAD: Color32 = Color32::from_rgb(0xdc, 0x26, 0x26);
+// ---- 方案 A · 播控室暗色（高对比修订版）----
+pub const BG: Color32 = Color32::from_rgb(0x09, 0x0d, 0x12); // 外围
+pub const WIN: Color32 = Color32::from_rgb(0x10, 0x18, 0x24); // 中央面板
+pub const PANEL: Color32 = Color32::from_rgb(0x17, 0x20, 0x2c); // 卡片/面板
+pub const PANEL2: Color32 = Color32::from_rgb(0x0d, 0x14, 0x1e); // 侧栏/输入
+pub const BORDER: Color32 = Color32::from_rgb(0x2a, 0x37, 0x45);
+pub const BORDER2: Color32 = Color32::from_rgb(0x3a, 0x4a, 0x5f);
+pub const TEXT: Color32 = Color32::from_rgb(0xf2, 0xf7, 0xfc);
+pub const MUT: Color32 = Color32::from_rgb(0xa9, 0xb8, 0xca);
+pub const FAINT: Color32 = Color32::from_rgb(0x84, 0x96, 0xab);
+pub const ACC: Color32 = Color32::from_rgb(0x4c, 0xc2, 0xf7); // 青蓝主色（提亮一档）
+/// 主色 15% 底（预乘：76/194/247 × 38/255 ≈ 11/29/37）
+pub const ACC_SOFT: Color32 = Color32::from_rgba_premultiplied(11, 29, 37, 38);
+pub const OK: Color32 = Color32::from_rgb(0x3b, 0xdc, 0x9d);
+pub const WARN: Color32 = Color32::from_rgb(0xfc, 0xc5, 0x2f);
+pub const BAD: Color32 = Color32::from_rgb(0xfb, 0x7b, 0x7b);
 /// 视频卡内部（播放器本色，恒为深色）
-pub const DARK: Color32 = Color32::from_rgb(0x0b, 0x0f, 0x14);
+pub const DARK: Color32 = Color32::from_rgb(0x06, 0x09, 0x0d);
 
 #[allow(dead_code)]
 pub const MONO: &str = "Consolas";
@@ -53,16 +58,16 @@ pub fn mut_text(text: impl Into<String>) -> RichText {
     RichText::new(&text.into()[..]).size(12.0).color(MUT)
 }
 
-/// 应用全局样式（浅色控件体系 + 字号阶 + 间距）。
+/// 应用全局样式（暗色控件体系 + 字号阶 + 间距）。
 pub fn install(ctx: &egui::Context) {
     let mut style = (*ctx.style()).clone();
-    style.visuals = egui::Visuals::light();
+    style.visuals = egui::Visuals::dark();
     let vs = &mut style.visuals;
     vs.override_text_color = Some(TEXT);
     vs.panel_fill = WIN;
     vs.window_fill = PANEL;
     vs.extreme_bg_color = PANEL2;
-    vs.faint_bg_color = Color32::from_rgb(0xf3, 0xf5, 0xf7); // 条纹
+    vs.faint_bg_color = Color32::from_rgb(0x1a, 0x24, 0x31); // 条纹
     vs.window_rounding = egui::Rounding::same(10.0);
     vs.window_stroke = egui::Stroke::new(1.0_f32, BORDER2);
     let r = egui::Rounding::same(8.0);
@@ -71,9 +76,9 @@ pub fn install(ctx: &egui::Context) {
     vs.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0_f32, TEXT);
     vs.widgets.noninteractive.bg_stroke = egui::Stroke::new(1.0_f32, BORDER);
     vs.widgets.inactive.rounding = r;
-    vs.widgets.inactive.bg_fill = Color32::WHITE;
-    vs.widgets.inactive.weak_bg_fill = Color32::WHITE;
-    vs.widgets.inactive.fg_stroke = egui::Stroke::new(1.0_f32, Color32::from_rgb(0x37, 0x41, 0x51));
+    vs.widgets.inactive.bg_fill = PANEL;
+    vs.widgets.inactive.weak_bg_fill = PANEL;
+    vs.widgets.inactive.fg_stroke = egui::Stroke::new(1.0_f32, MUT);
     vs.widgets.inactive.bg_stroke = egui::Stroke::new(1.0_f32, BORDER2);
     vs.widgets.hovered.rounding = r;
     vs.widgets.hovered.weak_bg_fill = ACC_SOFT;
