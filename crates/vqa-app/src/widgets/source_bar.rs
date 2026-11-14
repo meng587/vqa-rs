@@ -54,15 +54,16 @@ impl SourceBar {
         running: bool,
     ) -> SourceAction {
         let mut action = SourceAction::None;
-        ui.horizontal(|ui| {
-            ui.label("来源");
+        // wrapped：窄面板下自然换行，杜绝右侧按钮被窗口边缘裁切
+        ui.horizontal_wrapped(|ui| {
+            ui.label(egui::RichText::new("来源").color(crate::theme::MUT));
             let hist = self.history();
             // 单一输入框 + ▾ 历史弹出（旧版 combo+TextEdit 双显示同址易挤爆一行）
             let hist_id = egui::Id::new(format!("src_hist_{}", self.key));
             let resp_url = ui.add(
                 egui::TextEdit::singleline(&mut self.url)
                     .hint_text(self.placeholder_hint)
-                    .desired_width((ui.available_width() - 330.0).max(180.0)),
+                    .desired_width((ui.available_width() - 420.0).max(240.0)),
             );
             let hist_btn = ui.add(egui::Button::new("▾").rounding(6.0));
             if hist_btn.clicked() {
@@ -83,7 +84,7 @@ impl SourceBar {
             });
             let _ = resp_url;
             nic.show(ui);
-            if self.show_file_browse && ui.button("浏览…").clicked() {
+            if self.show_file_browse && ui.add_sized([64.0, 26.0], egui::Button::new("浏览…")).clicked() {
                 if let Some(p) = rfd::FileDialog::new()
                     .add_filter("媒体文件", self.file_filter)
                     .pick_file()

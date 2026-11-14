@@ -335,13 +335,13 @@ impl PlayerPage {
             ui.allocate_exact_size(video_size, egui::Sense::hover());
         let p = ui.painter_at(video_rect);
         p.rect_filled(video_rect, 10.0, theme::DARK);
-        // 中央辉光（低透明主色圆，近似径向）
+        // 中央辉光：三层同心圆递进，模拟设计稿的径向渐变（单圆边缘生硬）
         if video_rect.width() > 120.0 && video_rect.height() > 90.0 {
-            p.circle_filled(
-                video_rect.center(),
-                (video_rect.height() * 0.38).min(180.0),
-                Color32::from_rgba_premultiplied(16, 32, 46, 255),
-            );
+            let c = video_rect.center();
+            let base = (video_rect.height() * 0.46).min(220.0);
+            p.circle_filled(c, base, Color32::from_rgba_premultiplied(10, 22, 34, 255));
+            p.circle_filled(c, base * 0.66, Color32::from_rgba_premultiplied(13, 29, 44, 255));
+            p.circle_filled(c, base * 0.38, Color32::from_rgba_premultiplied(17, 38, 56, 255));
         }
         // 待机中央：提示文字 + 大播放键（有源未播时可点击）
         if !has_media && !self.playing_url.is_empty() {
@@ -475,7 +475,9 @@ impl PlayerPage {
         }
         let vol = ui.add_sized(
             [64.0, 14.0],
-            egui::Slider::new(&mut self.volume, 0.0..=130.0).show_value(false),
+            egui::Slider::new(&mut self.volume, 0.0..=130.0)
+                .show_value(false)
+                .handle_shape(egui::style::HandleShape::Rect { aspect_ratio: 0.35 }),
         );
         if vol.changed() {
             if let Some(m) = &self.mpv {
@@ -537,7 +539,15 @@ impl PlayerPage {
     }
 
     /// 信息 chips 行（分辨率/编码/硬解/桥 + fps/码率/丢帧/音频）。
+    /// 待机无数据时整行不画（避免孤立 chip）。
     fn chips(&self, ui: &mut Ui, snap: &Snapshot) {
+        let has_any = snap.width > 0
+            || !self.bridge_note.is_empty()
+            || snap.vf_fps > 0.0
+            || !snap.audio_codec.is_empty();
+        if !has_any {
+            return;
+        }
         ui.horizontal_wrapped(|ui| {
             if snap.width > 0 {
                 let mut t = format!("{}×{}", snap.width, snap.height);
@@ -562,12 +572,14 @@ impl PlayerPage {
                     theme::MUT,
                 );
             }
-            let drops = snap.decoder_drop + snap.render_drop;
-            crate::widgets::chip(
-                ui,
-                format!("丢帧 {}/{}", snap.decoder_drop, snap.render_drop),
-                if drops > 0 { theme::WARN } else { theme::OK },
-            );
+            if snap.width > 0 {
+                let drops = snap.decoder_drop + snap.render_drop;
+                crate::widgets::chip(
+                    ui,
+                    format!("丢帧 {}/{}", snap.decoder_drop, snap.render_drop),
+                    if drops > 0 { theme::WARN } else { theme::OK },
+                );
+            }
             if !snap.audio_codec.is_empty() {
                 crate::widgets::chip(ui, snap.audio_codec.clone(), theme::MUT);
             }

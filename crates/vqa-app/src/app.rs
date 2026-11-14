@@ -160,7 +160,7 @@ impl eframe::App for VqaApp {
                             p.rect_filled(rect, 8.0, theme::ACC_SOFT);
                             p.rect_filled(
                                 egui::Rect::from_min_size(
-                                    rect.left_top() + Vec2::new(-10.0, 8.0),
+                                    rect.left_top() + Vec2::new(0.0, 8.0),
                                     Vec2::new(3.0, rect.height() - 16.0),
                                 ),
                                 2.0,
@@ -236,7 +236,7 @@ impl eframe::App for VqaApp {
                         p.rect_filled(rect, 8.0, theme::ACC_SOFT);
                         p.rect_filled(
                             egui::Rect::from_min_size(
-                                rect.left_top() + Vec2::new(-10.0, 8.0),
+                                rect.left_top() + Vec2::new(0.0, 8.0),
                                 Vec2::new(3.0, rect.height() - 16.0),
                             ),
                             2.0,

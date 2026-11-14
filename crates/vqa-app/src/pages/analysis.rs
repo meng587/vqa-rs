@@ -119,6 +119,10 @@ impl AnalysisPage {
     }
 
     fn start(&mut self, url: String, nic_ip: String) {
+        // 运行中忽略重复启动（Enter+按钮双触发会互相覆盖 scan_rx）
+        if !matches!(self.mode, Mode::Idle) {
+            return;
+        }
         self.live_err = None;
         let cleaned = crate::widgets::clean_stream_url(&url);
         // 本地文件 → 文件扫描线程；udp/rtp → 实时会话
@@ -231,6 +235,7 @@ impl AnalysisPage {
                             PacketFile::open(std::path::Path::new(&res.path)).ok();
                         self.pkt_page = 0;
                         self.result = Some(res);
+                        self.mode = Mode::Idle; // 完成后回待机态（结果保留显示）
                     }
                     Err(e) => {
                         self.live_err = Some(e);
@@ -388,6 +393,16 @@ fn overview(ui: &mut Ui, res: &ScanResult) {
             _ => n3 += it.count,
         }
     }
+    let l2_top = res
+        .tr290
+        .iter()
+        .find(|i| i.level == 2 && i.count > 0)
+        .map(|i| i.name.clone());
+    let l3_top = res
+        .tr290
+        .iter()
+        .find(|i| i.level == 3 && i.count > 0)
+        .map(|i| i.name.clone());
     ui.horizontal_wrapped(|ui| {
         stat_card_sub(ui, "总码率", format!("{:.2} Mbps", res.bitrate_avg() / 1e6), "PCR 区间口径", theme::ACC);
         stat_card_sub(ui, "同步状态", if res.sync_errors == 0 { "正常" } else { "异常" },
@@ -395,27 +410,40 @@ fn overview(ui: &mut Ui, res: &ScanResult) {
             if res.sync_errors == 0 { theme::OK } else { theme::BAD });
         stat_card_sub(ui, "一级错误", n1.to_string(), if n1 > 0 { "秒级致断风险" } else { "无" },
             if n1 > 0 { theme::BAD } else { theme::OK });
-        stat_card_sub(ui, "二级错误", n2.to_string(), "传输质量", if n2 > 0 { theme::WARN } else { theme::OK });
-        stat_card_sub(ui, "三级错误", n3.to_string(), "辅助信息", if n3 > 0 { theme::WARN } else { theme::OK });
+        stat_card_sub(ui, "二级错误", n2.to_string(),
+            &l2_top.unwrap_or_else(|| "无".into()),
+            if n2 > 0 { theme::WARN } else { theme::OK });
+        stat_card_sub(ui, "三级错误", n3.to_string(),
+            &l3_top.unwrap_or_else(|| "无".into()),
+            if n3 > 0 { theme::WARN } else { theme::OK });
         stat_card_sub(ui, "TS 包长", res.packet_size.to_string(), &format!("{} 包", res.packets), theme::MUT);
     });
     ui.add_space(6.0);
     theme::panel(ui, "流信息", |ui| {
         egui::Grid::new("ov_grid").num_columns(2).striped(true).show(ui, |ui| {
             kv(ui, "文件", res.path.clone());
+            ui.end_row();
             kv(ui, "大小", format!("{} bytes", res.file_size));
+            ui.end_row();
             kv(ui, "包数", res.packets.to_string());
+            ui.end_row();
             kv(ui, "PCR 时长", format!("{:.3} s", res.duration_pcr()));
+            ui.end_row();
             kv(ui, "PCR PID", res.pcr_pid.map_or("—".into(), |p| format!("0x{p:04X}")));
+            ui.end_row();
             kv(ui, "加密", if res.encrypted() { "是" } else { "否" }.to_string());
+            ui.end_row();
             kv(ui, "码率点", res.rate.len().to_string());
+            ui.end_row();
             if let Some(p) = res.main_program() {
                 kv(ui, "主节目", format!("{}（PMT 0x{:04X}）", p.number, p.pmt_pid));
+                ui.end_row();
             }
             kv(ui, "SI 表", {
                 let names: Vec<String> = res.si.keys().cloned().collect();
                 if names.is_empty() { "—".into() } else { names.join(", ") }
             });
+            ui.end_row();
         });
     });
 }
