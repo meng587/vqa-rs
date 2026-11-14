@@ -101,7 +101,7 @@ impl SourceBar {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if running {
                     if ui
-                        .add(egui::Button::new("停止").fill(crate::theme::DANGER))
+                        .add(egui::Button::new("停止").fill(crate::theme::BAD))
                         .clicked()
                     {
                         action = SourceAction::Stop;
@@ -109,7 +109,7 @@ impl SourceBar {
                 } else if ui
                     .add(
                         egui::Button::new(egui::RichText::new("开始").color(egui::Color32::WHITE))
-                            .fill(crate::theme::PRIMARY),
+                            .fill(crate::theme::ACC),
                     )
                     .clicked()
                     || resp_url.lost_focus()

@@ -11,12 +11,13 @@ use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
 
-use egui::{RichText, Ui};
+use egui::{Color32, RichText, Ui, Vec2};
 use vqa_core::bridge::RealtimeBridge;
 use vqa_core::player::{Mpv, Snapshot};
 use vqa_core::probe;
 
 use crate::theme;
+use crate::widgets::Icon;
 use crate::video_child::VideoChild;
 use crate::widgets::nic_selector::NicSelector;
 use crate::widgets::source_bar::{SourceAction, SourceBar};
@@ -317,43 +318,113 @@ impl PlayerPage {
 
         // 错误/提示行
         if let Some(e) = &self.err {
-            ui.colored_label(theme::DANGER, RichText::new(format!("✗ {e}")).size(12.0));
+            ui.colored_label(theme::BAD, RichText::new(format!("✗ {e}")).size(12.0));
         }
         if !self.hint.is_empty() {
-            ui.label(RichText::new(&self.hint).size(12.0).color(theme::SUB));
+            ui.label(RichText::new(&self.hint).size(12.0).color(theme::MUT));
         }
 
-        // 视频区（占满剩余空间的上部）
-        let snap = self
-            .mpv
-            .as_ref()
-            .map(|m| m.snapshot())
-            .unwrap_or_default();
+        // 视频区（占满剩余空间，控制条叠层在底部；下方留 chips + 开关行）
+        let snap = self.mpv.as_ref().map(|m| m.snapshot()).unwrap_or_default();
         let has_media = !self.playing_url.is_empty() && !snap.idle;
-        let (video_rect, _) = ui
-            .allocate_exact_size(ui.available_size(), egui::Sense::hover());
-        // 视频区背景（黑）
-        ui.painter().rect_filled(video_rect, 3.0, theme::DARK);
-        if !has_media {
-            ui.painter().text(
+        let avail = ui.available_size();
+        let video_size = Vec2::new(avail.x, (avail.y - 64.0).max(140.0));
+        let (video_rect, _) =
+            ui.allocate_exact_size(video_size, egui::Sense::hover());
+        let p = ui.painter_at(video_rect);
+        p.rect_filled(video_rect, 10.0, theme::DARK);
+        // 中央辉光（低透明主色圆，近似径向）
+        if video_rect.width() > 120.0 && video_rect.height() > 90.0 {
+            p.circle_filled(
+                video_rect.center(),
+                (video_rect.height() * 0.38).min(180.0),
+                Color32::from_rgba_premultiplied(16, 32, 46, 255),
+            );
+        }
+        // 角标：左上编码信息 / 右上转码桥提示
+        if snap.width > 0 {
+            let mut tag = format!("{}×{}", snap.width, snap.height);
+            if !snap.video_codec.is_empty() {
+                tag += &format!(" · {}", short_codec(&snap.video_codec));
+            }
+            if !snap.hwdec.is_empty() && snap.hwdec != "no" {
+                tag += &format!(" · 硬解 {}", snap.hwdec);
+            }
+            draw_tag(ui, video_rect, tag, egui::Align2::LEFT_TOP, theme::MUT);
+        }
+        if !self.bridge_note.is_empty() {
+            draw_tag(
+                ui,
+                video_rect,
+                format!("⚠ {}", self.bridge_note),
+                egui::Align2::RIGHT_TOP,
+                theme::WARN,
+            );
+        }
+        // 待机中央：提示文字 + 大播放键（有源未播时可点击）
+        if !has_media && !self.playing_url.is_empty() {
+            let c = video_rect.center() + Vec2::new(0.0, -8.0);
+            p.circle_filled(c, 29.0, Color32::from_rgba_premultiplied(255, 255, 255, 26));
+            crate::widgets::Icon::Play.draw_big(&p, c, Color32::WHITE, 2.4);
+            let hit = egui::Rect::from_center_size(c, Vec2::new(70.0, 70.0));
+            let resp = ui.allocate_rect(hit, egui::Sense::click());
+            if resp.clicked() {
+                if let Some(m) = &self.mpv {
+                    let _ = m.loadfile(&self.playing_url);
+                }
+            }
+        } else if !has_media {
+            p.text(
                 video_rect.center(),
                 egui::Align2::CENTER_CENTER,
-                if self.playing_url.is_empty() {
-                    "输入来源后点「开始」播放"
-                } else {
-                    "等待流数据…"
-                },
+                "输入来源后点「开始」播放",
                 egui::FontId::proportional(14.0),
-                theme::SUB,
+                theme::MUT,
             );
         }
         if let Some(c) = self.child.as_mut() {
-            let ppp = ctx.pixels_per_point();
-            c.place(video_rect, ppp, has_media);
+            c.place(video_rect, ctx.pixels_per_point(), has_media);
         }
 
-        self.controls(ui, &snap);
-        self.info_line(ui, &snap);
+        // 控制条叠层（视频底部渐隐黑带）
+        let ctrl_h = 44.0;
+        let ctrl_rect = egui::Rect::from_min_size(
+            egui::Pos2::new(video_rect.left(), video_rect.bottom() - ctrl_h),
+            Vec2::new(video_rect.width(), ctrl_h),
+        );
+        p.rect_filled(
+            ctrl_rect,
+            0.0,
+            Color32::from_rgba_premultiplied(6, 8, 12, 205),
+        );
+        ui.allocate_ui_at_rect(ctrl_rect.shrink2(Vec2::new(10.0, 5.0)), |ctrl| {
+            ctrl.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                self.controls(ui, &snap);
+            });
+        });
+
+        // 信息 chips
+        self.chips(ui, &snap);
+        // 强制桥接开关
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.force_bridge, "强制走转码桥")
+                .on_hover_text("下次起播强制经 ffmpeg 转码（排查直放崩溃时用）");
+            if let Some(q) = &self.probe_info {
+                if !q.video.codec.is_empty() {
+                    crate::widgets::chip(
+                        ui,
+                        format!(
+                            "{} {}×{} {}",
+                            q.video.codec,
+                            q.video.width,
+                            q.video.height,
+                            if q.video.pix_fmt.contains("10") { "10-bit" } else { "" }
+                        ),
+                        theme::FAINT,
+                    );
+                }
+            }
+        });
 
         // 进度轮询刷新（~10Hz 足够；mpv 管道排空已在帧头做过）
         let now = Instant::now();
@@ -366,200 +437,196 @@ impl PlayerPage {
     }
 
     fn controls(&mut self, ui: &mut Ui, snap: &Snapshot) {
-        ui.add_space(4.0);
-        ui.horizontal(|ui| {
-            // 播放/暂停
-            let paused = snap.paused || snap.idle;
-            let play_label = if paused { "▶" } else { "⏸" };
-            if ui
-                .add_sized([34.0, 26.0], egui::Button::new(play_label))
-                .clicked()
-            {
-                if let Some(m) = &self.mpv {
-                    if snap.idle && !self.playing_url.is_empty() {
-                        let _ = m.loadfile(&self.playing_url);
-                    } else {
-                        let _ = m.set_pause(!paused);
-                    }
+                // 播放/暂停
+        let paused = snap.paused || snap.idle;
+        if crate::widgets::icon_button(ui, if paused { Icon::Play } else { Icon::Pause }).clicked() {
+            if let Some(m) = &self.mpv {
+                if snap.idle && !self.playing_url.is_empty() {
+                    let _ = m.loadfile(&self.playing_url);
+                } else {
+                    let _ = m.set_pause(!paused);
                 }
             }
-            if ui.add_sized([34.0, 26.0], egui::Button::new("⏹")).clicked() {
-                self.playing_url.clear();
-                self.stop_bridge();
-                if let Some(m) = &self.mpv {
-                    let _ = m.stop();
-                }
+        }
+        // 停止
+        if crate::widgets::icon_button(ui, Icon::Stop).clicked() {
+            self.playing_url.clear();
+            self.stop_bridge();
+            if let Some(m) = &self.mpv {
+                let _ = m.stop();
             }
-            // 进度
-            let dur = snap.duration_ms / 1000.0;
-            let pos = snap.time_ms / 1000.0;
-            let seekable = snap.seekable && dur > 0.0;
-            if seekable {
-                let mut v: f32 = ((pos / dur * 1000.0) as f32).clamp(0.0, 1000.0);
-                let slider = egui::Slider::new(&mut v, 0.0..=1000.0)
-                    .show_value(false)
-                    .custom_formatter(|_, _| {
-                        format!(
-                            "{} / {}",
-                            fmt_hms(pos),
-                            fmt_hms(dur)
-                        )
-                    });
-                let resp = ui.add_sized([ui.available_width() - 560.0, 26.0], slider);
-                if resp.drag_started() {
-                    self.dragging = true;
-                }
-                if self.dragging {
-                    self.seek_val = v;
-                }
-                if resp.drag_stopped() {
-                    self.dragging = false;
-                    if let Some(m) = &self.mpv {
-                        let _ = m.seek_percent(self.seek_val as f64 / 10.0);
-                    }
-                }
+        }
+        // 进度（可拖 = 点播；直播流灰条不可拖）
+        let dur = snap.duration_ms / 1000.0;
+        let pos = snap.time_ms / 1000.0;
+        let seekable = snap.seekable && dur > 0.0;
+        if seekable {
+            let frac = if self.dragging {
+                (self.seek_val / 1000.0).clamp(0.0, 1.0)
             } else {
-                ui.label(
-                    RichText::new("直播流（不可拖动）")
-                        .size(11.0)
-                        .color(theme::SUB),
-                );
-                ui.add_space(ui.available_width() - 470.0);
-            }
-            // 时间
-            ui.label(
-                RichText::new(format!(
-                    "{} / {}",
-                    fmt_hms(pos),
-                    if dur > 0.0 { fmt_hms(dur) } else { "--:--".into() }
-                ))
-                .size(11.0)
-                .color(theme::SUB),
-            );
-            // 音量
-            let vol_resp = ui.add_sized(
-                [60.0, 20.0],
-                egui::Slider::new(&mut self.volume, 0.0..=130.0).show_value(false),
-            );
-            if vol_resp.changed() || vol_resp.drag_stopped() {
+                ((pos / dur) as f32).clamp(0.0, 1.0)
+            };
+            if let Some(x) = crate::widgets::seek_bar(ui, frac, true) {
+                self.dragging = true;
+                self.seek_val = x * 1000.0;
                 if let Some(m) = &self.mpv {
-                    let _ = m.set_volume(self.volume);
+                    let _ = m.seek_percent((x * 100.0) as f64);
                 }
             }
-            if ui.checkbox(&mut self.muted, "静音").changed() {
-                if let Some(m) = &self.mpv {
-                    let _ = m.set_mute(self.muted);
+            if !ui.input(|i| i.pointer.any_down()) {
+                self.dragging = false;
+            }
+        } else {
+            let frac = if dur > 0.0 { ((pos / dur) as f32).clamp(0.0, 1.0) } else { 0.0 };
+            crate::widgets::seek_bar(ui, frac, false);
+        }
+        // 时间
+        ui.label(
+            RichText::new(format!(
+                "{} / {}",
+                fmt_hms(pos),
+                if dur > 0.0 { fmt_hms(dur) } else { "--:--".to_string() }
+            ))
+            .monospace()
+            .size(11.0)
+            .color(Color32::from_rgb(0xcf, 0xd8, 0xe3)),
+        );
+        // 音量（图标点击 = 静音切换）
+        let vol_resp = crate::widgets::icon_button_tinted(
+            ui,
+            Icon::Volume,
+            if self.muted { theme::BAD } else { theme::MUT },
+        );
+        if vol_resp.clicked() {
+            self.muted = !self.muted;
+            if let Some(m) = &self.mpv {
+                let _ = m.set_mute(self.muted);
+            }
+        }
+        let vol = ui.add_sized(
+            [64.0, 14.0],
+            egui::Slider::new(&mut self.volume, 0.0..=130.0).show_value(false),
+        );
+        if vol.changed() {
+            if let Some(m) = &self.mpv {
+                let _ = m.set_volume(self.volume);
+            }
+        }
+        // 快照
+        if crate::widgets::icon_button(ui, Icon::Camera).clicked() {
+            if let Some(m) = &self.mpv {
+                let _ = std::fs::create_dir_all(&self.snapshot_dir);
+                let ts = chrono::Local::now().format("%Y%m%d_%H%M%S");
+                let p = self.snapshot_dir.join(format!("snap_{ts}.png"));
+                match m.screenshot(&p) {
+                    Ok(_) => self.show_hint(format!("已存 {}", p.display())),
+                    Err(e) => self.show_hint(format!("快照失败：{e}")),
                 }
             }
-            if ui
-                .add_sized([90.0, 24.0], egui::Button::new("快照"))
-                .clicked()
-            {
-                if let Some(m) = &self.mpv {
-                    let _ = std::fs::create_dir_all(&self.snapshot_dir);
+        }
+        // 录制
+        if crate::widgets::icon_button_tinted(
+            ui,
+            Icon::Record,
+            if self.recording.is_some() { theme::BAD } else { theme::MUT },
+        )
+        .clicked()
+        {
+            if let Some(m) = &self.mpv {
+                if let Some(rec) = self.recording.take() {
+                    let _ = m.stop_record();
+                    self.show_hint(format!("已录制 {}", rec.display()));
+                } else {
+                    let _ = std::fs::create_dir_all(&self.record_dir);
                     let ts = chrono::Local::now().format("%Y%m%d_%H%M%S");
-                    let p = self.snapshot_dir.join(format!("snap_{ts}.png"));
-                    match m.screenshot(&p) {
-                        Ok(_) => self.show_hint(format!("已存 {}", p.display())),
-                        Err(e) => self.show_hint(format!("快照失败：{e}")),
+                    let p = self.record_dir.join(format!("rec_{ts}.ts"));
+                    match m.record(&p) {
+                        Ok(_) => {
+                            self.recording = Some(p);
+                            self.show_hint("录制中（stream-record 直拷）");
+                        }
+                        Err(e) => self.show_hint(format!("录制失败：{e}")),
                     }
                 }
             }
-            let rec_label = if self.recording.is_some() { "停止录制" } else { "录制" };
-            if ui
-                .add_sized(
-                    [80.0, 24.0],
-                    egui::Button::new(if self.recording.is_some() {
-                        RichText::new(rec_label).color(egui::Color32::WHITE).strong()
-                    } else {
-                        RichText::new(rec_label)
-                    })
-                    .fill(if self.recording.is_some() {
-                        theme::DANGER
-                    } else {
-                        egui::Color32::TRANSPARENT
-                    }),
-                )
-                .clicked()
-            {
-                if let Some(m) = &self.mpv {
-                    if let Some(rec) = self.recording.take() {
-                        let _ = m.stop_record();
-                        self.show_hint(format!("已录制 {}", rec.display()));
-                    } else {
-                        let _ = std::fs::create_dir_all(&self.record_dir);
-                        let ts = chrono::Local::now().format("%Y%m%d_%H%M%S");
-                        let p = self.record_dir.join(format!("rec_{ts}.ts"));
-                        match m.record(&p) {
-                            Ok(_) => {
-                                self.recording = Some(p);
-                                self.show_hint("录制中（stream-record 直拷）");
-                            }
-                            Err(e) => self.show_hint(format!("录制失败：{e}")),
+        }
+        // 倍速
+        egui::ComboBox::from_id_source("speed")
+            .width(62.0)
+            .selected_text(format!("{}x", SPEEDS[self.speed_idx]))
+            .show_ui(ui, |ui| {
+                for (i, s) in SPEEDS.iter().enumerate() {
+                    if ui.selectable_label(self.speed_idx == i, format!("{s}x")).clicked() {
+                        self.speed_idx = i;
+                        if let Some(m) = &self.mpv {
+                            let _ = m.set_speed(*s);
                         }
                     }
                 }
-            }
-            // 倍速
-            egui::ComboBox::from_id_source("speed")
-                .width(64.0)
-                .selected_text(format!("{}x", SPEEDS[self.speed_idx]))
-                .show_ui(ui, |ui| {
-                    for (i, s) in SPEEDS.iter().enumerate() {
-                        if ui.selectable_label(self.speed_idx == i, format!("{s}x")).clicked() {
-                            self.speed_idx = i;
-                            if let Some(m) = &self.mpv {
-                                let _ = m.set_speed(*s);
-                            }
-                        }
-                    }
-                });
-        });
-        // 强制桥接
-        ui.horizontal(|ui| {
-            ui.checkbox(&mut self.force_bridge, "强制走转码桥")
-                .on_hover_text("下次起播强制经 ffmpeg 转码（排查直放崩溃时用）");
-            if !self.bridge_note.is_empty() {
-                ui.label(RichText::new(&self.bridge_note).size(11.0).color(theme::OK));
-            }
-        });
+            });
     }
 
-    fn info_line(&self, ui: &mut Ui, snap: &Snapshot) {
-        let mut parts: Vec<String> = Vec::new();
-        if snap.width > 0 {
-            parts.push(format!("{}x{}", snap.width, snap.height));
-        }
-        if !snap.video_codec.is_empty() {
-            parts.push(snap.video_codec.clone());
-        }
-        if !snap.dec_pixfmt.is_empty() {
-            parts.push(snap.dec_pixfmt.clone());
-        }
-        if !snap.hwdec.is_empty() && snap.hwdec != "no" {
-            parts.push(format!("硬解:{}", snap.hwdec));
-        }
-        if snap.vf_fps > 0.0 {
-            parts.push(format!("{:.1}fps", snap.vf_fps));
-        }
-        if snap.v_bitrate > 0.0 {
-            parts.push(format!("{:.0}kbps", snap.v_bitrate / 1000.0));
-        }
-        if snap.decoder_drop > 0 || snap.render_drop > 0 {
-            parts.push(format!("丢帧 {}/{}", snap.decoder_drop, snap.render_drop));
-        }
-        if snap.avsync.abs() > 0.001 {
-            parts.push(format!("avsync {:+.3}s", snap.avsync));
-        }
-        ui.label(
-            RichText::new(parts.join(" · "))
-                .size(11.0)
-                .color(theme::SUB),
-        );
+    /// 信息 chips 行（fps/码率/丢帧/音频）。
+    fn chips(&self, ui: &mut Ui, snap: &Snapshot) {
+        ui.horizontal(|ui| {
+            if snap.vf_fps > 0.0 {
+                crate::widgets::chip(ui, format!("{:.1} fps", snap.vf_fps), theme::MUT);
+            }
+            if snap.v_bitrate > 0.0 {
+                crate::widgets::chip(
+                    ui,
+                    format!("{:.0} kbps", snap.v_bitrate / 1000.0),
+                    theme::MUT,
+                );
+            }
+            let drops = snap.decoder_drop + snap.render_drop;
+            crate::widgets::chip(
+                ui,
+                format!("丢帧 {}/{}", snap.decoder_drop, snap.render_drop),
+                if drops > 0 { theme::WARN } else { theme::OK },
+            );
+            if !snap.audio_codec.is_empty() {
+                crate::widgets::chip(ui, snap.audio_codec.clone(), theme::MUT);
+            }
+            if snap.avsync.abs() > 0.001 {
+                crate::widgets::chip(
+                    ui,
+                    format!("avsync {:+.3}s", snap.avsync),
+                    if snap.avsync.abs() > 0.1 { theme::WARN } else { theme::MUT },
+                );
+            }
+        });
     }
 }
 
 fn fmt_hms(s: f64) -> String {
     let s = s.max(0.0);
     format!("{:02}:{:02}:{:02}", s as u64 / 3600, (s as u64 / 60) % 60, s as u64 % 60)
+}
+
+/// 角标（半透明黑底小标签）。
+fn draw_tag(
+    ui: &mut Ui,
+    video: egui::Rect,
+    text: impl Into<String>,
+    anchor: egui::Align2,
+    color: Color32,
+) {
+    let font = egui::FontId::proportional(10.5);
+    let text = text.into();
+    let g = ui.painter().layout_no_wrap(text.clone(), font.clone(), color);
+    let size = g.size() + Vec2::new(16.0, 7.0);
+    let pos = match anchor {
+        egui::Align2::LEFT_TOP => video.left_top() + Vec2::new(10.0, 10.0),
+        _ => video.right_top() + Vec2::new(-10.0 - size.x, 10.0),
+    };
+    let rect = egui::Rect::from_min_size(pos, size);
+    let p = ui.painter_at(rect);
+    p.rect_filled(rect, 6.0, Color32::from_rgba_premultiplied(0, 0, 0, 115));
+    p.text(rect.center(), egui::Align2::CENTER_CENTER, text, font, color);
+}
+
+/// 长 codec 名取首段（"H.264 / AVC / …" → "H.264"）。
+fn short_codec(c: &str) -> String {
+    c.split('/').next().unwrap_or(c).trim().to_string()
 }

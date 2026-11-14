@@ -1,17 +1,19 @@
-//! 主窗口 —— 侧边导航 + 页面切换（`app_qt_new.py` MainWindow 的移植）。
+//! 主窗口 —— 侧边导航 + 页面切换（`app_qt_new.py` MainWindow 的移植，
+//! 视觉方案 A「播控室暗色」）。
 //!
 //! 约定：
-//! * 导航行兼作各页状态灯（`set_nav_state`）；更新徽标挂在「关于」。
+//! * 导航行兼作各页状态灯（`set_nav_state`）；后续版本页以「三期」徽标占位。
 //! * 页面切换是轻操作：不销毁后台线程/子进程（对齐 Python 版 cleanup()
 //!   ≠ shutdown() 的分层）。播放器页切走时隐藏视频子窗，回来即恢复。
 
 use eframe::Frame;
-use egui::Context;
+use egui::{Color32, Context, FontId, RichText, Vec2};
 
 use crate::pages::{analysis::AnalysisPage, player::PlayerPage};
+use crate::theme;
+use crate::widgets::status::PageState;
 
-pub const NAV_WIDTH: f32 = 150.0;
-const NAV_ITEMS: [&str; 3] = ["播放器", "视频分析", "关于"];
+pub const NAV_WIDTH: f32 = 196.0;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum PageId {
@@ -24,13 +26,13 @@ pub struct VqaApp {
     page: PageId,
     pub player: PlayerPage,
     pub analysis: AnalysisPage,
-    nav_states: [crate::widgets::status::PageState; 3],
+    nav_states: [PageState; 3],
     main_hwnd: Option<isize>,
 }
 
 impl VqaApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        crate::theme::install(&cc.egui_ctx);
+        theme::install(&cc.egui_ctx);
         // 中文字体：接入系统微软雅黑（egui 默认字体缺 CJK）
         let mut fonts = egui::FontDefinitions::default();
         for fam in ["Microsoft YaHei UI", "Microsoft YaHei", "SimSun"] {
@@ -40,10 +42,7 @@ impl VqaApp {
                         format!("cjk-{fam}"),
                         egui::FontData::from_owned(data).into(),
                     );
-                    for slot in [
-                        egui::FontFamily::Proportional,
-                        egui::FontFamily::Monospace,
-                    ] {
+                    for slot in [egui::FontFamily::Proportional, egui::FontFamily::Monospace] {
                         fonts
                             .families
                             .entry(slot)
@@ -60,18 +59,17 @@ impl VqaApp {
             page: PageId::Player,
             player: PlayerPage::new(),
             analysis: AnalysisPage::new(),
-            nav_states: [crate::widgets::status::PageState::Idle; 3],
+            nav_states: [PageState::Idle; 3],
             main_hwnd: None,
         }
     }
 
-    pub fn set_nav_state(&mut self, page: PageId, st: crate::widgets::status::PageState) {
+    pub fn set_nav_state(&mut self, page: PageId, st: PageState) {
         self.nav_states[page as usize] = st;
     }
 }
 
 fn font_path(family: &str) -> Option<std::path::PathBuf> {
-    // C:\Windows\Fonts\msyh.ttc / msyh.ttf / simsun.ttc
     let name = match family {
         "Microsoft YaHei UI" | "Microsoft YaHei" => "msyh.ttc",
         "SimSun" => "simsun.ttc",
@@ -101,7 +99,6 @@ impl eframe::App for VqaApp {
             self.player.ensure_child(hwnd);
         }
 
-        // 状态灯同步（页面在 update 里上报）
         self.set_nav_state(PageId::Player, self.player.nav_state());
         self.set_nav_state(PageId::Analysis, self.analysis.nav_state());
 
@@ -109,87 +106,185 @@ impl eframe::App for VqaApp {
             .exact_width(NAV_WIDTH)
             .frame(
                 egui::Frame::none()
-                    .fill(crate::theme::NAV_BG)
-                    .inner_margin(egui::Margin::symmetric(0.0, 10.0)),
+                    .fill(theme::PANEL2)
+                    .inner_margin(egui::Margin::same(0.0)),
             )
             .show(ctx, |ui| {
                 ui.vertical(|ui| {
-                    ui.add_space(6.0);
+                    ui.add_space(14.0);
+                    // 品牌块
                     ui.horizontal(|ui| {
                         ui.add_space(14.0);
-                        ui.label(
-                            egui::RichText::new("视听质量检测工作站")
-                                .size(13.0)
-                                .strong(),
+                        let logo = egui::Rect::from_min_size(
+                            ui.cursor().left_top(),
+                            Vec2::new(34.0, 34.0),
                         );
+                        ui.allocate_rect(logo, egui::Sense::hover());
+                        let p = ui.painter_at(logo);
+                        p.rect_filled(logo, 9.0, theme::ACC_SOFT);
+                        p.text(
+                            logo.center(),
+                            egui::Align2::CENTER_CENTER,
+                            "◉",
+                            FontId::proportional(15.0),
+                            theme::ACC,
+                        );
+                        ui.add_space(10.0);
+                        ui.vertical(|ui| {
+                            ui.label(RichText::new("VQA").size(14.0).strong().color(theme::TEXT));
+                            ui.label(
+                                RichText::new("Workbench v0.2")
+                                    .size(10.0)
+                                    .color(theme::FAINT),
+                            );
+                        });
                     });
-                    ui.label(
-                        egui::RichText::new("VQA Workbench · Rust")
-                            .size(9.0)
-                            .color(crate::theme::SUB),
-                    );
-                    ui.add_space(10.0);
-                    for (i, name) in NAV_ITEMS.iter().enumerate() {
-                        let id = match i {
-                            0 => PageId::Player,
-                            1 => PageId::Analysis,
-                            _ => PageId::About,
-                        };
+                    ui.add_space(14.0);
+                    ui.separator();
+                    ui.add_space(6.0);
+
+                    // 功能导航（自绘行：激活态左缘条 + 强调底色）
+                    for (name, id) in [
+                        ("播放器", PageId::Player),
+                        ("视频分析", PageId::Analysis),
+                    ] {
                         let selected = self.page == id;
-                        let state = self.nav_states[i];
-                        use crate::theme::PRIMARY;
-                        // 自绘导航行：状态灯 + 文本（DotWidget + NavRow 的移植）
+                        let state = self.nav_states[id as usize];
                         let (rect, resp) = ui.allocate_exact_size(
-                            [NAV_WIDTH - 12.0, 34.0].into(),
+                            [NAV_WIDTH - 20.0, 34.0].into(),
                             egui::Sense::click(),
                         );
-                        if resp.hovered() || selected {
-                            ui.painter().rect_filled(
-                                rect,
-                                4.0,
-                                if selected {
-                                    PRIMARY.gamma_multiply(0.14)
-                                } else {
-                                    egui::Color32::from_black_alpha(8)
-                                },
-                            );
-                        }
+                        ui.add_space(3.0);
+                        let p = ui.painter_at(rect);
                         if selected {
-                            ui.painter().rect_filled(
+                            p.rect_filled(rect, 8.0, theme::ACC_SOFT);
+                            p.rect_filled(
                                 egui::Rect::from_min_size(
-                                    rect.left_top(),
-                                    [3.0, rect.height()].into(),
+                                    rect.left_top() + Vec2::new(-10.0, 8.0),
+                                    Vec2::new(3.0, rect.height() - 16.0),
                                 ),
                                 2.0,
-                                PRIMARY,
+                                theme::ACC,
+                            );
+                        } else if resp.hovered() {
+                            p.rect_filled(rect, 8.0, theme::ACC_SOFT);
+                        }
+                        p.text(
+                            egui::pos2(rect.left() + 14.0, rect.center().y),
+                            egui::Align2::LEFT_CENTER,
+                            name,
+                            FontId::proportional(13.0),
+                            if selected { theme::ACC } else { theme::MUT },
+                        );
+                        // 运行状态灯（仅非空闲时显示）
+                        if state != PageState::Idle {
+                            let blink = ui.input(|i| i.time) % 1.0 < 0.5;
+                            let c = match state {
+                                PageState::Running if blink => state.color().gamma_multiply(0.55),
+                                _ => state.color(),
+                            };
+                            p.circle_filled(
+                                egui::pos2(rect.right() - 14.0, rect.center().y),
+                                4.0,
+                                c,
                             );
                         }
-                        let dot_center = egui::pos2(rect.left() + 16.0, rect.center().y);
-                        let blink = ui.input(|i| i.time) % 1.0 < 0.5;
-                        let color = match state {
-                            crate::widgets::status::PageState::Running if blink => {
-                                state.color().gamma_multiply(0.55)
-                            }
-                            _ => state.color(),
-                        };
-                        ui.painter()
-                            .circle_filled(dot_center, 4.0, color);
-                        ui.painter().text(
-                            egui::pos2(rect.left() + 30.0, rect.center().y),
-                            egui::Align2::LEFT_CENTER,
-                            *name,
-                            egui::FontId::proportional(13.5),
-                            if selected { crate::theme::PRIMARY } else { crate::theme::BODY },
-                        );
                         if resp.clicked() {
                             self.page = id;
                         }
                     }
+                    // 后续版本占位（灰色 + 三期徽标）
+                    for name in ["合规检测", "直播转码", "微突发巡检"] {
+                        let (rect, _) = ui.allocate_exact_size(
+                            [NAV_WIDTH - 20.0, 34.0].into(),
+                            egui::Sense::hover(),
+                        );
+                        ui.add_space(3.0);
+                        let p = ui.painter_at(rect);
+                        p.text(
+                            egui::pos2(rect.left() + 14.0, rect.center().y),
+                            egui::Align2::LEFT_CENTER,
+                            name,
+                            FontId::proportional(13.0),
+                            theme::FAINT.gamma_multiply(0.7),
+                        );
+                        let badge = egui::Rect::from_center_size(
+                            egui::pos2(rect.right() - 24.0, rect.center().y),
+                            Vec2::new(30.0, 16.0),
+                        );
+                        p.rect_stroke(badge, 99.0, egui::Stroke::new(1.0_f32, theme::BORDER2));
+                        p.text(
+                            badge.center(),
+                            egui::Align2::CENTER_CENTER,
+                            "三期",
+                            FontId::proportional(9.0),
+                            theme::FAINT,
+                        );
+                    }
+                    ui.add_space(6.0);
+                    ui.separator();
+
+                    // 关于（常规导航项）
+                    let (rect, resp) = ui.allocate_exact_size(
+                        [NAV_WIDTH - 20.0, 34.0].into(),
+                        egui::Sense::click(),
+                    );
+                    ui.add_space(3.0);
+                    let selected = self.page == PageId::About;
+                    let p = ui.painter_at(rect);
+                    if selected {
+                        p.rect_filled(rect, 8.0, theme::ACC_SOFT);
+                        p.rect_filled(
+                            egui::Rect::from_min_size(
+                                rect.left_top() + Vec2::new(-10.0, 8.0),
+                                Vec2::new(3.0, rect.height() - 16.0),
+                            ),
+                            2.0,
+                            theme::ACC,
+                        );
+                    } else if resp.hovered() {
+                        p.rect_filled(rect, 8.0, theme::ACC_SOFT);
+                    }
+                    p.text(
+                        egui::pos2(rect.left() + 14.0, rect.center().y),
+                        egui::Align2::LEFT_CENTER,
+                        "关于",
+                        FontId::proportional(13.0),
+                        if selected { theme::ACC } else { theme::MUT },
+                    );
+                    if resp.clicked() {
+                        self.page = PageId::About;
+                    }
+
+                    // 侧栏底部：引擎状态
+                    ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
+                        ui.add_space(10.0);
+                        ui.horizontal(|ui| {
+                            ui.add_space(14.0);
+                            let blink = ui.input(|i| i.time) % 1.0 < 0.5;
+                            ui.painter().circle_filled(
+                                ui.cursor().left_top() + Vec2::new(4.0, 8.0),
+                                4.0,
+                                if blink { theme::OK } else { theme::OK.gamma_multiply(0.55) },
+                            );
+                            ui.add_space(12.0);
+                            ui.label(RichText::new("引擎就绪").size(11.0).color(theme::MUT));
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    ui.add_space(10.0);
+                                    ui.label(
+                                        RichText::new("mpv 0.41").size(10.0).color(theme::FAINT),
+                                    );
+                                },
+                            );
+                        });
+                    });
                 });
             });
 
         egui::CentralPanel::default()
-            .frame(egui::Frame::none().fill(egui::Color32::WHITE).inner_margin(8.0))
+            .frame(egui::Frame::none().fill(theme::BG).inner_margin(14.0))
             .show(ctx, |ui| match self.page {
                 PageId::Player => self.player.ui(ctx, ui),
                 PageId::Analysis => self.analysis.ui(ctx, ui),
@@ -197,8 +292,7 @@ impl eframe::App for VqaApp {
             });
 
         // 播放器页不在前台时隐藏视频子窗（页面状态保留，回来即恢复）
-        self.player
-            .set_child_visible(self.page == PageId::Player);
+        self.player.set_child_visible(self.page == PageId::Player);
     }
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
@@ -208,23 +302,31 @@ impl eframe::App for VqaApp {
 }
 
 fn about_ui(ui: &mut egui::Ui) {
-    ui.heading("关于");
+    ui.label(RichText::new("关于").size(16.0).strong());
     ui.add_space(8.0);
-    ui.label(format!("版本 {} (Rust)", env!("CARGO_PKG_VERSION")));
-    ui.add_space(6.0);
-    for (k, v) in [
-        ("ffmpeg", vqa_core::tools::find_ffmpeg()),
-        ("ffprobe", vqa_core::tools::find_ffprobe()),
-        ("mpv", vqa_core::tools::find_mpv()),
-        ("davs2", vqa_core::tools::find_davs2()),
-    ] {
-        let v = v.map(|p| p.display().to_string())
-            .unwrap_or_else(|| "未找到".into());
-        crate::widgets::kv(ui, k, v);
-    }
-    ui.add_space(10.0);
-    ui.label(
-        egui::RichText::new("首期交付：播放器 / 视频分析。其余功能页按计划迭代。")
-            .color(crate::theme::SUB),
-    );
+    theme::panel(ui, "版本", |ui| {
+        ui.label(format!(
+            "视听质量检测工作站 v{}（Rust 版）",
+            env!("CARGO_PKG_VERSION")
+        ));
+        ui.add_space(4.0);
+        ui.label(RichText::new("首期交付：播放器 / 视频分析。其余功能页按路线迭代。")
+            .size(12.0)
+            .color(theme::MUT));
+    });
+    ui.add_space(8.0);
+    theme::panel(ui, "工具链", |ui| {
+        for (k, v) in [
+            ("ffmpeg", vqa_core::tools::find_ffmpeg()),
+            ("ffprobe", vqa_core::tools::find_ffprobe()),
+            ("mpv", vqa_core::tools::find_mpv()),
+            ("davs2", vqa_core::tools::find_davs2()),
+        ] {
+            let v = v
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| "未找到".into());
+            crate::widgets::kv(ui, k, v);
+        }
+    });
+    let _ = Color32::WHITE;
 }
