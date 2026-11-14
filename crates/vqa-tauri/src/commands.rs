@@ -139,9 +139,9 @@ pub fn player_play(
         })
         .ok();
 
-    // 立即直载占位（探针结论回来后如需桥接会换源重载）
-    let _ = mpv.loadfile(&cleaned);
-    st.set_hint("已加载");
+    // 加载时机对齐 egui 版口径：探针/桥决策完成后由收割侧 loadfile——
+    // 10-bit AVS2 等直放必败的源不在桥起好前喂给 mpv
+    st.set_hint("探测中…");
     Ok(())
 }
 
@@ -293,20 +293,34 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                     }
                 }
                 Ok(ProbeMsg::Outcome(launch)) => match launch {
-                    Launch::Direct => {}
-                    Launch::Bridged { url, reason, bridge } => {
+                    Launch::Direct => {
                         if let Some(m) = &mpv_arc {
+                            let url = st.playing_url.lock().unwrap().clone();
+                            if !url.is_empty() {
+                                let _ = m.loadfile(&url);
+                                st.set_hint("已加载");
+                            }
+                        }
+                    }
+                    Launch::Bridged { url, reason, bridge } => {
+                        if st.playing_url.lock().unwrap().is_empty() {
+                            // 用户已停止：起好的桥直接丢弃（Drop 会 kill 子进程）
+                            drop(bridge);
+                        } else if let Some(m) = &mpv_arc {
                             let _ = m.loadfile(&url);
                             let _ = m.show_text(&reason, 4000);
+                            *st.bridge_note.lock().unwrap() = reason;
+                            *st.bridge.lock().unwrap() = Some(bridge);
+                        } else {
+                            drop(bridge);
                         }
-                        *st.bridge_note.lock().unwrap() = reason;
-                        *st.bridge.lock().unwrap() = Some(bridge);
                     }
                     Launch::Failed(msg) => {
                         *st.err.lock().unwrap() = Some(msg.clone());
                         if let Some(m) = &mpv_arc {
                             let url = st.playing_url.lock().unwrap().clone();
                             if !url.is_empty() {
+                                // 回退直放
                                 let _ = m.loadfile(&url);
                             }
                         }

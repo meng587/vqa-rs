@@ -27,7 +27,21 @@ function goto(page: Page) {
   pages.forEach((p) => {
     p.hidden = p.getAttribute("data-page") !== page;
   });
+  (window as any).__currentPage = page;
   window.dispatchEvent(new CustomEvent("page-changed", { detail: page }));
+}
+
+/** nav 行状态灯：idle=熄 / running=绿闪 / error=红。 */
+export function setNavLamp(page: "player" | "analysis", state: "idle" | "running" | "error") {
+  const lamp = document.getElementById(`lamp-${page}`);
+  if (!lamp) return;
+  lamp.className = `lamp${state === "running" ? " run" : state === "error" ? " err" : ""}`;
+}
+
+/** 页脚引擎状态点（mpv 存活 = 绿）。 */
+export function setEngineLamp(ok: boolean) {
+  const dot = document.querySelector<HTMLElement>(".engine .dot");
+  if (dot) dot.style.background = ok ? "var(--ok)" : "var(--bad)";
 }
 
 document.querySelectorAll<HTMLElement>("#nav .mn[data-goto]").forEach((btn) => {

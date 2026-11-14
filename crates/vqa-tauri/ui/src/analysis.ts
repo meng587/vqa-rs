@@ -3,6 +3,7 @@
 
 import { api, type Res } from "./api";
 import { icon } from "./icons";
+import { setNavLamp } from "./main";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -159,6 +160,10 @@ export function initAnalysis() {
       }
       lastMode = p.mode;
       renderStatus(p);
+      setNavLamp(
+        "analysis",
+        p.err && p.mode === 0 ? "error" : p.mode !== 0 ? "running" : "idle",
+      );
     } catch {
       /* 静默 */
     }

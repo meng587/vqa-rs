@@ -4,6 +4,7 @@
 import { api, type PlayerStateJson, type Snap } from "./api";
 import { icon } from "./icons";
 import { SPEEDS } from "./constants";
+import { setNavLamp, setEngineLamp } from "./main";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -185,7 +186,9 @@ export function initPlayer() {
   function placeChild() {
     const r = vrect.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    const visible = !!snapCache && !snapCache.idle && !!stateCache?.playing;
+    // 只在播放器页可见（切到其他页时视频子窗必须移出屏幕，否则盖在内容上）
+    const onPage = (window as any).__currentPage === "player";
+    const visible = onPage && !!snapCache && !snapCache.idle && !!stateCache?.playing;
     api
       .placeVideo(
         Math.round(r.left * dpr),
@@ -206,6 +209,12 @@ export function initPlayer() {
       stateCache = st;
       snapCache = st.snap;
       render(st);
+      // nav 状态灯 + 页脚引擎灯
+      setNavLamp(
+        "player",
+        st.err ? "error" : st.playing && !st.snap?.idle ? "running" : "idle",
+      );
+      setEngineLamp(!!st.snap || !st.err);
     } catch {
       /* 后端未就绪时静默 */
     }

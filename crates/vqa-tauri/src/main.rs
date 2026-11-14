@@ -109,6 +109,36 @@ fn main() {
             commands::packet_rows,
             commands::export_report_md,
         ])
-        .run(tauri::generate_context!())
-        .expect("tauri 应用启动失败");
+        .build(tauri::generate_context!())
+        .expect("tauri 应用构建失败")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                shutdown(app);
+            }
+        });
+}
+
+/// 退出清理（对齐 egui 版 on_exit）：mpv quit+kill、桥 Drop kill ffmpeg、
+/// 停扫描线程/实时会话、销毁视频子窗。
+fn shutdown(app: &tauri::AppHandle) {
+    use tauri::Manager;
+    let pst = app.state::<state::PlayerState>();
+    *pst.playing_url.lock().unwrap() = String::new();
+    if let Some(m) = pst.mpv.lock().unwrap().take() {
+        let _ = m.stop();
+        drop(m); // Drop: quit → kill
+    }
+    *pst.bridge.lock().unwrap() = None; // Drop: kill ffmpeg
+    if let Some(c) = pst.child.lock().unwrap().take() {
+        c.destroy();
+    }
+    let ast = app.state::<state::AnalysisState>();
+    if let Some(f) = ast.stop_flag.lock().unwrap().as_ref() {
+        f.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+    let live = ast.live.lock().unwrap().take();
+    if let Some(l) = live {
+        l.stop();
+    }
+    drop(ast);
 }
