@@ -229,7 +229,10 @@ function render(st: PlayerStateJson) {
   // 错误/提示行
   if (st.err) showNote(`✗ ${st.err}`, true);
   else if (st.hint) showNote(st.hint, false);
-  else noteEl.className = "noteline";
+  else {
+    noteEl.className = "noteline";
+    noteEl.textContent = "";
+  }
 
   // 空态 / 视频区
   const empty = $("v-empty");
@@ -307,8 +310,8 @@ function render(st: PlayerStateJson) {
 }
 
 function renderChips(st: PlayerStateJson) {
-  const box = $("p-chips");
-  const keep = (box.querySelector(".force-bridge") as HTMLElement).outerHTML;
+  // 只重建动态 chips 区；force-bridge 是固定 DOM（重建会丢勾选状态）
+  const box = $("p-chips-dyn");
   const parts: string[] = [];
   const snap = st.snap;
   if (!st.playing) {
@@ -334,7 +337,7 @@ function renderChips(st: PlayerStateJson) {
         );
     }
   }
-  box.innerHTML = parts.join("") + keep;
+  box.innerHTML = parts.join("");
 }
 
 // ═══════════════════════════ 小工具 ═══════════════════════════
