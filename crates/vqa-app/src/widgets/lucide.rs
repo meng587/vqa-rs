@@ -43,6 +43,7 @@ pub enum Lucide {
     X,
     TriangleAlert,
     ScanLine,
+    ChevronDown,
 }
 
 impl Lucide {
@@ -68,6 +69,7 @@ impl Lucide {
             Lucide::X => 0xe1b2,
             Lucide::TriangleAlert => 0xe193,
             Lucide::ScanLine => 0xe258,
+            Lucide::ChevronDown => 0xe071,
         };
         char::from_u32(cp).unwrap_or('\u{fffd}')
     }

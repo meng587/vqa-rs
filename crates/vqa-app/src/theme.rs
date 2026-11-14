@@ -93,7 +93,8 @@ pub fn install(ctx: &egui::Context) {
     vs.text_cursor.stroke = egui::Stroke::new(1.6_f32, ACC);
 
     style.spacing.item_spacing = Vec2::new(8.0, 6.0);
-    style.spacing.button_padding = Vec2::new(12.0, 5.0);
+    // 全局钮高规范：普通钮/下拉闭态 = 12.5px 字行 + 8×2 padding ≈ 32px
+    style.spacing.button_padding = Vec2::new(12.0, 8.0);
     style.spacing.menu_margin = egui::Margin::symmetric(6.0, 6.0);
 
     style.text_styles = [

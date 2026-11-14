@@ -63,9 +63,19 @@ impl SourceBar {
             let resp_url = ui.add(
                 egui::TextEdit::singleline(&mut self.url)
                     .hint_text(self.placeholder_hint)
-                    .desired_width((ui.available_width() - 420.0).max(240.0)),
+                    .desired_width((ui.available_width() - 420.0).max(240.0))
+                    .min_size(egui::vec2(240.0, 32.0)),
             );
-            let hist_btn = ui.add(egui::Button::new("▾").rounding(6.0));
+            // 32×32 规格钮 + lucide chevron-down 字形（与全行 32px 规范一致）
+            let hist_btn = ui.add_sized(
+                egui::vec2(32.0, 32.0),
+                egui::Button::new(
+                    crate::widgets::lucide::Lucide::ChevronDown.text(14.0, crate::theme::MUT),
+                )
+                .fill(egui::Color32::TRANSPARENT)
+                .stroke(egui::Stroke::new(1.0, crate::theme::BORDER2))
+                .rounding(8.0),
+            );
             if hist_btn.clicked() {
                 ui.memory_mut(|m| m.toggle_popup(hist_id));
             }
