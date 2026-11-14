@@ -53,6 +53,7 @@ impl VqaApp {
                 }
             }
         }
+        crate::widgets::lucide::install(&mut fonts);
         cc.egui_ctx.set_fonts(fonts);
 
         Self {
@@ -143,10 +144,10 @@ impl eframe::App for VqaApp {
                     ui.separator();
                     ui.add_space(6.0);
 
-                    // 功能导航（自绘行：图标 + 激活态左缘条 + 强调底色）
+                    // 功能导航（自绘行：lucide 图标 + 激活态左缘条 + 强调底色）
                     for (name, id, icon) in [
-                        ("播放器", PageId::Player, crate::widgets::Icon::NavPlayer),
-                        ("视频分析", PageId::Analysis, crate::widgets::Icon::NavActivity),
+                        ("播放器", PageId::Player, crate::widgets::lucide::Lucide::MonitorPlay),
+                        ("视频分析", PageId::Analysis, crate::widgets::lucide::Lucide::Activity),
                     ] {
                         let selected = self.page == id;
                         let state = self.nav_states[id as usize];
@@ -170,7 +171,13 @@ impl eframe::App for VqaApp {
                             p.rect_filled(rect, 8.0, theme::ACC_SOFT);
                         }
                         let ic_color = if selected { theme::ACC } else { theme::MUT };
-                        icon.draw_impl_pub(&p, egui::pos2(rect.left() + 22.0, rect.center().y), ic_color, 1.15);
+                        p.text(
+                            egui::pos2(rect.left() + 22.0, rect.center().y),
+                            egui::Align2::CENTER_CENTER,
+                            icon.glyph(),
+                            egui::FontId::new(16.0, egui::FontFamily::Name(crate::widgets::lucide::LUCIDE_FAMILY.into())),
+                            ic_color,
+                        );
                         p.text(
                             egui::pos2(rect.left() + 40.0, rect.center().y),
                             egui::Align2::LEFT_CENTER,
@@ -197,9 +204,9 @@ impl eframe::App for VqaApp {
                     }
                     // 后续版本占位（灰色图标 + 三期徽标）
                     for (name, icon) in [
-                        ("合规检测", crate::widgets::Icon::NavShield),
-                        ("直播转码", crate::widgets::Icon::NavTower),
-                        ("微突发巡检", crate::widgets::Icon::NavActivity),
+                        ("合规检测", crate::widgets::lucide::Lucide::ShieldCheck),
+                        ("直播转码", crate::widgets::lucide::Lucide::RadioTower),
+                        ("微突发巡检", crate::widgets::lucide::Lucide::Activity),
                     ] {
                         let (rect, _) = ui.allocate_exact_size(
                             [NAV_WIDTH - 20.0, 34.0].into(),
@@ -207,7 +214,13 @@ impl eframe::App for VqaApp {
                         );
                         ui.add_space(3.0);
                         let p = ui.painter_at(rect);
-                        icon.draw_impl_pub(&p, egui::pos2(rect.left() + 22.0, rect.center().y), theme::FAINT.gamma_multiply(0.7), 1.15);
+                        p.text(
+                            egui::pos2(rect.left() + 22.0, rect.center().y),
+                            egui::Align2::CENTER_CENTER,
+                            icon.glyph(),
+                            egui::FontId::new(16.0, egui::FontFamily::Name(crate::widgets::lucide::LUCIDE_FAMILY.into())),
+                            theme::FAINT.gamma_multiply(0.7),
+                        );
                         p.text(
                             egui::pos2(rect.left() + 40.0, rect.center().y),
                             egui::Align2::LEFT_CENTER,
@@ -253,11 +266,12 @@ impl eframe::App for VqaApp {
                         p.rect_filled(rect, 8.0, theme::ACC_SOFT);
                     }
                     let ic_color = if selected { theme::ACC } else { theme::MUT };
-                    crate::widgets::Icon::NavInfo.draw_impl_pub(
-                        &p,
+                    p.text(
                         egui::pos2(rect.left() + 22.0, rect.center().y),
+                        egui::Align2::CENTER_CENTER,
+                        crate::widgets::lucide::Lucide::Info.glyph(),
+                        egui::FontId::new(16.0, egui::FontFamily::Name(crate::widgets::lucide::LUCIDE_FAMILY.into())),
                         ic_color,
-                        1.15,
                     );
                     p.text(
                         egui::pos2(rect.left() + 40.0, rect.center().y),

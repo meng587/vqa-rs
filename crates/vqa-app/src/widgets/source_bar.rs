@@ -113,9 +113,11 @@ impl SourceBar {
                     egui::Color32::TRANSPARENT
                 });
                 fp.rect_stroke(frect, 8.0, egui::Stroke::new(1.0, crate::theme::BORDER2));
-                crate::widgets::Icon::Folder.draw(
-                    &fp,
+                fp.text(
                     frect.center(),
+                    egui::Align2::CENTER_CENTER,
+                    crate::widgets::lucide::Lucide::Folder.glyph(),
+                    egui::FontId::new(15.0, egui::FontFamily::Name(crate::widgets::lucide::LUCIDE_FAMILY.into())),
                     if fresp.hovered() { crate::theme::TEXT } else { crate::theme::MUT },
                 );
                 if fresp.clicked() {
@@ -140,8 +142,14 @@ fn action_button(ui: &mut egui::Ui, running: bool) -> bool {
     let p = ui.painter_at(rect);
     let bg = if running { crate::theme::BAD } else { crate::theme::ACC };
     p.rect_filled(rect, 8.0, if resp.hovered() { crate::theme::lighten(bg, 0.18) } else { bg });
-    let icon = if running { crate::widgets::Icon::Stop } else { crate::widgets::Icon::Play };
-    icon.draw(&p, egui::pos2(rect.left() + 20.0, rect.center().y), egui::Color32::WHITE);
+    let icon = if running { crate::widgets::lucide::Lucide::Square } else { crate::widgets::lucide::Lucide::Play };
+    p.text(
+        egui::pos2(rect.left() + 20.0, rect.center().y),
+        egui::Align2::CENTER_CENTER,
+        icon.glyph(),
+        egui::FontId::new(14.0, egui::FontFamily::Name(crate::widgets::lucide::LUCIDE_FAMILY.into())),
+        egui::Color32::WHITE,
+    );
     p.text(
         egui::pos2(rect.left() + 32.0, rect.center().y),
         egui::Align2::LEFT_CENTER,

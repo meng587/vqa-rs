@@ -17,7 +17,7 @@ use vqa_core::player::{Mpv, Snapshot};
 use vqa_core::probe;
 
 use crate::theme;
-use crate::widgets::Icon;
+use crate::widgets::lucide::Lucide;
 use crate::video_child::VideoChild;
 use crate::widgets::nic_selector::NicSelector;
 use crate::widgets::source_bar::{SourceAction, SourceBar};
@@ -376,7 +376,16 @@ impl PlayerPage {
         if !has_media {
             let c = mpv_rect.center() + Vec2::new(0.0, -6.0);
             p.circle_filled(c, 29.0, Color32::from_rgba_unmultiplied(255, 255, 255, 26));
-            crate::widgets::Icon::Play.draw_big(&p, c, Color32::WHITE, 2.4);
+            p.text(
+                c + Vec2::new(1.5, 0.0),
+                egui::Align2::CENTER_CENTER,
+                Lucide::Play.glyph(),
+                egui::FontId::new(
+                    26.0,
+                    egui::FontFamily::Name(crate::widgets::lucide::LUCIDE_FAMILY.into()),
+                ),
+                Color32::WHITE,
+            );
             let hit = egui::Rect::from_center_size(c, Vec2::new(70.0, 70.0));
             let resp = ui.allocate_rect(hit, egui::Sense::click());
             if resp.clicked() {
@@ -434,7 +443,7 @@ impl PlayerPage {
     /// 控制条（叠层内）：左簇 + seek + 右簇。
     fn controls(&mut self, ui: &mut Ui, snap: &Snapshot) {
         let paused = snap.paused || snap.idle;
-        if crate::widgets::icon_button(ui, if paused { Icon::Play } else { Icon::Pause }).clicked() {
+        if crate::widgets::icon_button(ui, if paused { Lucide::Play } else { Lucide::Pause }).clicked() {
             if let Some(m) = &self.mpv {
                 if snap.idle && !self.playing_url.is_empty() {
                     let _ = m.loadfile(&self.playing_url);
@@ -443,7 +452,7 @@ impl PlayerPage {
                 }
             }
         }
-        if crate::widgets::icon_button(ui, Icon::Stop).clicked() {
+        if crate::widgets::icon_button(ui, Lucide::Square).clicked() {
             self.playing_url.clear();
             self.stop_bridge();
             if let Some(m) = &self.mpv {
@@ -504,7 +513,7 @@ impl PlayerPage {
         // 音量（图标点击 = 静音切换）
         let vol_resp = crate::widgets::icon_button_tinted(
             ui,
-            Icon::Volume,
+            Lucide::Volume2,
             if self.muted { theme::BAD } else { theme::MUT },
         );
         if vol_resp.clicked() {
@@ -525,7 +534,7 @@ impl PlayerPage {
             }
         }
         // 快照
-        if crate::widgets::icon_button(ui, Icon::Camera).clicked() {
+        if crate::widgets::icon_button(ui, Lucide::Camera).clicked() {
             if let Some(m) = &self.mpv {
                 let _ = std::fs::create_dir_all(&self.snapshot_dir);
                 let ts = chrono::Local::now().format("%Y%m%d_%H%M%S");
@@ -539,7 +548,7 @@ impl PlayerPage {
         // 录制
         if crate::widgets::icon_button_tinted(
             ui,
-            Icon::Record,
+            Lucide::CircleDot,
             if self.recording.is_some() { theme::BAD } else { theme::MUT },
         )
         .clicked()
@@ -600,15 +609,15 @@ impl PlayerPage {
                 crate::widgets::chip_icon(ui, None, t, theme::MUT);
             }
             if !self.bridge_note.is_empty() {
-                crate::widgets::chip_icon(ui, Some(Icon::Scan), format!("⚠ {}", self.bridge_note), theme::WARN);
+                crate::widgets::chip_icon(ui, Some(Lucide::ScanLine), format!("⚠ {}", self.bridge_note), theme::WARN);
             }
             if snap.vf_fps > 0.0 {
-                crate::widgets::chip_icon(ui, Some(Icon::Gauge), format!("{:.1} fps", snap.vf_fps), theme::MUT);
+                crate::widgets::chip_icon(ui, Some(Lucide::Gauge), format!("{:.1} fps", snap.vf_fps), theme::MUT);
             }
             if snap.v_bitrate > 0.0 {
                 crate::widgets::chip_icon(
                     ui,
-                    Some(Icon::Wifi),
+                    Some(Lucide::Wifi),
                     format!("{:.0} kbps", snap.v_bitrate / 1000.0),
                     theme::MUT,
                 );
@@ -617,13 +626,13 @@ impl PlayerPage {
                 let drops = snap.decoder_drop + snap.render_drop;
                 crate::widgets::chip_icon(
                     ui,
-                    Some(Icon::Check),
+                    Some(Lucide::Check),
                     format!("丢帧 {}/{}", snap.decoder_drop, snap.render_drop),
                     if drops > 0 { theme::WARN } else { theme::OK },
                 );
             }
             if !snap.audio_codec.is_empty() {
-                crate::widgets::chip_icon(ui, Some(Icon::Audio), snap.audio_codec.clone(), theme::MUT);
+                crate::widgets::chip_icon(ui, Some(Lucide::AudioLines), snap.audio_codec.clone(), theme::MUT);
             }
             if snap.avsync.abs() > 0.001 {
                 crate::widgets::chip_icon(
