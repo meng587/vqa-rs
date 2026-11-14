@@ -21,6 +21,7 @@ pub const WARN: Color32 = Color32::from_rgb(0xfb, 0xbf, 0x24);
 pub const BAD: Color32 = Color32::from_rgb(0xf8, 0x71, 0x71);
 pub const DARK: Color32 = Color32::from_rgb(0x05, 0x08, 0x0c); // 视频区深处
 
+#[allow(dead_code)]
 pub const MONO: &str = "Consolas";
 
 /// 结论色：✓ 绿 / ？橙 / ✗ 红 / — 灰
@@ -39,10 +40,12 @@ pub fn verdict(text: &str, color: Color32) -> RichText {
     RichText::new(text).strong().color(color)
 }
 
+#[allow(dead_code)]
 pub fn small(text: impl Into<String>) -> RichText {
     RichText::new(&text.into()[..]).size(10.5).color(FAINT)
 }
 
+#[allow(dead_code)]
 pub fn mut_text(text: impl Into<String>) -> RichText {
     RichText::new(&text.into()[..]).size(12.0).color(MUT)
 }

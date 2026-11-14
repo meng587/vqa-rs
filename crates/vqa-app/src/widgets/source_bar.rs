@@ -57,38 +57,31 @@ impl SourceBar {
         ui.horizontal(|ui| {
             ui.label("来源");
             let hist = self.history();
-            let mut url_changed = None;
-            let combo = egui::ComboBox::from_id_source(format!("src_{}", self.key))
-                .width(ui.available_width() - 330.0)
-                .selected_text(if self.url.is_empty() {
-                    self.placeholder_hint.to_string()
-                } else {
-                    self.url.clone()
-                });
-            combo.show_ui(ui, |ui| {
-                if ui
-                    .selectable_label(false, self.placeholder_hint)
-                    .clicked()
-                {
-                    url_changed = Some(String::new());
-                }
-                for h in &hist {
-                    if ui.selectable_label(false, h).clicked() {
-                        url_changed = Some(h.clone());
-                    }
-                }
-            });
+            // 单一输入框 + ▾ 历史弹出（旧版 combo+TextEdit 双显示同址易挤爆一行）
+            let hist_id = egui::Id::new(format!("src_hist_{}", self.key));
             let resp_url = ui.add(
                 egui::TextEdit::singleline(&mut self.url)
                     .hint_text(self.placeholder_hint)
-                    .desired_width(ui.available_width() - 320.0),
+                    .desired_width((ui.available_width() - 330.0).max(180.0)),
             );
-            if resp_url.changed() {
-                // 可编辑输入框为主，历史下拉只做快捷选择
+            let hist_btn = ui.add(egui::Button::new("▾").rounding(6.0));
+            if hist_btn.clicked() {
+                ui.memory_mut(|m| m.toggle_popup(hist_id));
             }
-            if let Some(u) = url_changed {
-                self.url = u;
-            }
+            egui::popup_below_widget(ui, hist_id, &hist_btn, egui::PopupCloseBehavior::CloseOnClickOutside, |ui| {
+                ui.set_min_width(320.0);
+                if ui.selectable_label(false, self.placeholder_hint).clicked() {
+                    self.url.clear();
+                    ui.memory_mut(|m| m.close_popup());
+                }
+                for h in &hist {
+                    if ui.selectable_label(false, h).clicked() {
+                        self.url = h.clone();
+                        ui.memory_mut(|m| m.close_popup());
+                    }
+                }
+            });
+            let _ = resp_url;
             nic.show(ui);
             if self.show_file_browse && ui.button("浏览…").clicked() {
                 if let Some(p) = rfd::FileDialog::new()

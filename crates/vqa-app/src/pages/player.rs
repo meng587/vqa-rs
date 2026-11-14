@@ -324,11 +324,13 @@ impl PlayerPage {
             ui.label(RichText::new(&self.hint).size(12.0).color(theme::MUT));
         }
 
-        // 视频区（占满剩余空间，控制条叠层在底部；下方留 chips + 开关行）
+        // 视频区（占剩余高度；mpv 是原生子窗，永远盖住 egui 绘制——
+        // 控制条/信息行必须在视频区**之外**，否则会被视频覆盖或压到别的行）
         let snap = self.mpv.as_ref().map(|m| m.snapshot()).unwrap_or_default();
         let has_media = !self.playing_url.is_empty() && !snap.idle;
         let avail = ui.available_size();
-        let video_size = Vec2::new(avail.x, (avail.y - 64.0).max(140.0));
+        // 下方固定行：控制条 40 + chips 26 + 开关 22 + 行距 ~20
+        let video_size = Vec2::new(avail.x, (avail.y - 112.0).max(140.0));
         let (video_rect, _) =
             ui.allocate_exact_size(video_size, egui::Sense::hover());
         let p = ui.painter_at(video_rect);
@@ -339,26 +341,6 @@ impl PlayerPage {
                 video_rect.center(),
                 (video_rect.height() * 0.38).min(180.0),
                 Color32::from_rgba_premultiplied(16, 32, 46, 255),
-            );
-        }
-        // 角标：左上编码信息 / 右上转码桥提示
-        if snap.width > 0 {
-            let mut tag = format!("{}×{}", snap.width, snap.height);
-            if !snap.video_codec.is_empty() {
-                tag += &format!(" · {}", short_codec(&snap.video_codec));
-            }
-            if !snap.hwdec.is_empty() && snap.hwdec != "no" {
-                tag += &format!(" · 硬解 {}", snap.hwdec);
-            }
-            draw_tag(ui, video_rect, tag, egui::Align2::LEFT_TOP, theme::MUT);
-        }
-        if !self.bridge_note.is_empty() {
-            draw_tag(
-                ui,
-                video_rect,
-                format!("⚠ {}", self.bridge_note),
-                egui::Align2::RIGHT_TOP,
-                theme::WARN,
             );
         }
         // 待机中央：提示文字 + 大播放键（有源未播时可点击）
@@ -386,44 +368,51 @@ impl PlayerPage {
             c.place(video_rect, ctx.pixels_per_point(), has_media);
         }
 
-        // 控制条叠层（视频底部渐隐黑带）
-        let ctrl_h = 44.0;
-        let ctrl_rect = egui::Rect::from_min_size(
-            egui::Pos2::new(video_rect.left(), video_rect.bottom() - ctrl_h),
-            Vec2::new(video_rect.width(), ctrl_h),
-        );
-        p.rect_filled(
-            ctrl_rect,
-            0.0,
-            Color32::from_rgba_premultiplied(6, 8, 12, 205),
-        );
-        ui.allocate_ui_at_rect(ctrl_rect.shrink2(Vec2::new(10.0, 5.0)), |ctrl| {
-            ctrl.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                self.controls(ui, &snap);
-            });
+        // 控制条（独立行；seek 条按右侧控件簇的实测宽度让位，防溢出压行）
+        let dur = snap.duration_ms / 1000.0;
+        let pos = snap.time_ms / 1000.0;
+        let seekable = snap.seekable && dur > 0.0;
+        let right_cluster = 430.0_f32; // 时间+音量+快照+录制+倍速 预留
+        ui.horizontal(|ui| {
+            self.controls_left(ui, &snap);
+            let frac = if seekable {
+                if self.dragging {
+                    (self.seek_val / 1000.0).clamp(0.0, 1.0)
+                } else {
+                    ((pos / dur) as f32).clamp(0.0, 1.0)
+                }
+            } else if dur > 0.0 {
+                ((pos / dur) as f32).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            if let Some(x) = crate::widgets::seek_bar_at(
+                ui,
+                (ui.available_width() - right_cluster).max(60.0),
+                frac,
+                seekable,
+            ) {
+                self.dragging = true;
+                self.seek_val = x * 1000.0;
+                if seekable {
+                    if let Some(m) = &self.mpv {
+                        let _ = m.seek_percent((x * 100.0) as f64);
+                    }
+                }
+            }
+            if !ui.input(|i| i.pointer.any_down()) {
+                self.dragging = false;
+            }
+            self.controls_right(ui, &snap);
         });
+        ui.separator();
 
-        // 信息 chips
+        // 信息 chips（含分辨率/编码/硬解/转码桥——视频上的角标会被 mpv 盖住）
         self.chips(ui, &snap);
         // 强制桥接开关
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.force_bridge, "强制走转码桥")
                 .on_hover_text("下次起播强制经 ffmpeg 转码（排查直放崩溃时用）");
-            if let Some(q) = &self.probe_info {
-                if !q.video.codec.is_empty() {
-                    crate::widgets::chip(
-                        ui,
-                        format!(
-                            "{} {}×{} {}",
-                            q.video.codec,
-                            q.video.width,
-                            q.video.height,
-                            if q.video.pix_fmt.contains("10") { "10-bit" } else { "" }
-                        ),
-                        theme::FAINT,
-                    );
-                }
-            }
         });
 
         // 进度轮询刷新（~10Hz 足够；mpv 管道排空已在帧头做过）
@@ -436,8 +425,8 @@ impl PlayerPage {
         }
     }
 
-    fn controls(&mut self, ui: &mut Ui, snap: &Snapshot) {
-                // 播放/暂停
+    /// 控制条左侧簇：播放/暂停 + 停止。
+    fn controls_left(&mut self, ui: &mut Ui, snap: &Snapshot) {
         let paused = snap.paused || snap.idle;
         if crate::widgets::icon_button(ui, if paused { Icon::Play } else { Icon::Pause }).clicked() {
             if let Some(m) = &self.mpv {
@@ -448,7 +437,6 @@ impl PlayerPage {
                 }
             }
         }
-        // 停止
         if crate::widgets::icon_button(ui, Icon::Stop).clicked() {
             self.playing_url.clear();
             self.stop_bridge();
@@ -456,30 +444,12 @@ impl PlayerPage {
                 let _ = m.stop();
             }
         }
-        // 进度（可拖 = 点播；直播流灰条不可拖）
+    }
+
+    /// 控制条右侧簇：时间 + 音量 + 快照 + 录制 + 倍速。
+    fn controls_right(&mut self, ui: &mut Ui, snap: &Snapshot) {
         let dur = snap.duration_ms / 1000.0;
         let pos = snap.time_ms / 1000.0;
-        let seekable = snap.seekable && dur > 0.0;
-        if seekable {
-            let frac = if self.dragging {
-                (self.seek_val / 1000.0).clamp(0.0, 1.0)
-            } else {
-                ((pos / dur) as f32).clamp(0.0, 1.0)
-            };
-            if let Some(x) = crate::widgets::seek_bar(ui, frac, true) {
-                self.dragging = true;
-                self.seek_val = x * 1000.0;
-                if let Some(m) = &self.mpv {
-                    let _ = m.seek_percent((x * 100.0) as f64);
-                }
-            }
-            if !ui.input(|i| i.pointer.any_down()) {
-                self.dragging = false;
-            }
-        } else {
-            let frac = if dur > 0.0 { ((pos / dur) as f32).clamp(0.0, 1.0) } else { 0.0 };
-            crate::widgets::seek_bar(ui, frac, false);
-        }
         // 时间
         ui.label(
             RichText::new(format!(
@@ -566,9 +536,22 @@ impl PlayerPage {
             });
     }
 
-    /// 信息 chips 行（fps/码率/丢帧/音频）。
+    /// 信息 chips 行（分辨率/编码/硬解/桥 + fps/码率/丢帧/音频）。
     fn chips(&self, ui: &mut Ui, snap: &Snapshot) {
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
+            if snap.width > 0 {
+                let mut t = format!("{}×{}", snap.width, snap.height);
+                if !snap.video_codec.is_empty() {
+                    t += &format!(" · {}", short_codec(&snap.video_codec));
+                }
+                if !snap.hwdec.is_empty() && snap.hwdec != "no" {
+                    t += &format!(" · 硬解 {}", snap.hwdec);
+                }
+                crate::widgets::chip(ui, t, theme::MUT);
+            }
+            if !self.bridge_note.is_empty() {
+                crate::widgets::chip(ui, format!("⚠ {}", self.bridge_note), theme::WARN);
+            }
             if snap.vf_fps > 0.0 {
                 crate::widgets::chip(ui, format!("{:.1} fps", snap.vf_fps), theme::MUT);
             }
@@ -602,28 +585,6 @@ impl PlayerPage {
 fn fmt_hms(s: f64) -> String {
     let s = s.max(0.0);
     format!("{:02}:{:02}:{:02}", s as u64 / 3600, (s as u64 / 60) % 60, s as u64 % 60)
-}
-
-/// 角标（半透明黑底小标签）。
-fn draw_tag(
-    ui: &mut Ui,
-    video: egui::Rect,
-    text: impl Into<String>,
-    anchor: egui::Align2,
-    color: Color32,
-) {
-    let font = egui::FontId::proportional(10.5);
-    let text = text.into();
-    let g = ui.painter().layout_no_wrap(text.clone(), font.clone(), color);
-    let size = g.size() + Vec2::new(16.0, 7.0);
-    let pos = match anchor {
-        egui::Align2::LEFT_TOP => video.left_top() + Vec2::new(10.0, 10.0),
-        _ => video.right_top() + Vec2::new(-10.0 - size.x, 10.0),
-    };
-    let rect = egui::Rect::from_min_size(pos, size);
-    let p = ui.painter_at(rect);
-    p.rect_filled(rect, 6.0, Color32::from_rgba_premultiplied(0, 0, 0, 115));
-    p.text(rect.center(), egui::Align2::CENTER_CENTER, text, font, color);
 }
 
 /// 长 codec 名取首段（"H.264 / AVC / …" → "H.264"）。

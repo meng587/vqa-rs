@@ -44,13 +44,15 @@ pub fn kv(ui: &mut Ui, k: &str, v: impl Into<String>) {
 }
 
 /// 统计卡片：左缘强调条 + 标签 + 大数字 + 说明（方案 A 卡片）。
+#[allow(dead_code)]
 pub fn stat_card(ui: &mut Ui, label: &str, value: impl Into<String>, color: Color32) {
     stat_card_sub(ui, label, value, "", color)
 }
 
 /// 带说明行的统计卡片。
+/// 行高预算（66px）：标签 6..19 · 值 21..43（18px 字）· 说明 47..60——三段互不重叠。
 pub fn stat_card_sub(ui: &mut Ui, label: &str, value: impl Into<String>, sub: &str, color: Color32) {
-    let (rect, _) = ui.allocate_at_least(Vec2::new(108.0, 58.0), Sense::hover());
+    let (rect, _) = ui.allocate_at_least(Vec2::new(112.0, 66.0), Sense::hover());
     let p = ui.painter_at(rect);
     p.rect_filled(rect, 8.0, theme::PANEL);
     p.rect_stroke(rect, 8.0, egui::Stroke::new(1.0_f32, theme::BORDER));
@@ -65,22 +67,22 @@ pub fn stat_card_sub(ui: &mut Ui, label: &str, value: impl Into<String>, sub: &s
     );
     let pad = 12.0;
     p.text(
-        rect.left_top() + Vec2::new(pad, 7.0),
+        rect.left_top() + Vec2::new(pad, 6.0),
         egui::Align2::LEFT_TOP,
         label,
         egui::FontId::proportional(10.5),
         theme::FAINT,
     );
     p.text(
-        rect.left_top() + Vec2::new(pad, 22.0),
+        rect.left_top() + Vec2::new(pad, 21.0),
         egui::Align2::LEFT_TOP,
         value.into(),
-        egui::FontId::proportional(20.0),
+        egui::FontId::proportional(18.0),
         color,
     );
     if !sub.is_empty() {
         p.text(
-            rect.left_bottom() + Vec2::new(pad, -6.0),
+            rect.left_bottom() + Vec2::new(pad, -5.0),
             egui::Align2::LEFT_BOTTOM,
             sub,
             egui::FontId::proportional(10.5),
@@ -157,6 +159,7 @@ pub fn pill(ui: &mut Ui, text: &str, color: Color32) {
 
 /// 简单矢量图标（painter 直绘，不依赖图标字体）。
 #[derive(Clone, Copy, PartialEq)]
+#[allow(dead_code)] // Folder/Scan 供后续页（浏览/扫描）复用
 pub enum Icon {
     Play,
     Pause,
@@ -304,11 +307,18 @@ pub fn icon_button_tinted(ui: &mut Ui, icon: Icon, tint: Color32) -> egui::Respo
     resp
 }
 
-/// 自绘进度/拖动条（直播流不可拖时 disabled）。
+/// 自绘进度/拖动条（占满剩余宽度；直播流不可拖时 disabled）。
 /// 返回 Some(new_frac) 表示用户拖动到新位置。
+#[allow(dead_code)]
 pub fn seek_bar(ui: &mut Ui, frac: f32, enabled: bool) -> Option<f32> {
+    let w = ui.available_width();
+    seek_bar_at(ui, w, frac, enabled)
+}
+
+/// 定宽版本（控制条里给右侧控件簇让位，防溢出压行）。
+pub fn seek_bar_at(ui: &mut Ui, width: f32, frac: f32, enabled: bool) -> Option<f32> {
     let (rect, resp) = ui.allocate_exact_size(
-        Vec2::new(ui.available_width(), 14.0),
+        Vec2::new(width.max(40.0), 14.0),
         if enabled {
             Sense::click_and_drag()
         } else {
