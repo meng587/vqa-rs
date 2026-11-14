@@ -54,8 +54,9 @@ impl SourceBar {
         running: bool,
     ) -> SourceAction {
         let mut action = SourceAction::None;
-        // wrapped：窄面板下自然换行，杜绝右侧按钮被窗口边缘裁切
-        ui.horizontal_wrapped(|ui| {
+        // 单行确定性布局：输入框按显式预算收缩（wrapped 在宽度临界时会把
+        // 末尾的开始/folder 换行到不可见位置，见 5514bb9 后的实测截图）
+        ui.horizontal(|ui| {
             ui.label(egui::RichText::new("来源").color(crate::theme::MUT));
             let hist = self.history();
             // 单一输入框 + ▾ 历史弹出（旧版 combo+TextEdit 双显示同址易挤爆一行）
@@ -63,8 +64,8 @@ impl SourceBar {
             let resp_url = ui.add(
                 egui::TextEdit::singleline(&mut self.url)
                     .hint_text(self.placeholder_hint)
-                    .desired_width((ui.available_width() - 420.0).max(240.0))
-                    .min_size(egui::vec2(240.0, 32.0)),
+                    .min_size(egui::vec2(240.0, 32.0))
+                    .desired_width((ui.available_width() - 456.0).max(200.0)),
             );
             // 32×32 规格钮 + lucide chevron-down 字形（与全行 32px 规范一致）
             let hist_btn = ui.add_sized(
