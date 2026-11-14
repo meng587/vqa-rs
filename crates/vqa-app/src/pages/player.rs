@@ -413,10 +413,15 @@ impl PlayerPage {
                     let _ = m.loadfile(&self.playing_url);
                 }
             }
+            let hint = if self.playing_url.is_empty() {
+                "输入来源后点「开始」播放"
+            } else {
+                "已播完 · 点 ▶ 重播"
+            };
             p.text(
                 mpv_rect.center() + Vec2::new(0.0, 46.0),
                 egui::Align2::CENTER_CENTER,
-                "输入来源后点「开始」播放",
+                hint,
                 egui::FontId::proportional(13.0),
                 theme::MUT,
             );
@@ -548,7 +553,6 @@ impl PlayerPage {
             [64.0, 14.0],
             egui::Slider::new(&mut self.volume, 0.0..=130.0)
                 .show_value(false)
-                .handle_shape(egui::style::HandleShape::Rect { aspect_ratio: 0.35 }),
         );
         if vol.changed() {
             if let Some(m) = &self.mpv {
