@@ -5,7 +5,7 @@
   "platforms": {
     "windows-x86_64": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSWTV2ckxpcWp0RjhWVWRJZVQ1L2lQaFpxWFMvWjB3bnRYUVlRbjIwVGNQVThVcmZEYk4ydW1IR3R5aGFPRWZRRVNVMDluZDB3a1Jqd2V0SEFheUFRVWpvZjVOV2V2R1FzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzIzNDk2CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4yX3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjIuMgpEVGJCS211SXJDbkxRMytpQmdUZEhVM2RteEVuakZXaGtkNGN4S3FwK1g4dW1xM1NXeGFHajRhakQ0bVlrblNVSVFXNnEvZkFDNFF5a3FyT05rU2pBZz09Cg==",
-      "url": "https://gitee.com/meng587/video-analysis-toolkit-rs/releases/download/v0.2.2/vqa-setup-0.2.2.exe"
+      "url": "https://gitee.com/meng587/video-analysis-toolkit-rs/releases/download/v0.2.2/%E8%A7%86%E5%90%AC%E8%B4%A8%E9%87%8F%E6%A3%80%E6%B5%8B%E5%B7%A5%E4%BD%9C%E7%AB%99_0.2.2_x64-setup.exe"
     }
   }
 }
