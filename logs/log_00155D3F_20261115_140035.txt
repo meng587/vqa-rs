@@ -1,0 +1,236 @@
+===== VQA 诊断日志 =====
+生成时间   : 2026-11-15 14:00:35
+应用版本   : 0.2.1 (Tauri/Web UI)
+核心库     : vqa-core TS 解析 / TR101 290 / PCR 双环 PLL
+操作系统   : Microsoft Windows [Version 10.0.26200.9711]
+主机名     : LAPTOP-FH5U20VM (x86_64)
+设备MAC    : 00155D3FEC20
+运行时长   : 0 分钟
+
+===== 播放器状态 =====
+{
+  "bridge_note": "",
+  "err": null,
+  "hint": null,
+  "playing": false,
+  "probe": null,
+  "recording": false,
+  "snap": null
+}
+
+===== 分析页状态 =====
+模式: 0  错误: 无
+
+===== 应用日志（尾部 200 行）=====
+[2026-11-14 22:54:48.799] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:48.889] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:49.000] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:49.088] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:49.203] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:49.298] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:49.389] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:49.500] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:49.595] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:49.690] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:49.801] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:49.894] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:49.990] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:50.096] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:50.190] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:50.299] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:50.394] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:50.488] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:50.595] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:50.692] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:50.789] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:50.894] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:50.999] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:51.090] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:51.202] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:51.292] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:51.389] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:51.494] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:51.604] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:51.696] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:51.803] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:51.889] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:52.004] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:52.096] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:52.189] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:52.298] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:52.390] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:52.488] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:52.594] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:52.707] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:52.787] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:52.890] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:52.997] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:53.089] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:53.188] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:53.294] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:53.389] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:53.493] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:53.590] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:53.688] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:53.792] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:53.892] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:53.993] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:54.102] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:54.192] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:54.289] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:54.397] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:54.491] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:54.600] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:54.693] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:54.788] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:54.895] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:54.989] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:55.089] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:55.193] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:55.301] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:55.388] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:55.490] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:55.598] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:55.692] [place] x=0 y=0 w=0 h=0 visible=false
+[2026-11-14 22:54:58.700] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:00.126] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:00.173] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:00.176] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:00.276] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:00.367] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:00.477] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:00.570] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:00.680] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:00.766] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:00.866] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:00.975] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:01.081] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:01.176] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:01.271] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:01.376] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:01.468] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:01.578] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:01.666] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:01.769] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:01.876] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:01.971] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:02.084] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:02.174] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:02.267] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:02.375] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:02.469] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:02.578] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:02.671] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:02.780] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:02.873] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:02.967] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:03.067] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:03.172] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:03.277] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:03.372] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:03.480] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:03.568] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:03.681] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:03.774] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:03.883] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:03.976] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:04.071] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:04.179] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:04.275] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:04.380] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:04.475] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:04.584] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:04.677] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:04.775] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:04.878] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:04.968] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:05.078] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:05.170] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:05.276] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:05.370] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:05.481] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:05.578] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:05.683] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:05.774] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:05.882] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:05.973] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:06.083] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:06.176] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:06.271] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:06.379] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:06.474] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:06.568] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:06.681] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:06.770] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:06.880] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:06.972] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:07.067] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:07.173] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:07.268] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:07.370] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:07.470] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:07.577] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:07.670] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:07.779] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:07.873] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:07.978] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:08.072] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:08.167] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:08.286] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:08.377] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:08.472] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:08.579] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:08.671] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:08.779] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:08.871] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:08.980] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:09.080] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:09.182] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:09.274] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:09.368] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:09.479] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:09.575] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:09.682] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:09.772] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:09.881] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:09.972] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:10.081] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:10.172] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:10.268] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:10.370] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:10.479] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:10.573] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:10.681] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:10.767] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:10.867] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:10.982] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:11.070] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:11.177] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:11.269] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:11.376] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:11.468] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:11.580] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:11.645] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:11.647] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:11.737] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:11.843] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:11.952] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:12.044] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:12.156] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:12.243] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:12.353] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:12.447] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:12.539] [place] x=213 y=86 w=1130 h=676 visible=false
+[2026-11-14 22:55:12.638] [place] x=213 y=86 w=1130 h=676 visible=false
+
+===== 崩溃记录 =====
+--- panic_20261114_111231.log ---
+panicked at C:\Users\Lenovo\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ecolor-0.28.1\src\color32.rs:204:9:
+assertion failed: 0.0 <= factor && factor <= 1.0
+
+--- panic_20261114_111212.log ---
+panicked at C:\Users\Lenovo\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ecolor-0.28.1\src\color32.rs:204:9:
+assertion failed: 0.0 <= factor && factor <= 1.0
+
+
+===== 结束 =====
