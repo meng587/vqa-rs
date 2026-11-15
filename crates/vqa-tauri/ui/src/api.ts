@@ -39,6 +39,7 @@ export interface PlayerStateJson {
   err: string | null;
   hint: string | null;
   bridge_note: string;
+  bridge: { mode: string; port: number; alive: number; stderr_tail: string } | null;
   recording: boolean;
   probe: Probe | null;
   snap: Snap | null;

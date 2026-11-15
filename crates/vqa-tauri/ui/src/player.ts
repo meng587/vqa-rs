@@ -299,8 +299,14 @@ function render(st: PlayerStateJson) {
     tl.style.display = "none";
   }
   const tr = $("tag-tr") as HTMLElement;
-  tr.hidden = !st.bridge_note;
-  if (st.bridge_note) tr.textContent = `⚠ ${st.bridge_note}`;
+  // 桥 tag：显示「由什么转什么」——源规格 → H.264 + 输出码率（Mbps）
+  const bridging = !!(st.bridge && st.playing && st.snap && !st.snap.idle);
+  tr.hidden = !bridging;
+  if (bridging && st.probe) {
+    const ten = st.probe.pix_fmt.includes("10") ? "10-bit" : "8-bit";
+    const mbps = snap && snap.v_bitrate > 0 ? (snap.v_bitrate / 1e6).toFixed(1) : "?";
+    tr.textContent = `⚠ 桥：AVS2 ${st.probe.w}×${st.probe.h} ${ten} → H.264 8-bit · ${mbps} Mbps`;
+  }
 
   // chips
   renderChips(st);

@@ -37,6 +37,12 @@ pub struct PlayerState {
     pub rec_path: Mutex<Option<PathBuf>>,
     pub probe_rx: Mutex<Option<std::sync::mpsc::Receiver<ProbeMsg>>>,
     pub probe_info: Mutex<Option<QuickProbe>>,
+    /// 桥流自动重连：剩余次数 + 上次重试时刻 + 桥流 URL
+    /// （chain10 桥从启动到出流要数秒，mpv loadfile 后会先回 idle——
+    /// 实测缺陷：不等出流直接放弃。这里做 idle 自动重试直到出流。）
+    pub bridge_retry_left: Mutex<u32>,
+    pub bridge_last_retry: Mutex<Option<std::time::Instant>>,
+    pub bridge_url: Mutex<String>,
 }
 
 impl PlayerState {
@@ -53,6 +59,9 @@ impl PlayerState {
             rec_path: Mutex::new(None),
             probe_rx: Mutex::new(None),
             probe_info: Mutex::new(None),
+            bridge_retry_left: Mutex::new(0),
+            bridge_last_retry: Mutex::new(None),
+            bridge_url: Mutex::new(String::new()),
         }
     }
 

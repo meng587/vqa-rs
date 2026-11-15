@@ -375,6 +375,12 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                             let _ = m.show_text(&reason, 4000);
                             *st.bridge_note.lock().unwrap() = reason;
                             *st.bridge.lock().unwrap() = Some(bridge);
+                            // 桥启动到出流要数秒（chain10 解 4K 更久），mpv 先回 idle——
+                            // 进入自动重连循环，直到桥流可播
+                            *st.bridge_url.lock().unwrap() = url;
+                            *st.bridge_retry_left.lock().unwrap() = 60; // ~120s 窗口
+                            *st.bridge_last_retry.lock().unwrap() =
+                                Some(std::time::Instant::now());
                         } else {
                             drop(bridge);
                         }
@@ -399,11 +405,74 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
         }
     }
 
+    // 2.5) 桥流自动重连：播放中 + 桥模式 + mpv 已回 idle → 周期性重载桥流
+    {
+        let retry_left = *st.bridge_retry_left.lock().unwrap();
+        if retry_left > 0 {
+            let idle = mpv_arc.as_ref().map(|m| m.snapshot().idle).unwrap_or(true);
+            let due = st
+                .bridge_last_retry
+                .lock()
+                .unwrap()
+                .map(|t| t.elapsed() >= std::time::Duration::from_secs(2))
+                .unwrap_or(true);
+            if idle && due {
+                let url = st.bridge_url.lock().unwrap().clone();
+                if !url.is_empty() && !st.playing_url.lock().unwrap().is_empty() {
+                    if let Some(m) = &mpv_arc {
+                        let _ = m.loadfile(&url);
+                        *st.bridge_retry_left.lock().unwrap() = retry_left - 1;
+                        *st.bridge_last_retry.lock().unwrap() =
+                            Some(std::time::Instant::now());
+                        st.set_hint(format!("等待转码桥出流…（{}）", retry_left - 1));
+                    }
+                } else {
+                    *st.bridge_retry_left.lock().unwrap() = 0;
+                }
+            }
+        }
+    }
+
+    // 2.6) 桥重试窗口耗尽仍无画面 → 给出性能诊断（不是含糊的失败）
+    {
+        let retry_left = *st.bridge_retry_left.lock().unwrap();
+        if retry_left == 0 {
+            let bridge_on = !st.bridge_note.lock().unwrap().is_empty();
+            let idle = mpv_arc.as_ref().map(|m| m.snapshot().idle).unwrap_or(true);
+            if bridge_on && idle && !st.playing_url.lock().unwrap().is_empty() {
+                let mode = st.bridge_note.lock().unwrap().clone();
+                *st.err.lock().unwrap() = Some(format!(
+                    "转码桥（{mode}）超过 2 分钟未出画面——本机解码性能可能不足以实时转码该规格（如 4K 10-bit AVS2）。可尝试较低分辨率/8-bit 的源"
+                ));
+                // 停桥止血（Drop kill 子进程）
+                *st.bridge.lock().unwrap() = None;
+                *st.bridge_retry_left.lock().unwrap() = u32::MAX / 2; // 不再重复报
+            }
+        }
+    }
+
     // 3) mpv 死亡处理
     if died {
         *st.mpv.lock().unwrap() = None;
+        // 若正处于桥重连等待期，按桥的报错情况分级诊断
+        let was_bridge_wait = *st.bridge_retry_left.lock().unwrap() > 0
+            && *st.bridge_retry_left.lock().unwrap() < u32::MAX / 2;
+        *st.bridge_retry_left.lock().unwrap() = 0;
+        let bridge_tail = st
+            .bridge
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|b| b.stderr_tail().trim().to_string())
+            .unwrap_or_default();
         *st.bridge.lock().unwrap() = None;
-        *st.err.lock().unwrap() = Some("mpv 已退出（崩溃或被关闭）".into());
+        *st.err.lock().unwrap() = Some(if was_bridge_wait && bridge_tail.is_empty() {
+            "源内容播放完毕（转码桥正常结束）".into()
+        } else if was_bridge_wait {
+            format!("mpv 已退出；转码桥报错：{bridge_tail}")
+        } else {
+            "mpv 已退出（崩溃或被关闭）".into()
+        });
     }
 
     // 4) 组装
@@ -420,6 +489,14 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
         "err": *st.err.lock().unwrap(),
         "hint": hint,
         "bridge_note": *st.bridge_note.lock().unwrap(),
+        "bridge": st.bridge.lock().unwrap().as_ref().map(|b| {
+            serde_json::json!({
+                "mode": b.mode,
+                "port": b.port,
+                "alive": b.alive(),
+                "stderr_tail": b.stderr_tail(),
+            })
+        }),
         "recording": *st.recording.lock().unwrap(),
         "probe": st.probe_info.lock().unwrap().as_ref().map(probe_json),
         "snap": snap.as_ref().map(|s| serde_json::json!({
