@@ -273,8 +273,8 @@ impl RealtimeBridge {
         // ★ 多线程解码：davs2 默认单线程，4K 10-bit 单线程 5-15fps（弱机更慢），
         //   多线程把首帧压进秒级。vkit_davs2 的 -t N 即解码线程数（--help 实查）。
         let davs2_threads = std::thread::available_parallelism()
-            .map(|n| n.get().min(8).to_string())
-            .unwrap_or_else(|_| "8".into());
+            .map(|n| n.get().min(16).to_string())
+            .unwrap_or_else(|_| "16".into());
         if let Some(f) = &tmp_es {
             // 本地文件：davs2 直读裸流文件（绕开 stdin 管道 0.05fps 缺陷）
             cmd2.arg("-i").arg(f.as_os_str()).stdin(Stdio::null());

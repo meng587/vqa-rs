@@ -182,6 +182,10 @@ impl Mpv {
             "--input-vo-keyboard=no".into(),
             "--hwdec=auto-safe".into(),
             "--network-timeout=15".into(),
+            // ★ 回环转码流的缓冲：桥输出速率有抖动（软解 4K 转硬编），
+            //   大 demux 缓冲吸收周期性落后，避免每几秒卡一下
+            "--demuxer-max-bytes=384MiB".into(),
+            "--demuxer-readahead-secs=30".into(),
             "--terminal=no".into(),
         ];
         if let Some(w) = wid {
