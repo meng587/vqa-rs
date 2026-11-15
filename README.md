@@ -74,3 +74,32 @@ cargo run -p vqa-core --example mpv_smoke -- [媒体文件]     # mpv IPC 全链
 - 所有子进程均 `CREATE_NO_WINDOW`；stderr 一律排空（历史事故纪律，见各模块注释）。
 - mpv IPC **禁止 File::flush**（FlushFileBuffers 阻塞）；每帧排空管道是保活必需。
 - 本仓库由 `cargo fix` 初始化过 git（仅骨架提交未做）；如需入库请自行 commit。
+
+## Tauri/Web UI 版（crates/vqa-tauri，当前主线）
+
+egui 版（crates/vqa-app，保留可用）的 UI 层换成 Tauri 2 + Vite/原生 TS 后的版本；
+`vqa-core` 原样复用。设计稿即成品（zinc 层叠 + 靛紫渐变，见 `ui/index.html`）。
+
+```bash
+# 开发（需 Node ≥18；WebView2 Win10/11 自带）
+cd crates/vqa-tauri && npx --prefix ui tauri dev
+
+# 发布（NSIS 安装包 + updater 签名产物）
+TAURI_SIGNING_PRIVATE_KEY=keys/tauri.key npx --prefix ui tauri build
+# 产物： target/release/bundle/nsis/*-setup.exe（+ .sig）
+```
+
+### 在线更新
+
+- `tauri-plugin-updater`：检查 `update/latest.json`（Gitee raw，双路径兼容旧版
+  endpoint）→ 下载 Release 附件 → minisign 验签 → 静默替换 → 自动重启。
+- 发版流程：bump `crates/vqa-tauri/Cargo.toml version`（单一来源）→ build →
+  更新 `crates/vqa-tauri/update/latest.json`（version/URL/签名）→ 提交推送 →
+  Gitee 建同名 Release 并挂 setup.exe 附件。
+- 私钥 `keys/tauri.key` 离线保存（已 gitignore）；丢失则历史版本无法再升级。
+
+### 诊断日志
+
+关于页「诊断日志」：`log_{MAC前8位}_{时间}.txt`（环境元信息 + 页面状态 +
+应用日志尾部 200 行 + 崩溃记录）。可导出本地，或上传到仓库 `logs/` 目录
+（Gitee Contents API，私人令牌粘贴一次存本地）——维护者 git pull 即读。
