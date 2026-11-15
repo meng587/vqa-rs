@@ -134,6 +134,8 @@ pub struct RealtimeBridge {
     procs: std::sync::Arc<Mutex<Vec<Child>>>,
     pub port: u16,
     pub mode: String,
+    /// chain10 本地文件模式抽出的 AVS2 裸流临时文件（Drop 时清理）
+    tmp_es: Option<std::path::PathBuf>,
 }
 
 impl RealtimeBridge {
@@ -210,32 +212,84 @@ impl RealtimeBridge {
                 procs: std::sync::Arc::new(Mutex::new(vec![p])),
                 port,
                 mode: "ffmpeg".into(),
+                tmp_es: None,
             });
         }
 
         // 三段链：抽裸流 | vkit_davs2 解码 → Y4M | ffmpeg 编码 → 回环
+        //
+        // ★ 本地文件源：先全速抽 AVS2 裸流到临时文件，davs2 直读文件——
+        //   vkit_davs2 的 stdin 管道输入实测仅 ~0.05fps（管道读缺陷），
+        //   文件输入 43fps（远超实时）。mpv 在抽流完成后才 loadfile（Bridged
+        //   Outcome 在 start 返回后才收割），无超时窗口问题。
+        //   直播源仍走管道（实时流不能落盘等齐）。
+        let tmp_es = if local {
+            let es = std::env::temp_dir().join(format!(
+                "vqa_avs2_{}_{}.es",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.subsec_millis())
+                    .unwrap_or(0)
+            ));
+            let mut cmd0 = crate::ffmpeg::hidden(ffmpeg);
+            cmd0.args(["-hide_banner", "-loglevel", "error", "-nostdin"]);
+            push_localaddr(&mut cmd0, url, localaddr);
+            cmd0.arg("-i")
+                .arg(url)
+                .args(["-map", "0:v:0", "-c", "copy", "-f", "avs2"])
+                .arg(&es)
+                .stderr(Stdio::null());
+            let st0 = cmd0
+                .status()
+                .map_err(|e| format!("抽流段启动失败：{e}"))?;
+            if !st0.success() {
+                return Err("抽流段失败（AVS2 裸流抽取未完成）".into());
+            }
+            Some(es)
+        } else {
+            None
+        };
+
         let mut cmd1 = crate::ffmpeg::hidden(ffmpeg);
         cmd1.args(["-hide_banner", "-loglevel", "error", "-nostdin"]);
-        if local {
-            cmd1.arg("-re");
+        // 直播源：实时流按原速进入（源天然实时）；本地文件源已落盘为
+        // 裸流文件，davs2 直读（见上），不走 cmd1。
+        if !local {
+            push_localaddr(&mut cmd1, url, localaddr);
+            cmd1.arg("-i")
+                .arg(url)
+                .args(["-map", "0:v:0", "-c", "copy", "-f", "avs2", "-"])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null());
         }
-        push_localaddr(&mut cmd1, url, localaddr);
-        cmd1.arg("-i")
-            .arg(url)
-            .args(["-map", "0:v:0", "-c", "copy", "-f", "avs2", "-"])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null());
-        let mut p1 = cmd1.spawn().map_err(|e| format!("抽流段失败：{e}"))?;
+        let mut p1 = if local {
+            None
+        } else {
+            Some(cmd1.spawn().map_err(|e| format!("抽流段失败：{e}"))?)
+        };
 
         let mut cmd2 = crate::ffmpeg::hidden(davs2);
-        cmd2.args(["-i", "-", "-o", "stdout"])
-            .stdin(p1.stdout.take().unwrap())
+        // ★ 多线程解码：davs2 默认单线程，4K 10-bit 单线程 5-15fps（弱机更慢），
+        //   多线程把首帧压进秒级。vkit_davs2 的 -t N 即解码线程数（--help 实查）。
+        let davs2_threads = std::thread::available_parallelism()
+            .map(|n| n.get().min(8).to_string())
+            .unwrap_or_else(|_| "8".into());
+        if let Some(f) = &tmp_es {
+            // 本地文件：davs2 直读裸流文件（绕开 stdin 管道 0.05fps 缺陷）
+            cmd2.arg("-i").arg(f.as_os_str()).stdin(Stdio::null());
+        } else {
+            cmd2.arg("-i").arg("-").stdin(p1.as_mut().unwrap().stdout.take().unwrap());
+        }
+        cmd2.args(["-o", "stdout", "-t", &davs2_threads])
             .stdout(Stdio::piped())
-            .stderr(Stdio::null());
+            .stderr(Stdio::piped());
         let mut p2 = match cmd2.spawn() {
             Ok(p2) => p2,
             Err(e) => {
-                let _ = p1.kill(); // 不把抽流段留在半空
+                if let Some(mut p) = p1 {
+                    let _ = p.kill(); // 不把抽流段留在半空
+                }
                 return Err(format!("10bit 解码段失败：{e}"));
             }
         };
@@ -244,17 +298,32 @@ impl RealtimeBridge {
         cmd3.args([
             "-hide_banner", "-loglevel", "error", "-nostdin",
             "-f", "yuv4mpegpipe", "-i", "-",
-        ])
-        .args(["-map", "0:v:0"]);
+        ]);
         if local {
-            // 音频"再开一次源"：两路都 -re 才不会一阵一阵（工作站 §31.49）
-            cmd3.args(["-re", "-i", url]).args(["-map", "1:a:0?"]);
+            // 音频"再开一次源"。★ analyzeduration 0：AVS2 文件的第二输入
+            // 打开时 ffmpeg 会对视频流 find_stream_info，而系统 ffmpeg 的
+            // 8-bit davs2 解不了 10-bit → 永久卡死（实测整链无输出）。
+            // 跳过视频分析，只要它的 AAC 音频。
+            cmd3.args(["-analyzeduration", "0", "-probesize", "1000000", "-i", url]);
         }
+        // ★ -map/-c 是输出选项，必须放在所有 -i 之后、输出文件之前——
+        //   夹在两个 -i 之间会被该 ffmpeg 当作后一个输入的选项报错
+        //   （"Option map cannot be applied to input url ..."，实测），
+        //   这正是 AVS 桥从未出过画面的直接原因。
+        cmd3.args(["-map", "0:v:0"]);
+        if local {
+            cmd3.args(["-map", "1:a:0?"]);
+        }
+        // ★ 10-bit → 8-bit：davs2 输出 yuv420p10le（y4m C420p10），而
+        //   h264_nvenc 对 10-bit H.264 报 "No capable devices found"
+        //   （实测本机 GPU）——显式降 8-bit 再喂编码器。
+        cmd3.args(["-vf", "format=yuv420p"]);
         cmd3.args(&enc_args);
         if local {
             cmd3.args(["-c:a", "aac", "-b:a", "96k"]);
         }
-        cmd3.args(["-f", "mpegts", &dst]).stdin(Stdio::piped());
+        cmd3.args(["-f", "mpegts", &dst])
+            .stderr(Stdio::piped());
 
         // ★ 时序（工作站 §31.46.3 实测）：读端必须先绑好 socket。先起前两段，
         //   把端口暴露给调用方去起 mpv，1.2 秒后再起发送段（第 3 段）——
@@ -262,37 +331,104 @@ impl RealtimeBridge {
         // 前两段存活检查：秒退（参数/解码器问题）就立刻回退直放并报因，
         // 别让 mpv 对着永远没有数据的 UDP 干等
         std::thread::sleep(Duration::from_millis(400));
-        let p1_dead = p1.try_wait().map(|s| s.is_some()).unwrap_or(false);
+        let p1_dead = p1
+            .as_mut()
+            .map(|p| p.try_wait().map(|s| s.is_some()).unwrap_or(false))
+            .unwrap_or(false);
         let p2_dead = p2.try_wait().map(|s| s.is_some()).unwrap_or(false);
         if p1_dead || p2_dead {
-            let _ = p1.kill();
+            if let Some(mut p) = p1 {
+                let _ = p.kill();
+                let _ = p.wait();
+            }
             let _ = p2.kill();
-            let _ = p1.wait();
             let _ = p2.wait();
             return Err("10-bit 链前两段秒退（源不是 AVS2 或解码器不可用）".into());
         }
         let procs = std::sync::Arc::new(Mutex::new(Vec::<Child>::new()));
-        procs.lock().unwrap().push(p1);
+        if let Some(p) = p1 {
+            procs.lock().unwrap().push(p);
+        }
+        // stderr 收集：davs2/编码段的报错必须被读走（否则 4KB 管道缓冲
+        // 写满会把进程堵死——工作站实测纪律），失败时留证据可查
+        let davs2_stderr = p2.stderr.take();
+        // ★ cmd2.stdout → cmd3.stdin 直连（davs2 的 y4m 输出喂编码段）。
+        //   若两边都各自 Stdio::piped()，是两个互不相通的管道：davs2 写 A
+        //   塞满阻塞、cmd3 读 B 永远空——三段链整体死锁（实测 0.05fps 假象
+        //   与"已播完"皆源于此）。
+        let davs2_y4m = p2.stdout.take().unwrap();
         procs.lock().unwrap().push(p2);
-        let procs2 = std::sync::Arc::clone(&procs);
-        std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(CHAIN_SEND_DELAY_MS));
-            if let Ok(mut v) = procs2.lock() {
-                if let Ok(p3) = cmd3.spawn() {
-                    v.push(p3);
+        if let Some(mut se) = davs2_stderr {
+            std::thread::spawn(move || {
+                use std::io::Read as _;
+                let mut buf = String::new();
+                let _ = se.read_to_string(&mut buf);
+                if !buf.trim().is_empty() {
+                    eprintln!("[bridge/davs2] {}", buf.trim().chars().take(400).collect::<String>());
                 }
+            });
+        }
+        let procs3 = std::sync::Arc::clone(&procs);
+        if local {
+            // ★ 本地文件模式：cmd3 立即启动，stdin 直连 davs2 的 y4m 输出。
+            //   延迟版（直播口径）叠加"两管道未直连"的缺陷会整体死锁；
+            //   Python 同构复刻（立即启动 + 真直连）一切正常，实测定位。
+            //   mpv 端 UDP 周期性 PAT/PMT 重发（ffmpeg 默认 ~100ms），
+            //   晚 bind 也不会丢表。
+            cmd3.stdin(davs2_y4m);
+            if let Ok(mut p3) = cmd3.spawn() {
+                if let Some(mut se) = p3.stderr.take() {
+                    std::thread::spawn(move || {
+                        use std::io::Read as _;
+                        let mut buf = String::new();
+                        let _ = se.read_to_string(&mut buf);
+                        if !buf.trim().is_empty() {
+                            eprintln!("[bridge/nvenc] {}", buf.trim().chars().take(400).collect::<String>());
+                        }
+                    });
+                }
+                procs3.lock().unwrap().push(p3);
             }
-        });
+        } else {
+            let procs2 = std::sync::Arc::clone(&procs);
+            // 直播源：维持"读端先绑 socket"时序（§31.46.3），延迟 1.2s 启动
+            std::thread::spawn(move || {
+                std::thread::sleep(Duration::from_millis(CHAIN_SEND_DELAY_MS));
+                if let Ok(mut v) = procs2.lock() {
+                    if let Ok(mut p3) = cmd3.spawn() {
+                        if let Some(mut se) = p3.stderr.take() {
+                            std::thread::spawn(move || {
+                                use std::io::Read as _;
+                                let mut buf = String::new();
+                                let _ = se.read_to_string(&mut buf);
+                                if !buf.trim().is_empty() {
+                                    eprintln!("[bridge/nvenc] {}", buf.trim().chars().take(400).collect::<String>());
+                                }
+                            });
+                        }
+                        v.push(p3);
+                    }
+                }
+            });
+        }
         Ok(RealtimeBridge {
             procs,
             port,
             mode: "chain10".into(),
+            tmp_es,
         })
     }
 
     /// mpv 要读的回环地址。
     pub fn url(&self) -> String {
-        format!("udp://@{LOOPBACK}:{}", self.port)
+        // ★ 环回 UDP 接收缓冲：本地文件源全速转码时发送速率远超 mpv 消费，
+        //   默认接收缓冲会溢出丢包（TS 残缺 → mpv 卡 0x0/退出）。
+        //   实测：fifo_size=16MB 超 setsockopt 上限导致 udp 打开静默失败
+        //   （读不到任何包）、1MB 太小丢包；4MB 稳定工作。
+        format!(
+            "udp://@{LOOPBACK}:{}?fifo_size=4000000&overrun_nonfatal=1",
+            self.port
+        )
     }
 
     pub fn stop(&self) {
@@ -309,6 +445,10 @@ impl RealtimeBridge {
 impl Drop for RealtimeBridge {
     fn drop(&mut self) {
         self.stop();
+        // 本地文件模式抽出的 AVS2 裸流临时文件：桥结束后清理
+        if let Some(f) = self.tmp_es.take() {
+            let _ = std::fs::remove_file(f);
+        }
     }
 }
 
