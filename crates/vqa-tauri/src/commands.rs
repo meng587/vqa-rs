@@ -14,6 +14,11 @@ use vqa_core::probe;
 // ═══════════════════════════ 通用 ═══════════════════════════
 
 #[tauri::command]
+pub fn app_version() -> String {
+    env!("CARGO_PKG_VERSION").into()
+}
+
+#[tauri::command]
 pub fn list_nics() -> Vec<String> {
     vqa_core::netif::choices()
 }
@@ -61,6 +66,65 @@ pub fn tool_paths() -> serde_json::Value {
 pub fn thresholds_get(st: State<AnalysisState>) -> serde_json::Value {
     let ov = st.overrides.lock().unwrap();
     serde_json::to_value(&ov.map).unwrap_or(serde_json::json!({}))
+}
+
+// ═══════════════════════════ 诊断日志 ═══════════════════════════
+
+/// 组装诊断日志（MAC+时间命名；环境+状态+应用日志尾部+崩溃记录）。
+#[tauri::command]
+pub fn diag_collect(pst: State<PlayerState>, ast: State<AnalysisState>) -> serde_json::Value {
+    let player = player_snapshot(pst);
+    let mode = *ast.mode.lock().unwrap();
+    let err = ast.live_err.lock().unwrap().clone();
+    let (name, content) = crate::diag::collect(&player, mode, err);
+    serde_json::json!({ "name": name, "content": content })
+}
+
+/// 导出到本地（保存对话框）。
+#[tauri::command]
+pub fn diag_export(
+    app: tauri::AppHandle,
+    name: String,
+    content: String,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let dest = app
+        .dialog()
+        .file()
+        .add_filter("诊断日志", &["txt"])
+        .set_file_name(&name)
+        .blocking_save_file()
+        .map(|p| p.to_string())
+        .ok_or_else(|| "已取消".to_string())?;
+    std::fs::write(&dest, content).map_err(|e| format!("写文件失败：{e}"))?;
+    Ok(Some(dest))
+}
+
+/// 上传到 Gitee Issue（token 首次由前端传入并保存到本地 shared config）。
+#[tauri::command]
+pub fn diag_upload(token: Option<String>, name: String, content: String) -> Result<String, String> {
+    let tok = match token {
+        Some(t) if !t.trim().is_empty() => {
+            let _ = vqa_core::config::shared_set("diag_token", serde_json::json!(t.trim()));
+            t.trim().to_string()
+        }
+        _ => {
+            let saved: String =
+                vqa_core::config::shared_get_or("diag_token", String::new());
+            if saved.is_empty() {
+                return Err("尚未配置 Gitee 私人令牌（粘贴一次后会记住）".into());
+            }
+            saved
+        }
+    };
+    crate::diag::upload_issue(&tok, &name, &content)
+}
+
+/// 已保存的 token 是否存在（前端决定是否显示输入框）。
+#[tauri::command]
+pub fn diag_has_token() -> bool {
+    let saved: String = vqa_core::config::shared_get_or("diag_token", String::new());
+    !saved.is_empty()
 }
 
 #[tauri::command]

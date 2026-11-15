@@ -141,6 +141,17 @@
           </div>
           <div style="margin-top:8px;font-size:11.5px;color:var(--faint);">更新包经 minisign 公钥验签（私钥离线保存），下载源为 Gitee Release 附件</div>
         </div>
+        <div class="panel" style="grid-column:1/-1"><h4>诊断日志</h4>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <button class="md-export" id="dg-export">导出到本地</button>
+            <button class="md-export" id="dg-upload">上传到 Gitee</button>
+            <input id="dg-token" placeholder="Gitee 私人令牌（首次上传填一次，之后记住）"
+              style="flex:0 1 320px;height:28px;border:1px solid var(--border2);border-radius:7px;background:var(--side);color:var(--text);padding:0 10px;font:12px var(--mono);outline:none;" />
+          </div>
+          <div style="margin-top:8px;font-size:11.5px;color:var(--faint);" id="dg-status">
+            包含环境信息、播放器/分析页状态、应用日志尾部与崩溃记录；以设备 MAC + 时间命名，上传后作为仓库 Issue 便于远程分析
+          </div>
+        </div>
       </div>
     </section>
   </main>

@@ -7,6 +7,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+mod diag;
 mod mpv_host;
 mod state;
 
@@ -52,6 +53,7 @@ pub fn clean_stream_url(s: &str) -> String {
 }
 
 fn main() {
+    let _ = diag::APP_START.set(std::time::Instant::now());
     install_panic_hook();
     vqa_core::config::cleanup_logs(&vqa_core::config::log_dir(), 3, 3);
 
@@ -83,6 +85,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             // 通用
+            commands::app_version,
             commands::list_nics,
             commands::source_history,
             commands::push_source_history,
@@ -90,6 +93,11 @@ fn main() {
             commands::tool_paths,
             commands::thresholds_get,
             commands::thresholds_set,
+            // 诊断日志
+            commands::diag_collect,
+            commands::diag_export,
+            commands::diag_upload,
+            commands::diag_has_token,
             // 播放器
             commands::place_video,
             commands::player_play,

@@ -77,6 +77,12 @@ document.addEventListener("click", () => {
   document.querySelectorAll<HTMLElement>(".histpop").forEach((p) => (p.hidden = true));
 });
 
+// ---- 关于页：版本号（单一来源 = Cargo package version）----
+api.appVersion().then((v) => {
+  const el = document.getElementById("ab-ver");
+  if (el) el.textContent = `v${v}（Tauri/Web UI 版）`;
+});
+
 // ---- 关于页：工具链路径 ----
 api.toolPaths().then((t) => {
   const el = document.getElementById("ab-tools");
@@ -138,6 +144,42 @@ if (import.meta.env.MODE !== "dev") {
   upBtn.disabled = true;
   upStatus.textContent = "dev 模式不支持在线更新（构建版可用）";
 }
+
+// ---- 关于页：诊断日志 ----
+let diagCache: { name: string; content: string } | null = null;
+const dgStatus = document.getElementById("dg-status") as HTMLElement;
+
+api.diagHasToken().then((has) => {
+  const tok = document.getElementById("dg-token") as HTMLInputElement;
+  if (has) {
+    tok.placeholder = "已保存私人令牌（如需更换可重新粘贴）";
+  }
+});
+
+document.getElementById("dg-export")?.addEventListener("click", async () => {
+  dgStatus.textContent = "生成中…";
+  try {
+    diagCache = await api.diagCollect();
+    const p = await api.diagExport(diagCache.name, diagCache.content);
+    dgStatus.textContent = p ? `已导出：${p}` : "已取消";
+  } catch (e: any) {
+    dgStatus.textContent = `导出失败：${e}`;
+  }
+});
+
+document.getElementById("dg-upload")?.addEventListener("click", async () => {
+  const tokEl = document.getElementById("dg-token") as HTMLInputElement;
+  dgStatus.textContent = "生成并上传中…";
+  try {
+    if (!diagCache) diagCache = await api.diagCollect();
+    const url = await api.diagUpload(tokEl.value.trim() || null, diagCache.name, diagCache.content);
+    dgStatus.innerHTML = `上传成功：<a href="${url}" target="_blank" style="color:var(--acc)">${url}</a>（可把此链接发给维护者；ZCode 会自动阅读并分析）`;
+    tokEl.value = "";
+    tokEl.placeholder = "已保存私人令牌（如需更换可重新粘贴）";
+  } catch (e: any) {
+    dgStatus.textContent = `上传失败：${String(e).slice(0, 200)}`;
+  }
+});
 
 // ---- 页面初始化 ----
 initPlayer();

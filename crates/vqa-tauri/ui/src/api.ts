@@ -77,6 +77,7 @@ export interface Res {
 
 export const api = {
   // 通用
+  appVersion: () => invoke<string>("app_version"),
   listNics: () => invoke<string[]>("list_nics"),
   sourceHistory: (key: string) => invoke<string[]>("source_history", { key }),
   pushSourceHistory: (key: string, url: string) =>
@@ -109,4 +110,11 @@ export const api = {
     invoke<{ total: number; rows: { idx: number; pid: number; pusi: boolean; afc: number; cc: number; hex: string }[] }>("packet_rows", { start, count }),
   exportReport: (path?: string) =>
     invoke<string | null>("export_report_md", { path: path ?? null }),
+  // 诊断日志
+  diagCollect: () => invoke<{ name: string; content: string }>("diag_collect"),
+  diagExport: (name: string, content: string) =>
+    invoke<string | null>("diag_export", { name, content }),
+  diagUpload: (token: string | null, name: string, content: string) =>
+    invoke<string>("diag_upload", { token, name, content }),
+  diagHasToken: () => invoke<boolean>("diag_has_token"),
 };
