@@ -5,7 +5,7 @@
   "platforms": {
     "windows-x86_64": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSWTV2ckxpcWp0RnpkNmE0c2p4MWFqTjNpL3JxOXhJUllBeFVrY0F3Z0JGOWthOElUU2lhRnBzdlpaWTlReDhHY0pUSzdLbjRDS2xXeHVodFVCYi9ZcUt5NDhodEszTlEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzQ3NjYxCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4zX3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjIuMwozZktUVzZsT1FCc1ViSW4wVGNSMmh0a0lWa0paVjZ2VzdCZDFpQmZlcWU1TGJlUDFkK3psbWFmbW5hTE8wcFFVMEZSS0R3NEtPVlMraXBaUnRZcFFBQT09Cg==",
-      "url": "https://gitee.com/meng587/video-analysis-toolkit-rs/releases/download/v0.2.3/%E8%A7%86%E5%90%AC%E8%B4%A8%E9%87%8F%E6%A3%80%E6%B5%8B%E5%B7%A5%E4%BD%9C%E7%AB%99_0.2.3_x64-setup.exe"
+      "url": "https://gitee.com/meng587/video-analysis-toolkit-rs/releases/download/v0.2.3/vqa-setup-0.2.3.exe"
     }
   }
 }
