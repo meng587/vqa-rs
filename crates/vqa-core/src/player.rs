@@ -186,6 +186,9 @@ impl Mpv {
             //   大 demux 缓冲吸收周期性落后，避免每几秒卡一下
             "--demuxer-max-bytes=384MiB".into(),
             "--demuxer-readahead-secs=30".into(),
+            // ★ 软解跟不上流帧率时（如 4K 50fps AVS2 转码流，davs2 实测
+            //   ~41fps）丢帧跟上，避免周期性停顿——质量检测以看内容为主
+            "--framedrop=decoder".into(),
             "--terminal=no".into(),
         ];
         if let Some(w) = wid {
