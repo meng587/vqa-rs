@@ -136,6 +136,8 @@ pub struct RealtimeBridge {
     pub mode: String,
     /// chain10 本地文件模式抽出的 AVS2 裸流临时文件（Drop 时清理）
     tmp_es: Option<std::path::PathBuf>,
+    /// 桥各段的 stderr 尾部（davs2/nvenc 报错留证；诊断日志读取）
+    pub stderr_buf: std::sync::Arc<Mutex<String>>,
 }
 
 impl RealtimeBridge {
@@ -213,6 +215,7 @@ impl RealtimeBridge {
                 port,
                 mode: "ffmpeg".into(),
                 tmp_es: None,
+                stderr_buf: std::sync::Arc::new(Mutex::new(String::new())),
             });
         }
 
@@ -223,6 +226,10 @@ impl RealtimeBridge {
         //   文件输入 43fps（远超实时）。mpv 在抽流完成后才 loadfile（Bridged
         //   Outcome 在 start 返回后才收割），无超时窗口问题。
         //   直播源仍走管道（实时流不能落盘等齐）。
+        //
+        //   （ADTS 双输出抽取方案已回退：`-c:a copy -f adts` 对 CCTV TS 的
+        //   AAC 包装会失败导致整链报错；直连修复后 cmd3 用 analyzeduration 0
+        //   直读原始 TS 已验证可行，无需预抽音频。）
         let tmp_es = if local {
             let es = std::env::temp_dir().join(format!(
                 "vqa_avs2_{}_{}.es",
@@ -300,11 +307,11 @@ impl RealtimeBridge {
             "-f", "yuv4mpegpipe", "-i", "-",
         ]);
         if local {
-            // 音频"再开一次源"。★ analyzeduration 0：AVS2 文件的第二输入
-            // 打开时 ffmpeg 会对视频流 find_stream_info，而系统 ffmpeg 的
-            // 8-bit davs2 解不了 10-bit → 永久卡死（实测整链无输出）。
-            // 跳过视频分析，只要它的 AAC 音频。
-            cmd3.args(["-analyzeduration", "0", "-probesize", "1000000", "-i", url]);
+            // 音频"再开一次源"。★ analyzeduration 0：跳过 AVS2 视频流的
+            // find_stream_info（内置 8-bit davs2 解 10-bit 会拖死整链），
+            // 直读原始 TS 只取它的 AAC 音频（直连修复后已实测可行）。
+            cmd3.args(["-analyzeduration", "0", "-probesize", "1000000", "-i", url])
+                .stdin(Stdio::null());
         }
         // ★ -map/-c 是输出选项，必须放在所有 -i 之后、输出文件之前——
         //   夹在两个 -i 之间会被该 ffmpeg 当作后一个输入的选项报错
@@ -317,7 +324,11 @@ impl RealtimeBridge {
         // ★ 10-bit → 8-bit：davs2 输出 yuv420p10le（y4m C420p10），而
         //   h264_nvenc 对 10-bit H.264 报 "No capable devices found"
         //   （实测本机 GPU）——显式降 8-bit 再喂编码器。
-        cmd3.args(["-vf", "format=yuv420p"]);
+        // ★ fps=25：davs2 软解 4K 10-bit 实测 ~41fps，低于源帧率（50fps）时
+        //   播放端会"播几秒、停几秒"交替（供给 < 需求，缓冲周期性耗尽）。
+        //   桥输出降为 25fps 后解码富余 64%，播放连续不断（检测观看场景
+        //   25fps 足够）。25fps 也让 nvenc 码率减半。
+        cmd3.args(["-vf", "format=yuv420p,fps=25"]);
         cmd3.args(&enc_args);
         if local {
             cmd3.args(["-c:a", "aac", "-b:a", "96k"]);
@@ -350,7 +361,9 @@ impl RealtimeBridge {
             procs.lock().unwrap().push(p);
         }
         // stderr 收集：davs2/编码段的报错必须被读走（否则 4KB 管道缓冲
-        // 写满会把进程堵死——工作站实测纪律），失败时留证据可查
+        // 写满会把进程堵死——工作站实测纪律），失败时留证可查
+        // （写入共享 stderr_buf 供诊断日志读取 + eprintln 供开发日志）
+        let stderr_buf = std::sync::Arc::new(Mutex::new(String::new()));
         let davs2_stderr = p2.stderr.take();
         // ★ cmd2.stdout → cmd3.stdin 直连（davs2 的 y4m 输出喂编码段）。
         //   若两边都各自 Stdio::piped()，是两个互不相通的管道：davs2 写 A
@@ -359,16 +372,21 @@ impl RealtimeBridge {
         let davs2_y4m = p2.stdout.take().unwrap();
         procs.lock().unwrap().push(p2);
         if let Some(mut se) = davs2_stderr {
+            let buf2 = std::sync::Arc::clone(&stderr_buf);
             std::thread::spawn(move || {
                 use std::io::Read as _;
                 let mut buf = String::new();
                 let _ = se.read_to_string(&mut buf);
                 if !buf.trim().is_empty() {
-                    eprintln!("[bridge/davs2] {}", buf.trim().chars().take(400).collect::<String>());
+                    let tail = buf.trim().chars().rev().take(600).collect::<String>().chars().rev().collect::<String>();
+                    *buf2.lock().unwrap() = format!("[davs2] {tail}");
+                    eprintln!("[bridge/davs2] {}", tail.chars().take(400).collect::<String>());
                 }
             });
         }
         let procs3 = std::sync::Arc::clone(&procs);
+        let stderr_buf3 = std::sync::Arc::clone(&stderr_buf);
+        let stderr_buf2 = std::sync::Arc::clone(&stderr_buf);
         if local {
             // ★ 本地文件模式：cmd3 立即启动，stdin 直连 davs2 的 y4m 输出。
             //   延迟版（直播口径）叠加"两管道未直连"的缺陷会整体死锁；
@@ -383,18 +401,19 @@ impl RealtimeBridge {
                         let mut buf = String::new();
                         let _ = se.read_to_string(&mut buf);
                         if !buf.trim().is_empty() {
-                            eprintln!("[bridge/nvenc] {}", buf.trim().chars().take(400).collect::<String>());
+                            let tail = buf.trim().chars().rev().take(600).collect::<String>().chars().rev().collect::<String>();
+                            *stderr_buf3.lock().unwrap() = format!("[nvenc] {tail}");
+                            eprintln!("[bridge/nvenc] {}", tail.chars().take(400).collect::<String>());
                         }
                     });
                 }
                 procs3.lock().unwrap().push(p3);
             }
         } else {
-            let procs2 = std::sync::Arc::clone(&procs);
             // 直播源：维持"读端先绑 socket"时序（§31.46.3），延迟 1.2s 启动
             std::thread::spawn(move || {
                 std::thread::sleep(Duration::from_millis(CHAIN_SEND_DELAY_MS));
-                if let Ok(mut v) = procs2.lock() {
+                if let Ok(mut v) = procs3.lock() {
                     if let Ok(mut p3) = cmd3.spawn() {
                         if let Some(mut se) = p3.stderr.take() {
                             std::thread::spawn(move || {
@@ -402,7 +421,9 @@ impl RealtimeBridge {
                                 let mut buf = String::new();
                                 let _ = se.read_to_string(&mut buf);
                                 if !buf.trim().is_empty() {
-                                    eprintln!("[bridge/nvenc] {}", buf.trim().chars().take(400).collect::<String>());
+                                    let tail = buf.trim().chars().rev().take(600).collect::<String>().chars().rev().collect::<String>();
+                                    *stderr_buf3.lock().unwrap() = format!("[nvenc] {tail}");
+                                    eprintln!("[bridge/nvenc] {}", tail.chars().take(400).collect::<String>());
                                 }
                             });
                         }
@@ -416,7 +437,24 @@ impl RealtimeBridge {
             port,
             mode: "chain10".into(),
             tmp_es,
+            stderr_buf,
         })
+    }
+
+    /// 桥各段 stderr 尾部（诊断日志用）。
+    pub fn stderr_tail(&self) -> String {
+        self.stderr_buf.lock().unwrap().clone()
+    }
+
+    /// 桥各段进程的存活数（诊断用；链完整 = 3）。
+    pub fn alive(&self) -> usize {
+        let mut n = 0;
+        for p in self.procs.lock().unwrap().iter_mut() {
+            if p.try_wait().map(|s| s.is_none()).unwrap_or(true) {
+                n += 1;
+            }
+        }
+        n
     }
 
     /// mpv 要读的回环地址。
@@ -445,7 +483,7 @@ impl RealtimeBridge {
 impl Drop for RealtimeBridge {
     fn drop(&mut self) {
         self.stop();
-        // 本地文件模式抽出的 AVS2 裸流临时文件：桥结束后清理
+        // 本地文件模式抽出的 AVS2 裸流 + ADTS 音频临时文件：桥结束后清理
         if let Some(f) = self.tmp_es.take() {
             let _ = std::fs::remove_file(f);
         }
