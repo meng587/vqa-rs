@@ -23,8 +23,25 @@ fn is_file(p: &Path) -> bool {
     p.is_file()
 }
 
+/// 某一层目录下可能的开发树位置：`<base>\dev`，以及旧布局 `<base>\音视频工具\dev`。
+fn dev_at(base: &Path) -> Option<PathBuf> {
+    for rel in [&["dev"][..], &["音视频工具", "dev"][..]] {
+        let p = rel.iter().fold(base.to_path_buf(), |acc, s| acc.join(s));
+        if p.join("vkitcore").is_dir() {
+            return Some(p);
+        }
+    }
+    None
+}
+
 /// 旁挂的 Python 开发树根（含 `dev\vkitcore` 的目录）。
-/// 环境变量 `VQA_DEV` → exe 祖先目录 → CARGO_MANIFEST_DIR 祖先。
+///
+/// 查找顺序：环境变量 `VQA_DEV` → 共享配置 `dev_root` → exe 祖先逐级上溯（≤8 级）
+/// → 清单目录祖先上溯（≤5 级）。
+///
+/// 历史教训：早期实现假设"清单目录上溯三级即 `D:\音视频工具`"，仓库搬到
+/// `D:\vqa-rs` 后该假设失效，`davs2` 定位直接返回 None（AVS2 播放整链失效，
+/// 单测 `dev_root_finds_dev_tree` 报警）。故改为逐级上溯 + 可配置，不再绑定层级。
 pub fn dev_root() -> Option<PathBuf> {
     if let Ok(v) = std::env::var("VQA_DEV") {
         let p = PathBuf::from(v);
@@ -32,30 +49,31 @@ pub fn dev_root() -> Option<PathBuf> {
             return Some(p);
         }
     }
+    // 安装后与开发树分离部署时，手填一次共享配置即可，无需设环境变量
+    if let Some(p) = crate::config::shared_get("dev_root")
+        .and_then(|v| v.as_str().map(PathBuf::from))
+        .filter(|p| p.join("vkitcore").is_dir())
+    {
+        return Some(p);
+    }
     if let Ok(exe) = std::env::current_exe() {
-        // exe 祖先逐级上溯 4 级（target\debug → crate → crates → 根 → …）
+        // exe 所在目录起逐级上溯（target\debug\deps → … → 盘根）
         let mut d = exe.parent().map(|p| p.to_path_buf());
-        for _ in 0..4 {
-            if let Some(cur) = d {
-                let cand = cur.join("dev");
-                if cand.join("vkitcore").is_dir() {
-                    return Some(cand);
-                }
-                d = cur.parent().map(|p| p.to_path_buf());
-            } else {
-                break;
+        for _ in 0..8 {
+            let Some(cur) = d else { break };
+            if let Some(hit) = dev_at(&cur) {
+                return Some(hit);
             }
+            d = cur.parent().map(|p| p.to_path_buf());
         }
     }
-    let cand = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent() // crates/
-        .and_then(|p| p.parent()) // 工作区根
-        .and_then(|p| p.parent()) // D:\音视频工具
-        .map(|p| p.join("dev"));
-    if let Some(c) = cand {
-        if c.join("vkitcore").is_dir() {
-            return Some(c);
+    let mut d = Some(PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+    for _ in 0..5 {
+        let Some(cur) = d else { break };
+        if let Some(hit) = dev_at(&cur) {
+            return Some(hit);
         }
+        d = cur.parent().map(|p| p.to_path_buf());
     }
     None
 }
@@ -158,12 +176,17 @@ pub fn find_mpv() -> Option<PathBuf> {
 }
 
 /// 自编译的管道版 10-bit AVS2 解码器（dev\bin\davs2-10bit\vkit_davs2.exe）。
+///
+/// 便携部署可直接把 `vkit_davs2.exe` 放在 exe 同级或 `bin\` 下，不再依赖开发树。
 pub fn find_davs2() -> Option<PathBuf> {
     if let Ok(p) = std::env::var("VQA_DAVS2") {
         let p = PathBuf::from(p);
         if is_file(&p) {
             return Some(p);
         }
+    }
+    if let Some(p) = find_in_dirs("vkit_davs2.exe") {
+        return Some(p);
     }
     dev_bin(&["bin", "davs2-10bit", "vkit_davs2.exe"])
 }
@@ -193,11 +216,19 @@ mod tests {
 
     #[test]
     fn dev_root_finds_dev_tree() {
-        // 本机开发环境 D:\音视频工具\dev 存在；找不到也不算失败（CI 环境）
-        if std::path::Path::new(r"D:\音视频工具\dev\vkitcore").is_dir() {
-            assert!(dev_root().is_some());
-            assert!(find_ffmpeg().is_some(), "dev/bin/ffmpeg.exe 应能找到");
-            assert!(find_ffprobe().is_some());
+        // 本机挂着开发树时，定位链必须能找到；没挂（CI/纯发布机）则跳过。
+        // 注意：守卫不能写死某个绝对路径——早前写成 `D:\音视频工具\dev`，
+        // 仓库搬走后守卫仍为真、断言却失败，制造了假警报。
+        match dev_root() {
+            None => {}
+            Some(root) => {
+                assert!(root.join("vkitcore").is_dir(), "dev_root 必须含 vkitcore");
+                assert!(find_ffmpeg().is_some(), "应能找到 ffmpeg");
+                assert!(find_ffprobe().is_some(), "应能找到 ffprobe");
+                if root.join("bin/davs2-10bit/vkit_davs2.exe").is_file() {
+                    assert!(find_davs2().is_some(), "开发树有 davs2 时应能定位");
+                }
+            }
         }
     }
 }

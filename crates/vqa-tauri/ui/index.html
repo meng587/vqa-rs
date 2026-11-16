@@ -39,6 +39,7 @@
         <select class="nic" id="p-nic"></select>
         <button class="gradbtn" id="p-act"><span data-ic="play"></span>开始</button>
         <button class="iconbtn" id="p-browse" title="浏览本地文件…" data-ic="folder"></button>
+        <button class="iconbtn" id="p-set" title="播放器设置" data-ic="settings"></button>
       </div>
 
       <div class="noteline" id="p-note"></div>
@@ -62,6 +63,7 @@
           <div class="vol" id="c-vol"><div class="track"><div class="fill" id="c-volfill"></div><div class="thumb" id="c-volthumb"></div></div></div>
           <button class="cbtn" id="c-snap" title="快照到图片目录" data-ic="camera"></button>
           <button class="cbtn" id="c-rec" title="录制（stream-record 直拷）" data-ic="circledot"></button>
+          <button class="cbtn" id="c-loop" title="循环播放（播完自动从头）" data-ic="repeat"></button>
           <div class="speed">
             <button id="c-speedbtn">1x ▾</button>
             <div class="menu" id="c-speedmenu" hidden></div>
@@ -69,13 +71,22 @@
         </div>
       </div>
 
-      <div class="chips" id="p-chips">
-        <div id="p-chips-dyn" style="display:flex;gap:8px;overflow:hidden;min-width:0;">
-          <span class="chip-m">◦ 待机 · 无流数据</span>
+      <!-- 底部状态行：桥转码说明 + 运行时指标合并成一行 -->
+      <div class="statusrow" id="statusrow">
+        <div class="bridgebar" id="bridge-bar" hidden>
+          <span class="bf-tag" id="bf-tag">桥转码</span>
+          <span class="bf-from" id="bf-from"></span>
+          <span class="bf-arrow">→</span>
+          <span class="bf-to" id="bf-to"></span>
         </div>
-        <label class="force-bridge">
-          <input type="checkbox" id="p-force" />强制走转码桥
-        </label>
+        <div class="chips" id="p-chips">
+          <div id="p-chips-dyn" style="display:flex;gap:8px;overflow:hidden;min-width:0;">
+            <span class="chip-m">◦ 待机 · 无流数据</span>
+          </div>
+          <label class="force-bridge">
+            <input type="checkbox" id="p-force" />强制走转码桥
+          </label>
+        </div>
       </div>
     </section>
 
@@ -92,6 +103,7 @@
         <select class="nic" id="a-nic"></select>
         <button class="gradbtn" id="a-act"><span data-ic="search"></span>开始扫描</button>
         <button class="iconbtn" id="a-browse" title="浏览本地文件…" data-ic="folder"></button>
+        <button class="iconbtn" id="a-set" title="视频分析设置" data-ic="settings"></button>
       </div>
 
       <div class="statusline" id="a-status">
@@ -141,15 +153,13 @@
           </div>
           <div style="margin-top:8px;font-size:11.5px;color:var(--faint);">更新包经 minisign 公钥验签（私钥离线保存），下载源为 Gitee Release 附件</div>
         </div>
-        <div class="panel" style="grid-column:1/-1"><h4>诊断日志</h4>
+        <div class="panel" style="grid-column:1/-1"><h4>诊断包</h4>
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <button class="md-export" id="dg-export">导出到本地</button>
-            <button class="md-export" id="dg-upload">上传到 Gitee</button>
-            <input id="dg-token" placeholder="Gitee 私人令牌（首次上传填一次，之后记住）"
-              style="flex:0 1 320px;height:28px;border:1px solid var(--border2);border-radius:7px;background:var(--side);color:var(--text);padding:0 10px;font:12px var(--mono);outline:none;" />
+            <button class="md-export" id="dg-export">导出诊断包到本地</button>
+            <button class="md-export" id="dg-upload">上传诊断包给开发者</button>
           </div>
           <div style="margin-top:8px;font-size:11.5px;color:var(--faint);" id="dg-status">
-            包含环境信息、播放器/分析页状态、应用日志尾部与崩溃记录；以设备 MAC + 时间命名，上传后作为仓库 Issue 便于远程分析
+            包含环境信息、播放器/分析页状态、应用日志尾部与崩溃记录；以设备 MAC + 时间命名。导出为本地文件留档，上传则提交到代码仓库的 logs/ 目录，开发者拉取后即可分析
           </div>
         </div>
       </div>

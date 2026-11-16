@@ -89,6 +89,20 @@ pub fn crash_dir() -> PathBuf {
     base_dir().join("crash")
 }
 
+/// 转码临时目录（分片 / 中间件 / 未完成的桥输出）。
+///
+/// 落数据目录下的 `scratch`，跟着数据目录走（`data_dir.txt` / `VQA_HOME` 迁到
+/// 大容量盘时一并迁移），不再默认吃系统盘。建不出来才退回系统临时目录——
+/// 后果是回到历史行为（占 C 盘），但不会让转码直接失败。
+pub fn scratch_dir() -> PathBuf {
+    let p = base_dir().join("scratch");
+    if fs::create_dir_all(&p).is_ok() {
+        p
+    } else {
+        std::env::temp_dir()
+    }
+}
+
 /// 工具配置文件路径 `base/tools/<tool>/config.json`。
 pub fn config_path(tool: &str) -> PathBuf {
     tool_dir(tool).join("config.json")

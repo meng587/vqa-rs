@@ -27,6 +27,16 @@ function shortCodec(c: string): string {
   return c.split("/")[0] || c;
 }
 
+/** 源帧率原始串 "50/1" → "50"；取不到返回空 */
+function fmtFps(raw?: string): string {
+  if (!raw) return "";
+  if (!raw.includes("/")) return raw === "0/0" ? "" : raw;
+  const [a, b] = raw.split("/").map(Number);
+  if (!b || !isFinite(a / b)) return "";
+  const v = a / b;
+  return v > 0 ? String(Math.round(v * 100) / 100) : "";
+}
+
 // ═══════════════════════════ 初始化 ═══════════════════════════
 
 export function initPlayer() {
@@ -131,6 +141,19 @@ export function initPlayer() {
     }
   });
 
+  // 循环播放：开关状态由后端持有（跨起播保持），这里只负责点击与回显
+  let loopOn = false;
+  $("c-loop").addEventListener("click", async () => {
+    const want = !loopOn;
+    try {
+      await api.setLoop(want);
+      loopOn = want;
+      showNote(want ? "循环播放：开（播完自动从头）" : "循环播放：关", false);
+    } catch (e: any) {
+      showNote(String(e), true);
+    }
+  });
+
   // seek 拖动
   const seek = $("c-seek") as HTMLElement;
   seek.addEventListener("pointerdown", (e) => {
@@ -208,6 +231,13 @@ export function initPlayer() {
       const st = await api.snapshot();
       stateCache = st;
       snapCache = st.snap;
+      // 右上「开始/停止」跟随后端状态：播完（mpv 回 idle 且不在准备中）要回到「开始」，
+      // 否则 running 只由点击维护，播到结尾按钮会一直卡在「停止」。
+      const active = !!st.playing && !(st.snap?.idle && !st.preparing);
+      if (active !== running) {
+        running = active;
+        setActUi(active);
+      }
       render(st);
       // nav 状态灯 + 页脚引擎灯
       setNavLamp(
@@ -241,6 +271,10 @@ function render(st: PlayerStateJson) {
     empty.style.display = "";
     hint.textContent = "输入来源后点「开始」播放";
     (window as any).__muteCache = snap?.mute ?? false;
+  } else if (st.preparing) {
+    // 起播管线进行中（抽流/桥启动约数秒）
+    empty.style.display = "";
+    hint.textContent = "⏳ AVS 桥启动中，数秒后出画…";
   } else if (snap && snap.idle) {
     empty.style.display = "";
     hint.textContent = "已播完 · 点 ▶ 重播";
@@ -276,6 +310,12 @@ function render(st: PlayerStateJson) {
   // 录制态
   const recBtn = $("c-rec") as HTMLElement;
   recBtn.classList.toggle("rec-on", st.recording);
+
+  // 循环态
+  ($("c-loop") as HTMLElement).classList.toggle("on", !!st.loop);
+
+  // 桥格式条（源 → 目标）
+  renderBridgeBar(st);
 
   // 倍速同步
   if (snap && snap.speed && Math.abs(snap.speed - lastSpeed) > 0.01) {
@@ -315,23 +355,64 @@ function render(st: PlayerStateJson) {
   (window as any).__placeChild?.();
 }
 
-function renderChips(st: PlayerStateJson) {
-  // 只重建动态 chips 区；force-bridge 是固定 DOM（重建会丢勾选状态）
+/** 播放器页下方的"桥转码：源格式 → 目标格式"说明条 */
+function renderBridgeBar(st: PlayerStateJson) {
+  const bar = $("bridge-bar");
+  const to = st.bridge_to;
+  if (!to || !st.playing) {
+    bar.hidden = true;
+    return;
+  }
+  const p = st.probe;
+  const srcFps = fmtFps(p?.fps);
+  const depth = p ? (p.pix_fmt.includes("10") ? "10-bit" : "8-bit") : "";
+  // 与运行时指标同处一行，文字要短：源侧只留编码/分辨率/位深/帧率
+  const fromText =
+    p && p.w > 0
+      ? `${p.codec.toUpperCase()} ${p.w}×${p.h} ${depth}${srcFps ? ` ${srcFps}fps` : ""}`
+      : "源格式未知";
+  // 输出帧率优先用实测（vf_fps），次选后端给的标称值（chain10 固定 25）
+  const outFps =
+    st.snap && st.snap.vf_fps > 0
+      ? `${st.snap.vf_fps.toFixed(1)}fps`
+      : to.fps
+        ? `${to.fps}fps`
+        : "";
+  const outDepth = /10/.test(to.pix) ? "10-bit" : "8-bit";
+  // 音频（AAC 96k）右侧 chips 已有，这里不再重复
+  const toText = `${to.enc_label.replace(/ \/ /g, "/")} ${outDepth}${outFps ? ` ${outFps}` : ""}`;
+  $("bf-from").textContent = fromText;
+  $("bf-to").textContent = toText;
+  $("bf-tag").textContent = `桥转码 ${to.mode}`;
+  bar.hidden = false;
+}
+
+function renderChips(st: PlayerStateJson) {  // 只重建动态 chips 区；force-bridge 是固定 DOM（重建会丢勾选状态）
   const box = $("p-chips-dyn");
   const parts: string[] = [];
   const snap = st.snap;
+  // 桥说明条已写了源→目标的分辨率/帧率/编码，指标里不重复，只留解码、码率、丢帧、音频
+  const bridged = !!st.bridge_to && !!st.playing;
   if (!st.playing) {
     parts.push(`<span class="chip-m">◦ 待机 · 无流数据</span>`);
+  } else if (st.preparing) {
+    parts.push(`<span class="chip-m">⏳ AVS 源转码中…请稍候</span>`);
   } else if (snap) {
     if (snap.idle) {
       parts.push(`<span class="chip-m">◦ 已播完</span>`);
     } else {
+      const hw = snap.hwdec && snap.hwdec !== "no" ? `硬解 ${snap.hwdec}` : "软解";
       parts.push(
-        `<span class="chip-m">${snap.width}×${snap.height} · ${shortCodec(snap.video_codec)} · 硬解 ${snap.hwdec}</span>`,
+        bridged
+          ? `<span class="chip-m">${hw}</span>`
+          : `<span class="chip-m">${snap.width}×${snap.height} · ${shortCodec(snap.video_codec)} · ${hw}</span>`,
       );
-      if (snap.vf_fps > 0) parts.push(`<span class="chip-m">${icon("gauge", 11)} ${snap.vf_fps.toFixed(1)} fps</span>`);
+      if (snap.vf_fps > 0 && !bridged)
+        parts.push(`<span class="chip-m">${icon("gauge", 11)} ${snap.vf_fps.toFixed(1)} fps</span>`);
       if (snap.v_bitrate > 0)
-        parts.push(`<span class="chip-m">${icon("wifi", 11)} ${(snap.v_bitrate / 1000).toFixed(0)} kbps</span>`);
+        parts.push(
+          `<span class="chip-m">${icon("wifi", 11)} ${(snap.v_bitrate / 1e6).toFixed(2)} Mbps</span>`,
+        );
       const drop = snap.decoder_drop + snap.render_drop;
       parts.push(
         `<span class="chip-m ${drop > 0 ? "warn" : "ok"}">${icon("check", 11)} 丢帧 ${snap.decoder_drop}/${snap.render_drop}</span>`,

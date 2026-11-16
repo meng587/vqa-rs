@@ -199,7 +199,7 @@ mod tests {
 
     #[test]
     fn sec_asm_two_sections_in_one_payload() {
-        let mut sec = vec![0x00u8, 0x00, 0x05, 1, 2, 3, 4, 5]; // slen=5 → total 8
+        let sec = vec![0x00u8, 0x00, 0x05, 1, 2, 3, 4, 5]; // slen=5 → total 8
         let mut asm = SecAsm::new();
         let mut payload = vec![0u8]; // pointer 0
         payload.extend_from_slice(&sec);

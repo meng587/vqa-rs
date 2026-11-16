@@ -235,7 +235,7 @@ pub fn probe_quick(url: &str, timeout: f64, localaddr: &str) -> Option<QuickProb
         "-analyzeduration", "4000000",
         "-i", url,
         "-show_entries",
-        "stream=codec_name,width,height,pix_fmt,bit_rate:format=bit_rate",
+        "stream=codec_name,width,height,pix_fmt,bit_rate,avg_frame_rate:format=bit_rate",
         "-of", "json",
     ]);
     let out = run_limited(cmd, Duration::from_secs_f64(timeout))?;
@@ -256,6 +256,10 @@ pub fn probe_quick(url: &str, timeout: f64, localaddr: &str) -> Option<QuickProb
                     height: num(st.get("height")) as i64,
                     pix_fmt: safe(st.get("pix_fmt")),
                     bit_rate: num(st.get("bit_rate")) as i64,
+                    // 源帧率（avg_frame_rate = "50/1"）——播放器页"桥转码"条要显示
+                    // "什么格式 → 什么格式"，输出侧 fps 常被桥改造（chain10 固定 25），
+                    // 没有源 fps 就说不清这一项。
+                    framerate: safe(st.get("avg_frame_rate")),
                     ..Default::default()
                 },
                 bit_rate: if cont_bit > 0 { cont_bit } else { 0 },

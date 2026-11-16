@@ -100,7 +100,7 @@ pub fn diag_export(
     Ok(Some(dest))
 }
 
-/// 上传到 Gitee Issue（token 首次由前端传入并保存到本地 shared config）。
+/// 上传诊断包给开发者（凭据存本机 shared config `diag_token`，界面不再暴露输入框）。
 #[tauri::command]
 pub fn diag_upload(token: Option<String>, name: String, content: String) -> Result<String, String> {
     let tok = match token {
@@ -112,7 +112,7 @@ pub fn diag_upload(token: Option<String>, name: String, content: String) -> Resu
             let saved: String =
                 vqa_core::config::shared_get_or("diag_token", String::new());
             if saved.is_empty() {
-                return Err("尚未配置 Gitee 私人令牌（粘贴一次后会记住）".into());
+                return Err("本机未配置上传凭据，请先用「导出诊断包到本地」把文件发给开发者".into());
             }
             saved
         }
@@ -166,6 +166,8 @@ pub fn player_play(
     *st.bridge_note.lock().unwrap() = String::new();
     *st.bridge_url.lock().unwrap() = String::new();
     *st.bridge_since.lock().unwrap() = None;
+    *st.bridge_had_picture.lock().unwrap() = false;
+    *st.preparing.lock().unwrap() = true;
     *st.err.lock().unwrap() = None;
     *st.playing_url.lock().unwrap() = cleaned.clone();
 
@@ -188,6 +190,10 @@ pub fn player_play(
         }
         guard.as_ref().unwrap().clone()
     };
+    // 循环播放是跨 loadfile 的开关，重新起播后要再下发一次
+    if *st.loop_file.lock().unwrap() {
+        let _ = mpv.set_prop("loop-file", serde_json::Value::String("inf".into()));
+    }
 
     let probe_url = cleaned.clone();
     std::thread::Builder::new()
@@ -237,7 +243,7 @@ fn decide_bridge(
     // ★ 立刻告知前端"转码中"——全片转码大文件要 1-3 分钟，无反馈会被
     //   误判为卡死而重复点击（每次重试都作废上一次转码重来）
     let _ = bridge_wait_tx.send(ProbeMsg::Bridging(
-        "AVS 源转码中…全片处理约需 1-3 分钟（取决于文件大小），请勿重复点击".into(),
+        "AVS 桥已启动，数秒后出画…".into(),
     ));
     let Some(ffmpeg) = vqa_core::tools::find_ffmpeg() else {
         return Launch::Failed("需要转码桥但未找到 ffmpeg".into());
@@ -263,13 +269,38 @@ fn decide_bridge(
         }
     }
     let davs2 = davs2_path.unwrap_or_else(|| PathBuf::new());
+    // ★ 本地 AVS 源优先走**并行分片桥**（bridge_par，照搬 Python 版 §31.50）：
+    //   单链整链吞吐只有 0.63×实时（"播几秒卡几秒"的根因），并行 4 链叠到
+    //   ~1.85×，转码跑在播放前面——秒开、流畅、二次打开走缓存可拖动。
+    //   起不来（切不出分片等）回退实时桥。
+    if chain10 && vqa_core::bridge::is_local(url) {
+        match vqa_core::bridge_par::ParBridge::start(&ffmpeg, &davs2, url, 26) {
+            Ok(pb) => {
+                let reason = format!("并行转码桥（{}，{}）", pb.mode(), pb.progress());
+                let url = pb.url();
+                return Launch::Bridged {
+                    url,
+                    reason,
+                    bridge: Box::new(pb),
+                };
+            }
+            Err(e) => {
+                vqa_core::config::log_line(
+                    "bridge-decide",
+                    &format!("并行桥起不来，回退实时桥：{e}"),
+                );
+            }
+        }
+    }
     match vqa_core::bridge::RealtimeBridge::start(&ffmpeg, &davs2, url, chain10, 26, nic_ip) {
         Ok(b) => {
             let reason = format!("AVS 源自动转码桥（{}）", b.mode);
-            // ★ chain10 本地文件模式：b.url() 返回全片转码完成后的 TS 文件路径；
-            //   直播模式返回 tcp 流地址。统一由 bridge 自己决定播放目标。
             let url = b.url();
-            Launch::Bridged { url, reason, bridge: b }
+            Launch::Bridged {
+                url,
+                reason,
+                bridge: Box::new(b),
+            }
         }
         Err(e) => Launch::Failed(format!("转码桥失败：{e}")),
     }
@@ -279,9 +310,11 @@ fn decide_bridge(
 pub fn player_stop(st: State<PlayerState>) {
     *st.playing_url.lock().unwrap() = String::new();
     *st.bridge.lock().unwrap() = None;
+    *st.bridge_enc.lock().unwrap() = String::new();
     *st.bridge_note.lock().unwrap() = String::new();
     *st.bridge_url.lock().unwrap() = String::new();
     *st.bridge_since.lock().unwrap() = None;
+    *st.preparing.lock().unwrap() = false;
     if let Some(m) = st.mpv.lock().unwrap().as_ref() {
         m.stop();
     }
@@ -289,9 +322,15 @@ pub fn player_stop(st: State<PlayerState>) {
 
 #[tauri::command]
 pub fn player_pause_toggle(st: State<PlayerState>) {
+    let mut replay_via_play = false;
     if let Some(m) = st.mpv.lock().unwrap().as_ref() {
         let snap = m.snapshot();
         if snap.idle {
+            // ★ 起播管线进行中（探测/桥转码）：不要动——此时把原始 AVS2
+            //   喂给官方 mpv（无 AVS2 解码器）会秒退，UI 卡在"已播完"
+            if *st.preparing.lock().unwrap() {
+                return;
+            }
             // 重播：桥模式用桥产物（TS 文件/流地址），直放用原地址
             let bridge_u = st.bridge_url.lock().unwrap().clone();
             let url = if bridge_u.is_empty() {
@@ -299,11 +338,21 @@ pub fn player_pause_toggle(st: State<PlayerState>) {
             } else {
                 bridge_u
             };
-            if !url.is_empty() {
+            if url.starts_with("udp://") {
+                // ★ 已发完的 UDP 桥流重播没画面——重新走起播管线：
+                //   第二次会命中缓存，直接播本地文件（秒开、可拖动）
+                replay_via_play = true;
+            } else if !url.is_empty() {
                 m.loadfile(&url);
             }
         } else {
             m.set_pause(!snap.paused);
+        }
+    }
+    if replay_via_play {
+        let u2 = st.playing_url.lock().unwrap().clone();
+        if !u2.is_empty() {
+            let _ = player_play(st, u2, String::new(), false);
         }
     }
 }
@@ -336,9 +385,34 @@ pub fn player_set_speed(st: State<PlayerState>, speed: f64) {
     }
 }
 
+/// 循环播放开关。mpv 的 `loop-file` 属性在 loadfile 之间保持，
+/// 但仍在 player_play 里补发一次——避免重启播放器后被重置。
+#[tauri::command]
+pub fn player_set_loop(st: State<PlayerState>, on: bool) {
+    *st.loop_file.lock().unwrap() = on;
+    if let Some(m) = st.mpv.lock().unwrap().as_ref() {
+        let _ = m.set_prop(
+            "loop-file",
+            serde_json::Value::String(if on { "inf" } else { "no" }.into()),
+        );
+    }
+}
+
+/// 编码器 → 人话（播放器页"桥格式"条用）
+fn enc_label(enc: &str) -> String {
+    match enc {
+        "h264_nvenc" => "H.264 / NVENC 硬编".into(),
+        "h264_qsv" => "H.264 / QSV 硬编".into(),
+        "h264_amf" => "H.264 / AMF 硬编".into(),
+        "libx264" => "H.264 / libx264 软编".into(),
+        "" => "H.264".into(),
+        other => format!("H.264 / {other}"),
+    }
+}
+
 #[tauri::command]
 pub fn player_snapshot_save(st: State<PlayerState>) -> Result<String, String> {
-    let dir = dirs_pictures().join("vqa_snapshots");
+    let dir = snap_dir();
     let _ = std::fs::create_dir_all(&dir);
     let ts = chrono::Local::now().format("%Y%m%d_%H%M%S");
     let path = dir.join(format!("snap_{ts}.png"));
@@ -359,7 +433,7 @@ pub fn player_record_toggle(st: State<PlayerState>) -> Result<String, String> {
             .map(|p| format!("已录制 {}", p.display()))
             .unwrap_or_else(|| "已停止录制".into()))
     } else {
-        let dir = dirs_videos().join("vqa_recordings");
+        let dir = rec_dir();
         let _ = std::fs::create_dir_all(&dir);
         let ts = chrono::Local::now().format("%Y%m%d_%H%M%S");
         let path = dir.join(format!("rec_{ts}.ts"));
@@ -393,8 +467,10 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                 }
                 Ok(ProbeMsg::Bridging(msg)) => {
                     st.set_hint_for(msg, 300);
-                }
-                Ok(ProbeMsg::Outcome(launch)) => match launch {
+                }                Ok(ProbeMsg::Outcome(launch)) => {
+                    // 起播管线结束（无论结果）：等待态解除
+                    *st.preparing.lock().unwrap() = false;
+                    match launch {
                     Launch::Direct => {
                         if let Some(m) = &mpv_arc {
                             let url = st.playing_url.lock().unwrap().clone();
@@ -418,6 +494,13 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                             *st.bridge_url.lock().unwrap() = url.clone();
                             *st.bridge_since.lock().unwrap() = Some(std::time::Instant::now());
                             *st.bridge.lock().unwrap() = Some(bridge);
+                            // 记录本次桥用的编码器（决定"转到什么"展示）。
+                            // pick_h264_encoder 内部有进程级缓存，起桥时已算过，
+                            // 这里取的是同一个结果，几乎零成本。
+                            let enc = vqa_core::tools::find_ffmpeg()
+                                .map(|f| vqa_core::bridge::pick_h264_encoder(&f))
+                                .unwrap_or_default();
+                            *st.bridge_enc.lock().unwrap() = enc;
                         } else {
                             drop(bridge);
                         }
@@ -443,6 +526,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                                 }
                             }
                         }
+                    }
                     }
                 },
                 Err(_) => {
@@ -490,6 +574,14 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
         }
     }
 
+    // 2.55) 桥出画面了 → 标记（流式桥播完 EOF 回 idle 不再被 2.6 误报）
+    {
+        let idle = mpv_arc.as_ref().map(|m| m.snapshot().idle).unwrap_or(true);
+        if !idle {
+            *st.bridge_had_picture.lock().unwrap() = true;
+        }
+    }
+
     // 2.6) 桥重试窗口耗尽仍无画面 → 给出性能诊断（不是含糊的失败）
     //（本地文件桥不适用：EOF 回 idle 是播完，不是桥没出流）
     {
@@ -500,8 +592,9 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
             .as_ref()
             .map(|b| b.is_file())
             .unwrap_or(false);
+        let had_picture = *st.bridge_had_picture.lock().unwrap();
         let retry_left = *st.bridge_retry_left.lock().unwrap();
-        if retry_left == 0 && !file_bridge {
+        if retry_left == 0 && !file_bridge && !had_picture {
             let bridge_on = !st.bridge_note.lock().unwrap().is_empty();
             // ★ 计时 2 分钟：起播瞬间 mpv 短暂 idle 是正常的（loadfile 异步
             //   生效），不立即判死；只有桥就绪超过 2 分钟仍无画面才是真失败
@@ -562,21 +655,47 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
         .take()
         .filter(|(_, t, d)| t.elapsed() <= *d)
         .map(|(s, _, _)| s);
+    // 桥转码的"目标格式"（前端在播放器页下方画一条 源 → 目标 的说明条）
+    let bridge_mode_now = st.bridge.lock().unwrap().as_ref().map(|b| b.mode()).unwrap_or_default();
+    let bridge_to = if bridge_mode_now.is_empty() {
+        serde_json::Value::Null
+    } else {
+        let enc = st.bridge_enc.lock().unwrap().clone();
+        // chain10 固定压到 25fps（davs2 软解 4K 10-bit 只有 ~41fps，
+        // 不降帧会"播几秒停几秒"，见 bridge.rs 注释）；分片桥保持源帧率
+        let fps = if bridge_mode_now.contains("chain10") {
+            "25".to_string()
+        } else {
+            String::new()
+        };
+        serde_json::json!({
+            "mode": bridge_mode_now,
+            "enc": enc.clone(),
+            "enc_label": enc_label(&enc),
+            "pix": "yuv420p",
+            "fps": fps,
+            "audio": "AAC 96k",
+            "container": "MPEG-TS",
+        })
+    };
     serde_json::json!({
         "playing": !st.playing_url.lock().unwrap().is_empty(),
         "err": *st.err.lock().unwrap(),
         "hint": hint,
+        "loop": *st.loop_file.lock().unwrap(),
+        "bridge_to": bridge_to,
         "bridge_note": *st.bridge_note.lock().unwrap(),
         "bridge": st.bridge.lock().unwrap().as_ref().map(|b| {
             serde_json::json!({
-                "mode": b.mode,
-                "port": b.port,
+                "mode": b.mode(),
+                "progress": b.progress(),
                 "alive": b.alive(),
                 "stderr_tail": b.stderr_tail(),
             })
         }),
         "recording": *st.recording.lock().unwrap(),
         "probe": st.probe_info.lock().unwrap().as_ref().map(probe_json),
+        "preparing": *st.preparing.lock().unwrap(),
         "snap": snap.as_ref().map(|s| serde_json::json!({
             "time_ms": s.time_ms,
             "duration_ms": s.duration_ms,
@@ -608,6 +727,7 @@ fn probe_json(q: &probe::QuickProbe) -> serde_json::Value {
         "w": q.video.width, "h": q.video.height,
         "codec": q.video.codec,
         "pix_fmt": q.video.pix_fmt,
+        "fps": q.video.framerate,
         "bit_rate": q.bit_rate,
     })
 }
@@ -621,6 +741,150 @@ fn dirs_videos() -> PathBuf {
     std::env::var_os("USERPROFILE")
         .map(|h| PathBuf::from(h).join("Videos"))
         .unwrap_or_else(|| PathBuf::from("."))
+}
+
+// ── 输出目录（截图 / 录像）：设置里改过就用设置，否则回落系统默认 ──
+
+fn default_snap_dir() -> PathBuf {
+    dirs_pictures().join("vqa_snapshots")
+}
+fn default_rec_dir() -> PathBuf {
+    dirs_videos().join("vqa_recordings")
+}
+
+fn custom_dir(key: &str) -> Option<PathBuf> {
+    let s: String = vqa_core::config::shared_get_or(key, String::new());
+    let t = s.trim();
+    if t.is_empty() {
+        None
+    } else {
+        Some(PathBuf::from(t))
+    }
+}
+
+fn snap_dir() -> PathBuf {
+    custom_dir("out_snap_dir").unwrap_or_else(default_snap_dir)
+}
+fn rec_dir() -> PathBuf {
+    custom_dir("out_rec_dir").unwrap_or_else(default_rec_dir)
+}
+
+/// 播放器设置（只属于播放器页；分析页有自己的 analysis_settings_*）。
+#[tauri::command]
+pub fn player_settings_get() -> serde_json::Value {
+    serde_json::json!({
+        "snap_dir": snap_dir().to_string_lossy(),
+        "rec_dir": rec_dir().to_string_lossy(),
+        "snap_default": default_snap_dir().to_string_lossy(),
+        "rec_default": default_rec_dir().to_string_lossy(),
+        "snap_custom": custom_dir("out_snap_dir").map(|p| p.to_string_lossy().to_string()),
+        "rec_custom": custom_dir("out_rec_dir").map(|p| p.to_string_lossy().to_string()),
+        "default_loop": vqa_core::config::shared_get_or("player.default_loop", false),
+        "default_force_bridge": vqa_core::config::shared_get_or("player.default_force_bridge", false),
+    })
+}
+
+/// 保存播放器设置。目录留空 = 用默认；任一项校验失败整体不改。
+#[tauri::command]
+pub fn player_settings_set(
+    snap_dir: String,
+    rec_dir: String,
+    default_loop: bool,
+    default_force_bridge: bool,
+    st: State<PlayerState>,
+) -> Result<serde_json::Value, String> {
+    let snap = if snap_dir.trim().is_empty() {
+        None
+    } else {
+        Some(check_dir("截图目录", &snap_dir)?)
+    };
+    let rec = if rec_dir.trim().is_empty() {
+        None
+    } else {
+        Some(check_dir("录像目录", &rec_dir)?)
+    };
+    vqa_core::config::shared_set(
+        "out_snap_dir",
+        serde_json::json!(snap.as_ref().map(|p| p.to_string_lossy().to_string()).unwrap_or_default()),
+    )
+    .map_err(|e| format!("写配置失败：{e}"))?;
+    vqa_core::config::shared_set(
+        "out_rec_dir",
+        serde_json::json!(rec.as_ref().map(|p| p.to_string_lossy().to_string()).unwrap_or_default()),
+    )
+    .map_err(|e| format!("写配置失败：{e}"))?;
+    vqa_core::config::shared_set("player.default_loop", serde_json::json!(default_loop))
+        .map_err(|e| format!("写配置失败：{e}"))?;
+    vqa_core::config::shared_set(
+        "player.default_force_bridge",
+        serde_json::json!(default_force_bridge),
+    )
+    .map_err(|e| format!("写配置失败：{e}"))?;
+    // 默认循环立刻作用于当前播放器（mpv 未起时只记状态）
+    *st.loop_file.lock().unwrap() = default_loop;
+    if let Some(m) = st.mpv.lock().unwrap().as_ref() {
+        let _ = m.set_prop(
+            "loop-file",
+            serde_json::Value::String(if default_loop { "inf" } else { "no" }.into()),
+        );
+    }
+    Ok(player_settings_get())
+}
+
+/// 分析报告默认输出目录；未设置则每次导出时弹保存对话框。
+fn report_dir() -> Option<PathBuf> {
+    custom_dir("analysis.report_dir")
+}
+
+/// 视频分析设置（只属于分析页）。
+#[tauri::command]
+pub fn analysis_settings_get() -> serde_json::Value {
+    serde_json::json!({
+        "report_dir": report_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_default(),
+        "report_note": "留空 = 每次导出时弹保存对话框",
+    })
+}
+
+/// 保存视频分析设置（目录留空 = 每次弹保存对话框）。
+#[tauri::command]
+pub fn analysis_settings_set(report_dir: String) -> Result<serde_json::Value, String> {
+    let saved = if report_dir.trim().is_empty() {
+        String::new()
+    } else {
+        check_dir("报告目录", &report_dir)?
+            .to_string_lossy()
+            .to_string()
+    };
+    vqa_core::config::shared_set("analysis.report_dir", serde_json::json!(saved))
+        .map_err(|e| format!("写配置失败：{e}"))?;
+    Ok(analysis_settings_get())
+}
+
+/// 校验单个目录：必须是绝对路径、能建出来、能写进去。
+fn check_dir(label: &str, raw: &str) -> Result<PathBuf, String> {
+    let t = raw.trim();
+    let p = PathBuf::from(t);
+    if !p.is_absolute() {
+        return Err(format!("{label}要填绝对路径（如 D:\\vqa-output\\snap）：{t}"));
+    }
+    std::fs::create_dir_all(&p)
+        .map_err(|e| format!("{label}建不出来 {}：{e}", p.display()))?;
+    let probe = p.join(".vqa_write_test");
+    std::fs::write(&probe, b"ok")
+        .map_err(|e| format!("{label}不可写 {}：{e}", p.display()))?;
+    let _ = std::fs::remove_file(&probe);
+    Ok(p)
+}
+
+/// 选择文件夹（设置页"浏览"按钮）。
+#[tauri::command]
+pub fn browse_folder(app: tauri::AppHandle, title: String, start: String) -> Option<String> {
+    use tauri_plugin_dialog::DialogExt;
+    let mut d = app.dialog().file().set_title(&title);
+    if !start.trim().is_empty() {
+        d = d.set_directory(start.trim());
+    }
+    d.blocking_pick_folder().map(|p| p.to_string())
 }
 
 // ═══════════════════════════ 视频分析 ═══════════════════════════
@@ -734,10 +998,10 @@ pub fn analysis_progress(ast: State<AnalysisState>) -> serde_json::Value {
             match rx.try_recv() {
                 Ok(Ok(res)) => {
                     ast.log_push(format!(
-                        "扫描完成：{} 包 / {:.3}s / {:.0} kbps",
+                        "扫描完成：{} 包 / {:.3}s / {:.2} Mbps",
                         res.packets,
                         res.duration_pcr(),
-                        res.bitrate_avg() / 1000.0
+                        res.bitrate_avg() / 1e6
                     ));
                     let path = res.path.clone();
                     *ast.pkt.lock().unwrap() =
@@ -831,16 +1095,26 @@ pub fn export_report_md(
         .ok_or("没有可导出的扫描结果")?;
     let dest = match path {
         Some(p) => p,
-        None => {
-            use tauri_plugin_dialog::DialogExt;
-            app.dialog()
-                .file()
-                .add_filter("Markdown", &["md"])
-                .set_file_name("TS流质量检测报告.md")
-                .blocking_save_file()
-                .map(|p| p.to_string())
-                .ok_or_else(|| "已取消".to_string())?
-        }
+        // 分析页设置里配了报告目录 → 直接落盘（带时间戳，不覆盖上次）
+        None => match report_dir() {
+            Some(d) => {
+                let ts = chrono::Local::now().format("%Y%m%d_%H%M%S");
+                let _ = std::fs::create_dir_all(&d);
+                d.join(format!("TS流质量检测报告_{ts}.md"))
+                    .to_string_lossy()
+                    .to_string()
+            }
+            None => {
+                use tauri_plugin_dialog::DialogExt;
+                app.dialog()
+                    .file()
+                    .add_filter("Markdown", &["md"])
+                    .set_file_name("TS流质量检测报告.md")
+                    .blocking_save_file()
+                    .map(|p| p.to_string())
+                    .ok_or_else(|| "已取消".to_string())?
+            }
+        },
     };
     std::fs::write(&dest, build_markdown(&res)).map_err(|e| format!("写报告失败：{e}"))?;
     Ok(Some(dest))

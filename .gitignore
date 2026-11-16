@@ -28,3 +28,7 @@ crates/vqa-tauri/ui/dist/
 crates/vqa-tauri/icons/android/
 crates/vqa-tauri/icons/ios/
 crates/vqa-tauri/gen/
+
+# 本地测试素材与独立小程序的构建产物
+/testdata/
+vqa-doctor/target/

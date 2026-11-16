@@ -4,6 +4,7 @@
 import { icon } from "./icons";
 import { initPlayer } from "./player";
 import { initAnalysis } from "./analysis";
+import { initSettings } from "./settings";
 import { api } from "./api";
 import { SPEEDS } from "./constants";
 
@@ -168,14 +169,12 @@ document.getElementById("dg-export")?.addEventListener("click", async () => {
 });
 
 document.getElementById("dg-upload")?.addEventListener("click", async () => {
-  const tokEl = document.getElementById("dg-token") as HTMLInputElement;
   dgStatus.textContent = "生成并上传中…";
   try {
     if (!diagCache) diagCache = await api.diagCollect();
-    const url = await api.diagUpload(tokEl.value.trim() || null, diagCache.name, diagCache.content);
-    dgStatus.innerHTML = `上传成功：<a href="${url}" target="_blank" style="color:var(--acc)">${url}</a>（可把此链接发给维护者；ZCode 会自动阅读并分析）`;
-    tokEl.value = "";
-    tokEl.placeholder = "已保存私人令牌（如需更换可重新粘贴）";
+    // 上传凭据不在界面上暴露，直接用本机已保存的
+    const url = await api.diagUpload(null, diagCache.name, diagCache.content);
+    dgStatus.innerHTML = `已上传给开发者：<a href="${url}" target="_blank" style="color:var(--acc)">${url}</a>`;
   } catch (e: any) {
     dgStatus.textContent = `上传失败：${String(e).slice(0, 200)}`;
   }
@@ -184,4 +183,5 @@ document.getElementById("dg-upload")?.addEventListener("click", async () => {
 // ---- 页面初始化 ----
 initPlayer();
 initAnalysis();
+initSettings();
 goto("player");

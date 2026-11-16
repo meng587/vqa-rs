@@ -56,8 +56,6 @@ pub fn bin_dir_hint() -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn ffmpeg_locatable_on_dev_machine() {
         if std::path::Path::new(r"D:\音视频工具\dev\bin\ffmpeg.exe").is_file() {

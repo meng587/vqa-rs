@@ -1,0 +1,10 @@
+[package]
+name = "vqa-doctor"
+version = "0.1.0"
+edition = "2021"
+description = "视听质量检测工作站 · 环境自检与残留清理（独立于 D:\\vqa-rs 主 workspace）"
+
+# 独立 crate：不加入 D:\vqa-rs 的 workspace，自带自己的 target，不干扰主工程构建
+[workspace]
+
+[dependencies]

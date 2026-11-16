@@ -15,7 +15,7 @@ use crate::mpv_host::VideoChild;
 /// Bridged 携带桥句柄——收割侧存入 state，否则线程结束时桥被 drop 停掉。
 pub enum Launch {
     Direct,
-    Bridged { url: String, reason: String, bridge: RealtimeBridge },
+    Bridged { url: String, reason: String, bridge: Box<dyn BridgeHandle> },
     Failed(String),
 }
 
@@ -27,12 +27,73 @@ pub enum ProbeMsg {
     Bridging(String),
 }
 
+/// 桥句柄的统一接口——实时桥（RealtimeBridge）与并行分片桥（ParBridge）
+/// 对外行为一致，播放器状态只认这个接口。
+pub trait BridgeHandle: Send {
+    fn url(&self) -> String;
+    fn mode(&self) -> String;
+    /// 缓存/文件桥：EOF 播完是正常结束（豁免"2 分钟无画面"误报）
+    fn is_file(&self) -> bool;
+    fn alive(&self) -> usize;
+    fn stderr_tail(&self) -> String;
+    fn progress(&self) -> String;
+    fn stop(&self);
+}
+
+impl BridgeHandle for RealtimeBridge {
+    fn url(&self) -> String {
+        RealtimeBridge::url(self)
+    }
+    fn mode(&self) -> String {
+        self.mode.clone()
+    }
+    fn is_file(&self) -> bool {
+        RealtimeBridge::is_file(self)
+    }
+    fn alive(&self) -> usize {
+        RealtimeBridge::alive(self)
+    }
+    fn stderr_tail(&self) -> String {
+        RealtimeBridge::stderr_tail(self)
+    }
+    fn progress(&self) -> String {
+        String::new()
+    }
+    fn stop(&self) {
+        RealtimeBridge::stop(self)
+    }
+}
+
+impl BridgeHandle for vqa_core::bridge_par::ParBridge {
+    fn url(&self) -> String {
+        vqa_core::bridge_par::ParBridge::url(self)
+    }
+    fn mode(&self) -> String {
+        vqa_core::bridge_par::ParBridge::mode(self)
+    }
+    fn is_file(&self) -> bool {
+        vqa_core::bridge_par::ParBridge::is_file(self)
+    }
+    fn alive(&self) -> usize {
+        vqa_core::bridge_par::ParBridge::alive(self)
+    }
+    fn stderr_tail(&self) -> String {
+        vqa_core::bridge_par::ParBridge::stderr_tail(self)
+    }
+    fn progress(&self) -> String {
+        vqa_core::bridge_par::ParBridge::progress(self)
+    }
+    fn stop(&self) {
+        vqa_core::bridge_par::ParBridge::stop(self)
+    }
+}
+
 /// 播放器链路。
 pub struct PlayerState {
     pub child: Mutex<Option<VideoChild>>,
     pub mpv: Mutex<Option<Arc<Mpv>>>,
     pub playing_url: Mutex<String>,
-    pub bridge: Mutex<Option<RealtimeBridge>>,
+    pub bridge: Mutex<Option<Box<dyn BridgeHandle>>>,
     pub bridge_note: Mutex<String>,
     pub err: Mutex<Option<String>>,
     /// 提示行（文本、设置时刻、时效）——大文件全片转码要几分钟，
@@ -42,6 +103,9 @@ pub struct PlayerState {
     pub rec_path: Mutex<Option<PathBuf>>,
     pub probe_rx: Mutex<Option<std::sync::mpsc::Receiver<ProbeMsg>>>,
     pub probe_info: Mutex<Option<QuickProbe>>,
+    /// 起播管线进行中（探测/桥转码）——此窗口内 mpv 的 idle 不是"已播完"，
+    /// 重播按钮也不应把原始 AVS2 喂给 mpv（官方 mpv 无 AVS2 解码器，秒退）
+    pub preparing: Mutex<bool>,
     /// 桥流自动重连：剩余次数 + 上次重试时刻 + 桥流 URL
     /// （chain10 桥从启动到出流要数秒，mpv loadfile 后会先回 idle——
     /// 实测缺陷：不等出流直接放弃。这里做 idle 自动重试直到出流。）
@@ -50,6 +114,15 @@ pub struct PlayerState {
     pub bridge_url: Mutex<String>,
     /// 桥就绪时刻（2.6 性能诊断的计时起点；起播瞬间 mpv 短暂 idle 不算失败）
     pub bridge_since: Mutex<Option<std::time::Instant>>,
+    /// 桥是否已出过画面——流式桥播完 EOF 回 idle 是正常结束，
+    /// 不能被 2.6 的"2 分钟无画面"误报
+    pub bridge_had_picture: Mutex<bool>,
+    /// 循环播放（mpv `loop-file=inf`）。跨 loadfile 保持：
+    /// 每次起播/重播后要重新下发一次（loadfile 会重置部分属性）
+    pub loop_file: Mutex<bool>,
+    /// 本次桥选定的 H.264 编码器（h264_nvenc / h264_qsv / h264_amf / libx264）。
+    /// 在桥启动时记一次，播放器页"桥格式"条据此显示"转到什么编码"。
+    pub bridge_enc: Mutex<String>,
 }
 
 impl PlayerState {
@@ -66,10 +139,14 @@ impl PlayerState {
             rec_path: Mutex::new(None),
             probe_rx: Mutex::new(None),
             probe_info: Mutex::new(None),
+            preparing: Mutex::new(false),
             bridge_retry_left: Mutex::new(0),
             bridge_last_retry: Mutex::new(None),
             bridge_url: Mutex::new(String::new()),
             bridge_since: Mutex::new(None),
+            bridge_had_picture: Mutex::new(false),
+            loop_file: Mutex::new(false),
+            bridge_enc: Mutex::new(String::new()),
         }
     }
 

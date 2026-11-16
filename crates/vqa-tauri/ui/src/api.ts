@@ -31,18 +31,54 @@ export interface Probe {
   h: number;
   codec: string;
   pix_fmt: string;
+  /** 源帧率原始串，形如 "50/1" */
+  fps: string;
   bit_rate: number;
+}
+
+/** 桥的"源 → 目标"目标侧描述（后端 player_snapshot 给出） */
+export interface BridgeTo {
+  mode: string;
+  enc: string;
+  enc_label: string;
+  pix: string;
+  fps: string;
+  audio: string;
+  container: string;
 }
 
 export interface PlayerStateJson {
   playing: boolean;
   err: string | null;
   hint: string | null;
+  /** 循环播放开关（mpv loop-file） */
+  loop: boolean;
+  /** 桥转码目标格式；无桥时为 null */
+  bridge_to: BridgeTo | null;
   bridge_note: string;
-  bridge: { mode: string; port: number; alive: number; stderr_tail: string } | null;
+  bridge: { mode: string; progress: string; alive: number; stderr_tail: string } | null;
   recording: boolean;
   probe: Probe | null;
+  preparing: boolean;
   snap: Snap | null;
+}
+
+/// 播放器设置（只属于播放器页）
+export interface PlayerSettings {
+  snap_dir: string;
+  rec_dir: string;
+  snap_default: string;
+  rec_default: string;
+  snap_custom: string | null;
+  rec_custom: string | null;
+  default_loop: boolean;
+  default_force_bridge: boolean;
+}
+
+/// 视频分析设置（只属于分析页）
+export interface AnalysisSettings {
+  report_dir: string;
+  report_note: string;
 }
 
 export interface ScanProg {
@@ -84,6 +120,8 @@ export const api = {
   pushSourceHistory: (key: string, url: string) =>
     invoke<void>("push_source_history", { key, url }),
   browse: () => invoke<string | null>("browse_media_file"),
+  browseFolder: (title: string, start: string) =>
+    invoke<string | null>("browse_folder", { title, start }),
   toolPaths: () =>
     invoke<{ ffmpeg: string | null; ffprobe: string | null; mpv: string | null; davs2: string | null }>("tool_paths"),
   // 播放器
@@ -95,6 +133,7 @@ export const api = {
   setVolume: (volume: number) => invoke<void>("player_set_volume", { volume }),
   setMute: (mute: boolean) => invoke<void>("player_set_mute", { mute }),
   setSpeed: (speed: number) => invoke<void>("player_set_speed", { speed }),
+  setLoop: (on: boolean) => invoke<void>("player_set_loop", { on }),
   snapshot: () => invoke<PlayerStateJson>("player_snapshot"),
   snapshotSave: () => invoke<string>("player_snapshot_save"),
   recordToggle: () => invoke<string>("player_record_toggle"),
@@ -118,4 +157,15 @@ export const api = {
   diagUpload: (token: string | null, name: string, content: string) =>
     invoke<string>("diag_upload", { token, name, content }),
   diagHasToken: () => invoke<boolean>("diag_has_token"),
+  // 分功能设置
+  playerSettings: () => invoke<PlayerSettings>("player_settings_get"),
+  setPlayerSettings: (v: {
+    snapDir: string;
+    recDir: string;
+    defaultLoop: boolean;
+    defaultForceBridge: boolean;
+  }) => invoke<PlayerSettings>("player_settings_set", v),
+  analysisSettings: () => invoke<AnalysisSettings>("analysis_settings_get"),
+  setAnalysisSettings: (reportDir: string) =>
+    invoke<AnalysisSettings>("analysis_settings_set", { reportDir }),
 };

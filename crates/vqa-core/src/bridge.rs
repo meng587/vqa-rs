@@ -49,7 +49,7 @@ pub fn needs_bridge(q: &Option<probe::QuickProbe>, force: bool) -> bool {
     force || probe::needs_bridge(q)
 }
 
-fn free_udp_port() -> std::io::Result<u16> {
+pub fn free_udp_port() -> std::io::Result<u16> {
     let s = UdpSocket::bind((LOOPBACK, 0))?;
     Ok(s.local_addr()?.port())
 }
@@ -87,7 +87,7 @@ pub fn pick_h264_encoder(ffmpeg: &Path) -> String {
     enc
 }
 
-fn encoder_args(enc: &str, crf: i32) -> Vec<String> {
+pub fn encoder_args(enc: &str, crf: i32) -> Vec<String> {
     let cq = crf.to_string();
     let base: &[&str] = match enc {
         "h264_nvenc" => &[
@@ -402,20 +402,15 @@ impl RealtimeBridge {
             //   mpv 端 UDP 周期性 PAT/PMT 重发（ffmpeg 默认 ~100ms），
             //   晚 bind 也不会丢表。
             //
-            //   ★ 输出目标改为 TS 文件 + 同步等待全片转码完成：
-            //     mpv loadfile(TS 文件) 可拖动、零丢包零卡顿（UDP/TCP 推送
-            //     模式实测均有周期性停顿——环回无流控+probe 竞态）。
-            //     检测观看场景等待 10-20s 转码完全可接受。
-            let ts_out = std::env::temp_dir().join(format!(
-                "vqa_h264_{}_{}.ts",
-                std::process::id(),
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .map(|d| d.subsec_millis())
-                    .unwrap_or(0)
-            ));
-            cmd3.args(["-f", "mpegts"]).arg(&ts_out);
-            cmd3.stdin(davs2_y4m);            let mut p3 = match cmd3.spawn() {
+            //   ★ 输出走 TCP 流（与直播同机制）：本地文件抽完裸流后 davs2
+            //     文件直读 76fps，3 倍于桥输出 25fps 的播放消耗，流式也零
+            //     卡顿（fps=25 后 40s 连续播放实测）。mpv 读"增长中的本地
+            //     文件"会在写入点提前 EOF（实测播 1 秒就"已播完"），所以
+            //     不用文件模式。非 seek——用户优先"直接可以看到"。
+            //   cmd3 立即启动（listen 随 spawn 就绪），留 1.2s 让读端就绪。
+            cmd3.args(["-f", "mpegts", &dst]);
+            cmd3.stdin(davs2_y4m);
+            let mut p3 = match cmd3.spawn() {
                 Ok(p) => p,
                 Err(e) => {
                     // 编码段起不来：收割 davs2（在 procs 里），不留孤儿
@@ -441,29 +436,18 @@ impl RealtimeBridge {
                     }
                 });
             }
-            // 同步等待全片转码完成（编码速度快于解码，总时长 ≈ davs2 解码时间）
-            let code = p3
-                .wait()
-                .map_err(|e| format!("等待编码段失败：{e}"))?;
-            // 收尾收割前段（procs 里是 davs2；正常路径它已随 y4m EOF 退出，
-            // kill 对已退进程是 no-op，异常路径则防止它对着断掉的管道悬挂成孤儿）
-            if let Ok(mut v) = procs.lock() {
-                for p in v.iter_mut() {
-                    let _ = p.kill();
-                    let _ = p.wait();
-                }
-                v.clear();
-            }
-            if !code.success() {
-                return Err("编码段失败（nvenc 转码未成功）".into());
-            }
+            // p3 交给 procs：正常结束自己退出；用户中途停止时 stop() kill
+            procs.lock().unwrap().push(p3);
+            // 读端就绪窗口（mpv 在 Outcome 收割后才连接，listen 已就绪）
+            std::thread::sleep(Duration::from_millis(1200));
+            // 立即返回：mpv 连接 tcp 流，抽流+解码在前台继续
             return Ok(RealtimeBridge {
-                procs: std::sync::Arc::new(Mutex::new(vec![])),
+                procs,
                 port,
                 mode: "chain10".into(),
                 tmp_es,
                 stderr_buf,
-                out_file: Some(ts_out),
+                out_file: None,
             });
         } else {
             // 直播源：维持"读端先绑 socket"时序（§31.46.3），延迟 1.2s 启动。

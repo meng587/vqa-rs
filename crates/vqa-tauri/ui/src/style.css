@@ -413,3 +413,74 @@ table.dt tr:hover td { background: rgba(129, 140, 248, 0.05); }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: #2c2c30; border-radius: 99px; border: 2px solid var(--panel); }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* ── 循环播放按钮激活态 ── */
+.ctrl .cbtn.on { color: var(--acc); background: var(--acc-soft); }
+
+/* ── 桥转码格式条（播放器页下方：源格式 → 目标格式） ── */
+.bridgebar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 10px; padding: 8px 12px;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.10), rgba(139, 92, 246, 0.06));
+  font: 11.5px/1.5 var(--sans); color: var(--mut);
+}
+.bridgebar .bf-tag {
+  flex: none; padding: 2px 8px; border-radius: 999px;
+  background: var(--acc-soft); color: var(--acc);
+  font: 600 11px var(--sans); letter-spacing: .3px;
+}
+.bridgebar .bf-from, .bridgebar .bf-to {
+  font-family: var(--mono); color: var(--text); white-space: nowrap;
+}
+.bridgebar .bf-arrow { color: var(--acc); font-weight: 700; flex: none; }
+
+/* ── 播放器底部：桥转码说明与运行时指标合成一行 ── */
+.statusrow {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 10px; min-width: 0;
+}
+.statusrow .bridgebar {
+  margin-top: 0; padding: 4px 9px; gap: 6px;
+  flex: 0 1 auto; max-width: 62%; overflow: hidden;
+  font-size: 11px;
+}
+.statusrow .chips { flex: 1 1 auto; min-width: 0; }
+/* 单行内不换行：桥说明保持一条，放不下就截断，交给右侧指标占位 */
+.statusrow .bridgebar { flex-wrap: nowrap; }
+
+/* ── 设置页：输出目录 ── */
+.setrow { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.setrow .k { flex: none; width: 64px; font-size: 12px; color: var(--mut); }
+.setrow input {
+  flex: 1; min-width: 0; height: 32px;
+  border: 1px solid var(--border2); border-radius: 10px;
+  background: var(--side); color: var(--text);
+  padding: 0 12px; font: 12.5px var(--mono); outline: none;
+}
+.setrow input:focus { border-color: var(--acc); }
+.setrow input::placeholder { color: var(--faint); }
+.setmsg { font-size: 12px; color: var(--mut); word-break: break-all; }
+.setmsg.ok { color: var(--ok); }
+.setmsg.err { color: var(--bad); }
+
+/* ── 功能设置抽屉（每个功能页自己的设置，右侧滑出，不切页） ── */
+.drmask { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 40; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: 360px; z-index: 41;
+  background: var(--panel); border-left: 1px solid var(--border2);
+  display: flex; flex-direction: column;
+  transform: translateX(14px); opacity: 0;
+  transition: transform .16s ease, opacity .16s ease;
+}
+.drawer.on { transform: none; opacity: 1; }
+.drhead { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.drhead b { font-size: 13px; }
+.drhead .iconbtn { width: 26px; height: 26px; border-radius: 8px; }
+.drbody { flex: 1; overflow: auto; padding: 14px; }
+.drsec { font-size: 11.5px; color: var(--mut); margin: 2px 0 10px; }
+.drsec:not(:first-child) { margin-top: 16px; }
+.drchk { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 6px 2px; color: var(--text); }
+.drchk input { accent-color: var(--acc); }
+.drhint { margin-top: 12px; font-size: 11.5px; color: var(--faint); line-height: 1.75; }
+.drfoot { display: flex; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--border); }

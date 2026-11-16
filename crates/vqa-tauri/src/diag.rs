@@ -126,7 +126,7 @@ pub static APP_START: std::sync::OnceLock<std::time::Instant> = std::sync::OnceL
 /// 日志文件直接进仓库，维护者 git pull 即可阅读分析。
 pub fn upload_issue(token: &str, name: &str, content: &str) -> Result<String, String> {
     let url = format!(
-        "https://gitee.com/api/v5/repos/meng587/video-analysis-toolkit-rs/contents/logs/{name}"
+        "https://gitee.com/api/v5/repos/meng587/vqa-rs/contents/logs/{name}"
     );
     // 手写 base64（标准字母表），避免引入新依赖
     const TBL: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";

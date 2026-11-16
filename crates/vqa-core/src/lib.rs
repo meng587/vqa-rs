@@ -17,6 +17,7 @@
 //! | `bridge`        | `vkitplayer/src/bridge.rs` + `media/bridge_ffmpeg.py` |
 
 pub mod bridge;
+pub mod bridge_par;
 pub mod config;
 pub mod ffmpeg;
 pub mod live;
