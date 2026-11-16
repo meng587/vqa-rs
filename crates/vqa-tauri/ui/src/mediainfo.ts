@@ -4,6 +4,7 @@
 
 import { api, MediaInfo } from "./api";
 import { icon } from "./icons";
+import { drawerHold } from "./drawer";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -46,6 +47,7 @@ function close() {
   const d = $("mi-drawer");
   d.classList.remove("on");
   d.hidden = true;
+  drawerHold("mi-drawer", false);
 }
 
 async function open() {
@@ -55,6 +57,7 @@ async function open() {
   const d = $("mi-drawer");
   d.hidden = false;
   requestAnimationFrame(() => d.classList.add("on"));
+  drawerHold("mi-drawer", true);
   const body = $("mi-body");
   if (!path) {
     body.innerHTML = `<div class="mi-hint">先在「来源」里填好文件路径或流地址，再看媒体信息。</div>`;

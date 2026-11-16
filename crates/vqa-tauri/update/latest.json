@@ -1,11 +1,11 @@
 {
-  "version": "0.2.6",
-  "notes": "设置分功能化（各页独立抽屉：播放器截图/录像目录、默认循环/默认走桥；分析报告目录）；底部桥转码条与指标行合并单行、单位统一 Mbps、播完按钮回位；诊断包增强（事件时间线/分析结果摘要/mpv 日志/5 秒播放采样）并改为「导出诊断包到本地」「上传诊断包给开发者」、移除令牌输入框；播放器新增媒体信息（ffprobe 全量）；运行期临时文件统一落 scratch、缓存上限按卷余量自适应；整套新图标",
-  "pub_date": "2026-11-16T15:02:00Z",
-  "platforms": {
-    "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW15MHBDcHFoY3gvRVY3RUJxY2tyTmtKN2s5enpFVDRadmtxUUlzcjJQUU1UNlMxUG5YclV2aG1yOWM2TGhUUUpXcmRUUTJKdWkrUzl3RWJiZWh2ekE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0ODQyNjk0CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi42X3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjIuNgpZM1BuU2s5S3V2c0FRV3lnYlNOTDV6YUswR1FiWGR0bW9vMkYzQkIwMy9QOTltNno0cG9mWG53RXc3cUVMZTFEa3p2ekhnRUthbU1nMjJGV0tvWVNBZz09Cg==",
-      "url": "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.6/vqa-workbench-0.2.6-setup.exe"
-    }
-  }
+    "version":  "0.2.6",
+    "notes":  "底部桥条与指标行合并单行、单位统一 Mbps、播完按钮回位；诊断包增强（事件时间线/分析结果摘要/mpv 日志/5秒播放采样）并移除令牌框；播放器新增媒体信息；打开设置/媒体信息抽屉时视频自动让出右侧 360px，不再被画面遮挡",
+    "pub_date":  "2026-11-16T15:33:57Z",
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW5QMWFweXp5QTdRVDA0YWdBWjRRLzI4eGd2M0R5VTJlbzFEU0dpc2h2QmViRTh5K3U0VXZiczFqTTdpRDV2d2cxUU44Skprb2RGaEZNWE5ldE5EVEFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0ODQzMjM3CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi42X3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjIuNgpIZEZuYnBCNVpkTVRKRG96ekpqbDhVTzNIUnRVV0ZGTjlFc1hJMTlxeElWNzh0NjBnajJQKzgrZDVYbS83c3BvYUFTTUhrclkyVEgvUFlLN1VBS0lDUT09Cg==",
+                                             "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.6/vqa-workbench-0.2.6-setup.exe"
+                                         }
+                  }
 }

@@ -6,6 +6,7 @@
 
 import { api } from "./api";
 import { icon } from "./icons";
+import { drawerHold } from "./drawer";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -89,9 +90,12 @@ function open(id: string) {
   const d = $(id);
   d.hidden = false;
   requestAnimationFrame(() => d.classList.add("on"));
+  drawerHold(id, true);
 }
 
 function closeAll() {
+  drawerHold("dr-player", false);
+  drawerHold("dr-analysis", false);
   $("dr-mask").hidden = true;
   for (const id of ["dr-player", "dr-analysis"]) {
     const d = $(id);
