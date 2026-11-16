@@ -70,14 +70,99 @@ pub fn thresholds_get(st: State<AnalysisState>) -> serde_json::Value {
 
 // ═══════════════════════════ 诊断日志 ═══════════════════════════
 
-/// 组装诊断日志（MAC+时间命名；环境+状态+应用日志尾部+崩溃记录）。
+/// 组装诊断日志（MAC+时间命名；环境+状态+分析摘要+事件时间线+采样+日志+崩溃记录）。
 #[tauri::command]
 pub fn diag_collect(pst: State<PlayerState>, ast: State<AnalysisState>) -> serde_json::Value {
     let player = player_snapshot(pst);
     let mode = *ast.mode.lock().unwrap();
     let err = ast.live_err.lock().unwrap().clone();
-    let (name, content) = crate::diag::collect(&player, mode, err);
+    let summary = analysis_block(&ast);
+    let (name, content) = crate::diag::collect(&player, mode, err, &summary);
     serde_json::json!({ "name": name, "content": content })
+}
+
+/// 分析结果摘要（诊断包用）：把"扫出来的质量问题"带走，不留只留模式号。
+fn analysis_block(ast: &AnalysisState) -> String {
+    if let Some(l) = ast.live.lock().unwrap().as_ref() {
+        let bytes = l.with_core(|c| c.bytes).unwrap_or(0);
+        return format!(
+            "实时分析中（模式 2）：已接收 {:.1} MB\n（实时流的 TR101 290 计数不随诊断包导出，需停止后看分析页）",
+            bytes as f64 / 1048576.0
+        );
+    }
+    let res = ast.result.lock().unwrap().clone();
+    let Some(r) = res else {
+        return "（尚未扫描）".to_string();
+    };
+
+    let mut s = String::new();
+    let dur = match (r.first_pcr, r.last_pcr) {
+        (Some(a), Some(b)) => (b - a).max(0.0),
+        _ => 0.0,
+    };
+    s.push_str(&format!("来源        : {}\n", r.path));
+    s.push_str(&format!(
+        "包数 / 包长 : {} / {} 字节\n",
+        r.packets, r.packet_size
+    ));
+    s.push_str(&format!(
+        "体积 / 时长 : {:.1} MB / {:.3} s\n",
+        r.file_size as f64 / 1048576.0,
+        dur
+    ));
+    if dur > 0.0 {
+        s.push_str(&format!(
+            "平均码率    : {:.2} Mbps\n",
+            r.file_size as f64 * 8.0 / dur / 1e6
+        ));
+    }
+    s.push_str(&format!(
+        "PID / 节目  : {} / {}\n",
+        r.pids.len(),
+        r.programs.len()
+    ));
+    s.push_str(&format!(
+        "同步错误    : {}   PAT={} PMT={}\n",
+        r.sync_errors, r.has_pat, r.has_pmt
+    ));
+    match r.pcr_pid {
+        Some(p) => s.push_str(&format!("PCR PID     : 0x{p:04X}\n")),
+        None => s.push_str("PCR PID     : 未找到\n"),
+    }
+    let max_j = r
+        .pcr_samples
+        .iter()
+        .map(|x| x.oj_ms.abs())
+        .fold(0.0f64, f64::max);
+    s.push_str(&format!(
+        "PCR 抖动    : 最大 {:.3} ms（CBR 判定 {}）\n",
+        max_j, r.pcr_cbr
+    ));
+    s.push_str("TR101 290   :\n");
+    let mut any = false;
+    for it in &r.tr290 {
+        if it.count > 0 {
+            any = true;
+            s.push_str(&format!(
+                "  P{} {:<14} {:>7} 次  首次 {}  {}\n",
+                it.level, it.name, it.count, it.first, it.detail
+            ));
+        }
+    }
+    if !any {
+        s.push_str("  （全部正常）\n");
+    }
+    s
+}
+
+/// 媒体信息 —— ffprobe 全量探测（容器 + 每条流的编码/分辨率/帧率/码率/色彩）。
+#[tauri::command]
+pub fn media_info(path: String) -> Result<serde_json::Value, String> {
+    let cleaned = crate::clean_stream_url(&path);
+    if cleaned.is_empty() {
+        return Err("来源为空".into());
+    }
+    crate::mediainfo::probe(&cleaned)
 }
 
 /// 导出到本地（保存对话框）。
@@ -194,6 +279,8 @@ pub fn player_play(
     if *st.loop_file.lock().unwrap() {
         let _ = mpv.set_prop("loop-file", serde_json::Value::String("inf".into()));
     }
+    crate::events::ev("player", &format!("起播 {cleaned}"));
+    crate::events::clear_samples();
 
     let probe_url = cleaned.clone();
     std::thread::Builder::new()
@@ -466,6 +553,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                     }
                 }
                 Ok(ProbeMsg::Bridging(msg)) => {
+                    crate::events::ev("bridge", &format!("转码中：{msg}"));
                     st.set_hint_for(msg, 300);
                 }                Ok(ProbeMsg::Outcome(launch)) => {
                     // 起播管线结束（无论结果）：等待态解除
@@ -477,6 +565,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                             if !url.is_empty() {
                                 let _ = m.loadfile(&url);
                                 st.set_hint("已加载");
+                                crate::events::ev("player", "直放（无需转码）");
                             }
                         }
                     }
@@ -490,6 +579,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                             //   可拖动、零丢包零卡顿。直播源 url 仍是流地址。
                             let _ = m.loadfile(&url);
                             let _ = m.show_text(&reason, 4000);
+                            crate::events::ev("bridge", &format!("桥就绪 → {reason}"));
                             *st.bridge_note.lock().unwrap() = reason;
                             *st.bridge_url.lock().unwrap() = url.clone();
                             *st.bridge_since.lock().unwrap() = Some(std::time::Instant::now());
@@ -506,6 +596,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                         }
                     }
                     Launch::Failed(msg) => {
+                        crate::events::ev("player-err", &format!("起播失败：{msg}"));
                         *st.err.lock().unwrap() = Some(msg.clone());
                         // ★ AVS2 源不回退直放：mpv 内置 davs2 不支持 10-bit
                         //   （"Un-supported bit-depth 10"），直放必崩 mpv。
@@ -565,6 +656,10 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                         *st.bridge_retry_left.lock().unwrap() = retry_left - 1;
                         *st.bridge_last_retry.lock().unwrap() =
                             Some(std::time::Instant::now());
+                        crate::events::ev(
+                            "bridge",
+                            &format!("桥未出流，重试 loadfile（剩余 {} 次）", retry_left - 1),
+                        );
                         st.set_hint(format!("等待转码桥出流…（{}）", retry_left - 1));
                     }
                 } else {
@@ -619,6 +714,13 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
 
     // 3) mpv 死亡处理
     if died {
+        crate::events::ev(
+            "mpv",
+            &format!(
+                "mpv 进程退出（播放中={}）",
+                !st.playing_url.lock().unwrap().is_empty()
+            ),
+        );
         *st.mpv.lock().unwrap() = None;
         *st.bridge_since.lock().unwrap() = None;
         // 若正处于桥重连等待期，按桥的报错情况分级诊断
@@ -648,6 +750,48 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
 
     // 4) 组装
     let snap = mpv_arc.as_ref().map(|m| m.snapshot());
+
+    // 4.5) 诊断采样：每 5s 一条（avsync / 丢帧 / 码率 / 帧率），丢帧突增单独记事件
+    if let Some(s) = snap.as_ref() {
+        let playing_now = !st.playing_url.lock().unwrap().is_empty();
+        if playing_now && !s.idle {
+            let due = {
+                let last = st.last_sample.lock().unwrap();
+                last.map(|t| t.elapsed() >= std::time::Duration::from_secs(5))
+                    .unwrap_or(true)
+            };
+            if due {
+                *st.last_sample.lock().unwrap() = Some(std::time::Instant::now());
+                let drop = s.render_drop.max(0) + s.decoder_drop.max(0);
+                let prev = *st.last_drop.lock().unwrap();
+                if drop > prev + 5 {
+                    crate::events::ev(
+                        "drops",
+                        &format!(
+                            "丢帧突增 {} → {}（+{}，t={:.1}s）",
+                            prev,
+                            drop,
+                            drop - prev,
+                            s.time_ms / 1000.0
+                        ),
+                    );
+                }
+                *st.last_drop.lock().unwrap() = drop;
+                crate::events::sample(format!(
+                    "t={:.1}s avsync={:+.1}ms 丢帧={}/{} {:.2}Mbps vf_fps={:.2} 硬解={} {}x{}",
+                    s.time_ms / 1000.0,
+                    s.avsync,
+                    s.render_drop,
+                    s.decoder_drop,
+                    s.v_bitrate / 1e6,
+                    s.vf_fps,
+                    s.hwdec,
+                    s.width,
+                    s.height
+                ));
+            }
+        }
+    }
     let mut hint = st
         .hint
         .lock()
@@ -911,10 +1055,12 @@ pub fn analysis_start(
                 *ast.result.lock().unwrap() = None;
                 *mode = 2;
                 ast.log_push(format!("实时分析已启动：{cleaned}"));
+                crate::events::ev("analysis", &format!("实时分析启动 {cleaned}"));
                 Ok(())
             }
             Err(e) => {
                 let msg = format!("{e:#}");
+                crate::events::ev("analysis-err", &format!("实时分析启动失败：{msg}"));
                 *ast.live_err.lock().unwrap() = Some(msg.clone());
                 Err(msg)
             }
@@ -931,6 +1077,7 @@ pub fn analysis_start(
         let path = cleaned.clone();
         *mode = 1;
         ast.log_push(format!("开始扫描：{cleaned}"));
+        crate::events::ev("analysis", &format!("开始扫描 {cleaned}"));
         std::thread::Builder::new()
             .name("vqa-scan".into())
             .spawn(move || {
@@ -977,12 +1124,14 @@ pub fn analysis_stop(ast: State<AnalysisState>) {
                 l.stop();
             }
             ast.log_push("实时分析已停止");
+            crate::events::ev("analysis", "实时分析停止");
         }
         _ => {
             if let Some(f) = ast.stop_flag.lock().unwrap().as_ref() {
                 f.store(true, Ordering::Relaxed);
             }
             ast.log_push("扫描中断");
+            crate::events::ev("analysis", "扫描被用户中断");
         }
     }
     *mode = 0;
@@ -1006,10 +1155,20 @@ pub fn analysis_progress(ast: State<AnalysisState>) -> serde_json::Value {
                     let path = res.path.clone();
                     *ast.pkt.lock().unwrap() =
                         vqa_core::tsfile::PacketFile::open(std::path::Path::new(&path)).ok();
+                    crate::events::ev(
+                        "analysis",
+                        &format!(
+                            "扫描完成 {} 包 / {:.3}s / {:.2} Mbps",
+                            res.packets,
+                            res.duration_pcr(),
+                            res.bitrate_avg() / 1e6
+                        ),
+                    );
                     *ast.result.lock().unwrap() = Some(Arc::new(res));
                     *mode = 0;
                 }
                 Ok(Err(e)) => {
+                    crate::events::ev("analysis-err", &format!("扫描失败：{e}"));
                     *ast.live_err.lock().unwrap() = Some(e);
                     *mode = 0;
                 }

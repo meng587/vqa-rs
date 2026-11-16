@@ -123,6 +123,10 @@ pub struct PlayerState {
     /// 本次桥选定的 H.264 编码器（h264_nvenc / h264_qsv / h264_amf / libx264）。
     /// 在桥启动时记一次，播放器页"桥格式"条据此显示"转到什么编码"。
     pub bridge_enc: Mutex<String>,
+    /// 播放采样节流（诊断包每 5s 采一条 avsync/丢帧/码率）
+    pub last_sample: Mutex<Option<std::time::Instant>>,
+    /// 上一轮采样时的丢帧计数，用于"丢帧突增"事件
+    pub last_drop: Mutex<i64>,
 }
 
 impl PlayerState {
@@ -147,6 +151,8 @@ impl PlayerState {
             bridge_had_picture: Mutex::new(false),
             loop_file: Mutex::new(false),
             bridge_enc: Mutex::new(String::new()),
+            last_sample: Mutex::new(None),
+            last_drop: Mutex::new(0),
         }
     }
 

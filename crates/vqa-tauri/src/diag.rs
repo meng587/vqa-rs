@@ -42,6 +42,7 @@ pub fn collect(
     player: &serde_json::Value,
     analysis_mode: u8,
     analysis_err: Option<String>,
+    analysis_summary: &str,
 ) -> (String, String) {
     let mac = device_mac();
     let ts = chrono::Local::now();
@@ -89,6 +90,19 @@ pub fn collect(
         .map(|t| format!("{:.0} 分钟", t.elapsed().as_secs_f64() / 60.0))
         .unwrap_or_else(|| "?".into());
 
+    // ---- mpv 自带日志尾部 50 行（--log-file 落在 scratch）----
+    let mpv_tail = {
+        let f = vqa_core::config::scratch_dir().join("mpv.log");
+        match std::fs::read_to_string(&f) {
+            Ok(s) => {
+                let lines: Vec<&str> = s.lines().collect();
+                let start = lines.len().saturating_sub(50);
+                lines[start..].join("\n")
+            }
+            Err(_) => "（无 mpv.log）".into(),
+        }
+    };
+
     let content = format!(
         "===== VQA 诊断日志 =====\n\
          生成时间   : {}\n\
@@ -100,6 +114,10 @@ pub fn collect(
          运行时长   : {}\n\
          \n===== 播放器状态 =====\n{}\n\
          \n===== 分析页状态 =====\n模式: {}  错误: {}\n\
+         \n===== 分析结果摘要 =====\n{}\n\
+         \n===== 事件时间线（最近 50 条）=====\n{}\n\
+         \n===== 播放采样（每 5s 一条，最近 60 条）=====\n{}\n\
+         \n===== mpv 日志（尾部 50 行）=====\n{}\n\
          \n===== 应用日志（尾部 200 行）=====\n{}\n\
          \n===== 崩溃记录 =====\n{}\n\
          ===== 结束 =====\n",
@@ -114,6 +132,10 @@ pub fn collect(
         serde_json::to_string_pretty(player).unwrap_or_default(),
         analysis_mode,
         analysis_err.as_deref().unwrap_or("无"),
+        analysis_summary,
+        crate::events::events_dump(),
+        crate::events::samples_dump(),
+        mpv_tail,
         app_log,
         crashes,
     );

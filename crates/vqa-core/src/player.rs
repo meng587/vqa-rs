@@ -191,6 +191,16 @@ impl Mpv {
             "--framedrop=decoder".into(),
             "--terminal=no".into(),
         ];
+        // ★ 自带日志落 scratch（诊断包会取末尾 50 行）——底层解码/渲染错误
+        //   不进 stderr，只有 mpv 自己的 log 里才有
+        {
+            let logf = crate::config::scratch_dir().join("mpv.log");
+            if let Some(p) = logf.parent() {
+                let _ = std::fs::create_dir_all(p);
+            }
+            args.push(format!("--log-file={}", logf.display()));
+            args.push("--msg-level=all=info".into());
+        }
         if let Some(w) = wid {
             args.push(format!("--wid={w}"));
         }

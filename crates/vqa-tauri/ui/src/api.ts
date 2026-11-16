@@ -168,4 +168,56 @@ export const api = {
   analysisSettings: () => invoke<AnalysisSettings>("analysis_settings_get"),
   setAnalysisSettings: (reportDir: string) =>
     invoke<AnalysisSettings>("analysis_settings_set", { reportDir }),
+  // 媒体信息（ffprobe 全量）
+  mediaInfo: (path: string) => invoke<MediaInfo>("media_info", { path }),
 };
+
+/** 媒体信息面板数据（后端 mediainfo::probe 的摘要 + 原始 JSON） */
+export interface MediaInfo {
+  path: string;
+  format: {
+    container: string | null;
+    format_long: string | null;
+    duration_s: number | null;
+    size_bytes: number | null;
+    bit_rate: number | null;
+    nb_streams: number;
+    probe_score: number | null;
+  };
+  video: {
+    index: number;
+    codec: string | null;
+    codec_long: string | null;
+    profile: string | null;
+    width: number | null;
+    height: number | null;
+    pix_fmt: string | null;
+    avg_frame_rate: string | null;
+    r_frame_rate: string | null;
+    bit_rate: number | null;
+    color_space: string | null;
+    color_transfer: string | null;
+    color_primaries: string | null;
+    field_order: string | null;
+    sample_aspect_ratio: string | null;
+    display_aspect_ratio: string | null;
+    level: number | null;
+    nb_frames: number | null;
+    duration_s: number | null;
+    language: string | null;
+  }[];
+  audio: {
+    index: number;
+    codec: string | null;
+    codec_long: string | null;
+    profile: string | null;
+    sample_rate: number | null;
+    channels: number | null;
+    channel_layout: string | null;
+    bit_rate: number | null;
+    duration_s: number | null;
+    language: string | null;
+  }[];
+  others: { index: number; type: string; codec: string | null; language: string | null }[];
+  raw: unknown;
+}

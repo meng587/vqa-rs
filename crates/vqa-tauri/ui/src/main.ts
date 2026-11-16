@@ -5,6 +5,7 @@ import { icon } from "./icons";
 import { initPlayer } from "./player";
 import { initAnalysis } from "./analysis";
 import { initSettings } from "./settings";
+import { initMediaInfo } from "./mediainfo";
 import { api } from "./api";
 import { SPEEDS } from "./constants";
 
@@ -184,4 +185,5 @@ document.getElementById("dg-upload")?.addEventListener("click", async () => {
 initPlayer();
 initAnalysis();
 initSettings();
+initMediaInfo();
 goto("player");

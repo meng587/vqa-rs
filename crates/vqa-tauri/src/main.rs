@@ -8,6 +8,8 @@
 
 mod commands;
 mod diag;
+mod events;
+mod mediainfo;
 mod mpv_host;
 mod state;
 
@@ -101,6 +103,7 @@ fn main() {
             // 诊断日志
             commands::diag_collect,
             commands::diag_export,
+            commands::media_info,
             commands::diag_upload,
             commands::diag_has_token,
             // 播放器
