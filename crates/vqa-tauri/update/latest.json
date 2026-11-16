@@ -1,11 +1,11 @@
 {
-    "version":  "0.2.7",
-    "notes":  "0.2.7：修复播放器页打开设置/媒体信息抽屉时内容被视频画面遮挡（抽屉打开时视频自动缩到左侧，让出 360px）；其余同 0.2.6（诊断包四项增强、媒体信息、单行指标条、分功能设置）",
-    "pub_date":  "2026-11-16T15:37:40Z",
+    "version":  "0.2.8",
+    "notes":  "0.2.8：修复媒体信息抽屉右上关闭按钮点了没反应（该按钮此前只设了图标、没绑事件；遮罩又被原生视频窗盖住，所以只剩 Esc 能用）。顺带带上 0.2.7 的抽屉让位：打开设置/媒体信息时视频自动缩到左侧让出 360px。",
+    "pub_date":  "2026-11-16T15:49:03Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXZVMVBYdkV2SVAxMHBQSmQ1ZXNtemlPQmw4RFJIa0ZTa0NRSXFyQnR3NTM1LzlIZkRaL21hcG1DVjhyTTBIRHkxUXByZk5mOHNpNUIyTTduWTN5S1FZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0ODQzNDYwCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi43X3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjIuNwpvSEpDVUpNVDR5ckxtVFZkRG90TlpZdlJUK1h0UE9sUFlpdmRqTTdHQkNha2hpM3lvNDBHME5PbS9yV3YrSHRja2lVb1VvRVZUV2hwa0RaYkxobTBEZz09Cg==",
-                                             "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.7/vqa-workbench-0.2.7-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW9VU0laVzVXRUQ4RG5iM0x1eXlkNm9aejN0V3dnZGZrQmRDMGFjd3ZEdENicWpyaXFPR2lOMDFzSTJzR1dKMjhDY2g1L2JOSUtEWEpoTjAzY2RxUlEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0ODQ0MTQzCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi44X3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjIuOApCREVkQ2hqN01uUnhld04xTVlRc3JhdmFhcXBnRGM5bEFwWkt0ZTFJaUVDN2lIRmpodUZ0N29vK2xZcDQ1NTVkKzJQelZ4QUNxbUNET2tDWWhrWjlCQT09Cg==",
+                                             "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.8/vqa-workbench-0.2.8-setup.exe"
                                          }
                   }
 }
