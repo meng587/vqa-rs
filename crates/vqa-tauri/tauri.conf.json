@@ -26,7 +26,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE3RURBODhBQ0JGQUU2NTgKUldSWTV2ckxpcWp0RjU1aEZPTzh5cTl3UmZraEJ2RTR2aEZCbS9aRUJQV3lLWEtCVXAwVzRISTgK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDdBQ0E1Rjg0NjQ2MjQwMTQKUldRVVFHSmtoRi9LZWl4RjhlSjZ5SUZaSGFuc2kvd3puQzVFZmIzeHAyaUE1ejJ0dVdHTVVOekkK",
       "endpoints": [
         "https://gitee.com/meng587/video-analysis-toolkit-rs/raw/master/crates/vqa-tauri/update/latest.json"
       ]
@@ -36,6 +36,9 @@
     "active": true,
     "targets": ["nsis"],
     "createUpdaterArtifacts": true,
-    "icon": ["icons/icon.ico"]
+    "icon": ["icons/icon.ico"],
+    "resources": {
+      "../../bin/mpv/mpv.exe": "bin/mpv.exe"
+    }
   }
 }

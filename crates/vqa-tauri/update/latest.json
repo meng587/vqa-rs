@@ -1,11 +1,11 @@
 {
-  "version": "0.2.4",
-  "notes": "ADTS 音频修复（桥链不再卡死）+ 桥转换信息显示（Mbps）+ 状态文案分级",
-  "pub_date": "2026-11-15T14:09:01Z",
+  "version": "0.2.5",
+  "notes": "AVS 播放终局修复：chain10 桥同步转码为 H.264 文件后播放（可拖动、零卡顿）+ AVS2 编码一律走 davs2 桥（修复 ffprobe 误报 8-bit 导致的永久卡顿）+ 内置官方 mpv 0.42（替换含 AMD 专有指令的旧构建，根治 Intel 机器上的 mpv 崩溃）+ 转码等待期提示 + AVS2 源失败不再回退直放",
+  "pub_date": "2026-11-16T01:30:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSWTV2ckxpcWp0RjhNYlloSExOSmhjQy9tbVc0a2poZnFHTlpRWE11SFJqMjBpZXVtMWZGTk4xV2M1RWpBa3BqeFJiYzdraFdZODJHazcxYklmT0F3UTFtZ3FwSHF1Z1FrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzUxNjY1CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi40X3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjIuNApyMU5rVlpDWVZKMVFWVmlrb2U4c29wRlpmYXpqODFGUWZVYmVLQ1pEdUg3WHJPVHlqaDZzT3BWMS9UUjA4YzRXZ0NjOHNSVjJuM1ZCUzlWV3NPUUdCUT09Cg==",
-      "url": "https://gitee.com/meng587/video-analysis-toolkit-rs/releases/download/v0.2.4/%E8%A7%86%E5%90%AC%E8%B4%A8%E9%87%8F%E6%A3%80%E6%B5%8B%E5%B7%A5%E4%BD%9C%E7%AB%99_0.2.4_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWtTaUxVS0twenFNaUgzT0pFeUpiSTdvZDFTYXRvdUJ3OUs2clVYS29SM0xWdktvdnNEOXRQODJybFZ3MHhHOWZrRUxxR0V0T3ZSdnpML1pReWcvVmdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzkyNjA4CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi41X3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjIuNQpPNEl5UiszeFFpWlBUbFdtT0hOVHdKOWxLK2JaMVhPa1pacGswN3RCdHQ1TjJXZjJnRk8xanppY3FmVXJuWFRjQUdhYlJpRzJHREVwM2F0OC92VGlCZz09Cg==",
+      "url": "https://gitee.com/meng587/video-analysis-toolkit-rs/releases/download/v0.2.5/%E8%A7%86%E5%90%AC%E8%B4%A8%E9%87%8F%E6%A3%80%E6%B5%8B%E5%B7%A5%E4%BD%9C%E7%AB%99_0.2.5_x64-setup.exe"
     }
   }
 }

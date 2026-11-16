@@ -164,6 +164,8 @@ pub fn player_play(
     // 停旧桥、清错误
     *st.bridge.lock().unwrap() = None;
     *st.bridge_note.lock().unwrap() = String::new();
+    *st.bridge_url.lock().unwrap() = String::new();
+    *st.bridge_since.lock().unwrap() = None;
     *st.err.lock().unwrap() = None;
     *st.playing_url.lock().unwrap() = cleaned.clone();
 
@@ -198,7 +200,7 @@ pub fn player_play(
                 &nic_ip,
             );
             let _ = tx.send(ProbeMsg::Info(q.clone()));
-            let outcome = decide_bridge(&q, force_bridge, &probe_url, &nic_ip);
+            let outcome = decide_bridge(&q, force_bridge, &probe_url, &nic_ip, &tx);
             let _ = tx.send(ProbeMsg::Outcome(outcome));
         })
         .ok();
@@ -215,16 +217,39 @@ fn decide_bridge(
     force: bool,
     url: &str,
     nic_ip: &str,
+    bridge_wait_tx: &std::sync::mpsc::Sender<ProbeMsg>,
 ) -> Launch {
-    if !vqa_core::bridge::needs_bridge(q, force) {
+    let need = vqa_core::bridge::needs_bridge(q, force);
+    vqa_core::config::log_line(
+        "bridge-decide",
+        &format!(
+            "force={force} need={need} probe={:?}",
+            q.as_ref().map(|x| format!(
+                "codec={} {}x{} pix={}",
+                x.video.codec, x.video.width, x.video.height, x.video.pix_fmt
+            ))
+        ),
+    );
+    if !need {
         return Launch::Direct;
     }
+    vqa_core::config::log_line("bridge-decide", "起 10-bit chain10 桥…");
+    // ★ 立刻告知前端"转码中"——全片转码大文件要 1-3 分钟，无反馈会被
+    //   误判为卡死而重复点击（每次重试都作废上一次转码重来）
+    let _ = bridge_wait_tx.send(ProbeMsg::Bridging(
+        "AVS 源转码中…全片处理约需 1-3 分钟（取决于文件大小），请勿重复点击".into(),
+    ));
     let Some(ffmpeg) = vqa_core::tools::find_ffmpeg() else {
         return Launch::Failed("需要转码桥但未找到 ffmpeg".into());
     };
+    // ★ chain10 判定：除 10-bit 外，**编码是 AVS2 就走 chain10**——
+    //   ffprobe 内置 davs2 对部分 10-bit AVS2 解码报错后会把 pix_fmt
+    //   误报为 yuv420p（8-bit，实测 test_avs2_4k.ts），普通桥会改用
+    //   内置 davs2 慢速解码（~8.8fps，供给远低于需求 = 永久卡顿）。
+    //   vkit_davs2 对 8/10-bit 都正确且文件直读 43fps。
     let chain10 = q
         .as_ref()
-        .map(|q| q.video.pix_fmt.contains("10"))
+        .map(|q| q.video.codec.contains("avs2") || q.video.pix_fmt.contains("10"))
         .unwrap_or(false);
     let mut davs2_path: Option<PathBuf> = None;
     if chain10 {
@@ -241,10 +266,12 @@ fn decide_bridge(
     match vqa_core::bridge::RealtimeBridge::start(&ffmpeg, &davs2, url, chain10, 26, nic_ip) {
         Ok(b) => {
             let reason = format!("AVS 源自动转码桥（{}）", b.mode);
-            let url = format!("udp://@127.0.0.1:{}", b.port);
+            // ★ chain10 本地文件模式：b.url() 返回全片转码完成后的 TS 文件路径；
+            //   直播模式返回 tcp 流地址。统一由 bridge 自己决定播放目标。
+            let url = b.url();
             Launch::Bridged { url, reason, bridge: b }
         }
-        Err(e) => Launch::Failed(format!("转码桥失败：{e}（回退直放）")),
+        Err(e) => Launch::Failed(format!("转码桥失败：{e}")),
     }
 }
 
@@ -253,6 +280,8 @@ pub fn player_stop(st: State<PlayerState>) {
     *st.playing_url.lock().unwrap() = String::new();
     *st.bridge.lock().unwrap() = None;
     *st.bridge_note.lock().unwrap() = String::new();
+    *st.bridge_url.lock().unwrap() = String::new();
+    *st.bridge_since.lock().unwrap() = None;
     if let Some(m) = st.mpv.lock().unwrap().as_ref() {
         m.stop();
     }
@@ -263,7 +292,13 @@ pub fn player_pause_toggle(st: State<PlayerState>) {
     if let Some(m) = st.mpv.lock().unwrap().as_ref() {
         let snap = m.snapshot();
         if snap.idle {
-            let url = st.playing_url.lock().unwrap().clone();
+            // 重播：桥模式用桥产物（TS 文件/流地址），直放用原地址
+            let bridge_u = st.bridge_url.lock().unwrap().clone();
+            let url = if bridge_u.is_empty() {
+                st.playing_url.lock().unwrap().clone()
+            } else {
+                bridge_u
+            };
             if !url.is_empty() {
                 m.loadfile(&url);
             }
@@ -356,6 +391,9 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                         *st.probe_info.lock().unwrap() = Some(q);
                     }
                 }
+                Ok(ProbeMsg::Bridging(msg)) => {
+                    st.set_hint_for(msg, 300);
+                }
                 Ok(ProbeMsg::Outcome(launch)) => match launch {
                     Launch::Direct => {
                         if let Some(m) = &mpv_arc {
@@ -371,27 +409,38 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                             // 用户已停止：起好的桥直接丢弃（Drop 会 kill 子进程）
                             drop(bridge);
                         } else if let Some(m) = &mpv_arc {
+                            // ★ chain10 本地文件模式：url = 全片转码完成的 TS 文件
+                            //   （start 同步等转码完成后返回），loadfile 即完整播放，
+                            //   可拖动、零丢包零卡顿。直播源 url 仍是流地址。
                             let _ = m.loadfile(&url);
                             let _ = m.show_text(&reason, 4000);
                             *st.bridge_note.lock().unwrap() = reason;
+                            *st.bridge_url.lock().unwrap() = url.clone();
+                            *st.bridge_since.lock().unwrap() = Some(std::time::Instant::now());
                             *st.bridge.lock().unwrap() = Some(bridge);
-                            // 桥启动到出流要数秒（chain10 解 4K 更久），mpv 先回 idle——
-                            // 进入自动重连循环，直到桥流可播
-                            *st.bridge_url.lock().unwrap() = url;
-                            *st.bridge_retry_left.lock().unwrap() = 60; // ~120s 窗口
-                            *st.bridge_last_retry.lock().unwrap() =
-                                Some(std::time::Instant::now());
                         } else {
                             drop(bridge);
                         }
                     }
                     Launch::Failed(msg) => {
                         *st.err.lock().unwrap() = Some(msg.clone());
-                        if let Some(m) = &mpv_arc {
-                            let url = st.playing_url.lock().unwrap().clone();
-                            if !url.is_empty() {
-                                // 回退直放
-                                let _ = m.loadfile(&url);
+                        // ★ AVS2 源不回退直放：mpv 内置 davs2 不支持 10-bit
+                        //   （"Un-supported bit-depth 10"），直放必崩 mpv。
+                        //   只显示桥失败原因，让用户看错误行。
+                        let is_avs2 = st
+                            .probe_info
+                            .lock()
+                            .unwrap()
+                            .as_ref()
+                            .map(|q| q.video.codec.contains("avs2"))
+                            .unwrap_or(false);
+                        if !is_avs2 {
+                            if let Some(m) = &mpv_arc {
+                                let url = st.playing_url.lock().unwrap().clone();
+                                if !url.is_empty() {
+                                    // 回退直放
+                                    let _ = m.loadfile(&url);
+                                }
                             }
                         }
                     }
@@ -406,9 +455,17 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
     }
 
     // 2.5) 桥流自动重连：播放中 + 桥模式 + mpv 已回 idle → 周期性重载桥流
+    //（仅直播流桥；本地文件桥播完 EOF 是正常结束，不重播）
     {
+        let file_bridge = st
+            .bridge
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|b| b.is_file())
+            .unwrap_or(false);
         let retry_left = *st.bridge_retry_left.lock().unwrap();
-        if retry_left > 0 {
+        if retry_left > 0 && !file_bridge {
             let idle = mpv_arc.as_ref().map(|m| m.snapshot().idle).unwrap_or(true);
             let due = st
                 .bridge_last_retry
@@ -434,12 +491,28 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
     }
 
     // 2.6) 桥重试窗口耗尽仍无画面 → 给出性能诊断（不是含糊的失败）
+    //（本地文件桥不适用：EOF 回 idle 是播完，不是桥没出流）
     {
+        let file_bridge = st
+            .bridge
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|b| b.is_file())
+            .unwrap_or(false);
         let retry_left = *st.bridge_retry_left.lock().unwrap();
-        if retry_left == 0 {
+        if retry_left == 0 && !file_bridge {
             let bridge_on = !st.bridge_note.lock().unwrap().is_empty();
+            // ★ 计时 2 分钟：起播瞬间 mpv 短暂 idle 是正常的（loadfile 异步
+            //   生效），不立即判死；只有桥就绪超过 2 分钟仍无画面才是真失败
+            let waited = st
+                .bridge_since
+                .lock()
+                .unwrap()
+                .map(|t| t.elapsed() >= std::time::Duration::from_secs(120))
+                .unwrap_or(false);
             let idle = mpv_arc.as_ref().map(|m| m.snapshot().idle).unwrap_or(true);
-            if bridge_on && idle && !st.playing_url.lock().unwrap().is_empty() {
+            if bridge_on && waited && idle && !st.playing_url.lock().unwrap().is_empty() {
                 let mode = st.bridge_note.lock().unwrap().clone();
                 *st.err.lock().unwrap() = Some(format!(
                     "转码桥（{mode}）超过 2 分钟未出画面——本机解码性能可能不足以实时转码该规格（如 4K 10-bit AVS2）。可尝试较低分辨率/8-bit 的源"
@@ -454,6 +527,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
     // 3) mpv 死亡处理
     if died {
         *st.mpv.lock().unwrap() = None;
+        *st.bridge_since.lock().unwrap() = None;
         // 若正处于桥重连等待期，按桥的报错情况分级诊断
         let was_bridge_wait = *st.bridge_retry_left.lock().unwrap() > 0
             && *st.bridge_retry_left.lock().unwrap() < u32::MAX / 2;
@@ -466,10 +540,14 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
             .map(|b| b.stderr_tail().trim().to_string())
             .unwrap_or_default();
         *st.bridge.lock().unwrap() = None;
+        let existing = st.err.lock().unwrap().clone();
         *st.err.lock().unwrap() = Some(if was_bridge_wait && bridge_tail.is_empty() {
             "源内容播放完毕（转码桥正常结束）".into()
         } else if was_bridge_wait {
             format!("mpv 已退出；转码桥报错：{bridge_tail}")
+        } else if existing.is_some() {
+            // 桥失败回退直放后 mpv 崩（AVS2 10-bit 直放必崩）——保留桥错误
+            existing.unwrap()
         } else {
             "mpv 已退出（崩溃或被关闭）".into()
         });
@@ -482,8 +560,8 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
         .lock()
         .unwrap()
         .take()
-        .filter(|(_, t)| t.elapsed() <= std::time::Duration::from_secs(3))
-        .map(|(s, _)| s);
+        .filter(|(_, t, d)| t.elapsed() <= *d)
+        .map(|(s, _, _)| s);
     serde_json::json!({
         "playing": !st.playing_url.lock().unwrap().is_empty(),
         "err": *st.err.lock().unwrap(),

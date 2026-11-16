@@ -22,6 +22,9 @@ pub enum Launch {
 pub enum ProbeMsg {
     Outcome(Launch),
     Info(Option<QuickProbe>),
+    /// 桥转码开始（长时间无反馈会让用户以为卡死而重复点击——
+    /// 每次重试都作废上一次全片转码重来）
+    Bridging(String),
 }
 
 /// 播放器链路。
@@ -32,7 +35,9 @@ pub struct PlayerState {
     pub bridge: Mutex<Option<RealtimeBridge>>,
     pub bridge_note: Mutex<String>,
     pub err: Mutex<Option<String>>,
-    pub hint: Mutex<Option<(String, std::time::Instant)>>,
+    /// 提示行（文本、设置时刻、时效）——大文件全片转码要几分钟，
+    /// 提示时效需要比默认 3s 长
+    pub hint: Mutex<Option<(String, std::time::Instant, std::time::Duration)>>,
     pub recording: Mutex<bool>,
     pub rec_path: Mutex<Option<PathBuf>>,
     pub probe_rx: Mutex<Option<std::sync::mpsc::Receiver<ProbeMsg>>>,
@@ -43,6 +48,8 @@ pub struct PlayerState {
     pub bridge_retry_left: Mutex<u32>,
     pub bridge_last_retry: Mutex<Option<std::time::Instant>>,
     pub bridge_url: Mutex<String>,
+    /// 桥就绪时刻（2.6 性能诊断的计时起点；起播瞬间 mpv 短暂 idle 不算失败）
+    pub bridge_since: Mutex<Option<std::time::Instant>>,
 }
 
 impl PlayerState {
@@ -62,11 +69,19 @@ impl PlayerState {
             bridge_retry_left: Mutex::new(0),
             bridge_last_retry: Mutex::new(None),
             bridge_url: Mutex::new(String::new()),
+            bridge_since: Mutex::new(None),
         }
     }
 
     pub fn set_hint(&self, s: impl Into<String>) {
-        *self.hint.lock().unwrap() = Some((s.into(), std::time::Instant::now()));
+        *self.hint.lock().unwrap() =
+            Some((s.into(), std::time::Instant::now(), std::time::Duration::from_secs(3)));
+    }
+
+    /// 自定义时效的提示（转码等待期等长场景）
+    pub fn set_hint_for(&self, s: impl Into<String>, secs: u64) {
+        *self.hint.lock().unwrap() =
+            Some((s.into(), std::time::Instant::now(), std::time::Duration::from_secs(secs)));
     }
 }
 

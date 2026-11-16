@@ -7,11 +7,16 @@
 crates/vqa-app/bin/
 
 # 密钥与本地状态
+# keys/ 下的 tauri.key 是更新器签名私钥：只允许离线保存，任何情况下不得入库
+# （公钥 keys/tauri.key.pub 可入库，updater 校验靠它）
+keys/
 secret*.json
 .mimosa/
 /dist/
 *.log
 crash/
+__pycache__/
+*.pyc
 
 # IDE
 .idea/
