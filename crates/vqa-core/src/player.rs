@@ -198,6 +198,8 @@ impl Mpv {
             if let Some(p) = logf.parent() {
                 let _ = std::fs::create_dir_all(p);
             }
+            // 每次起 mpv 重开一份：只留本次运行的日志，不会越积越大
+            let _ = std::fs::remove_file(&logf);
             args.push(format!("--log-file={}", logf.display()));
             args.push("--msg-level=all=info".into());
         }
