@@ -56,6 +56,58 @@ pub fn clean_stream_url(s: &str) -> String {
         .collect()
 }
 
+/// 把主窗口拉回显示器工作区。
+///
+/// 起因：窗口按 1360×860 逻辑尺寸开，在 1080p + 任务栏的机器上 outer 高 899，
+/// 若被系统放到屏幕底部，最后 32px（贯通整宽的状态栏）会被任务栏盖住（实测）。
+/// 这里只在越界时收：先按工作区缩，再平移进来，不改变正常机器上的尺寸。
+fn clamp_into_work_area(win: &tauri::WebviewWindow) {
+    let Ok(Some(mon)) = win.current_monitor() else {
+        return;
+    };
+    let wa = mon.work_area();
+    let Ok(size) = win.outer_size() else {
+        return;
+    };
+    let Ok(pos) = win.outer_position() else {
+        return;
+    };
+    let wa_x = wa.position.x;
+    let wa_y = wa.position.y;
+    let wa_r = wa_x + wa.size.width as i32;
+    let wa_b = wa_y + wa.size.height as i32;
+
+    let mut w = size.width as i32;
+    let mut h = size.height as i32;
+    if w > wa.size.width as i32 {
+        w = wa.size.width as i32;
+    }
+    if h > wa.size.height as i32 {
+        h = wa.size.height as i32;
+    }
+    if w != size.width as i32 || h != size.height as i32 {
+        let _ = win.set_size(tauri::PhysicalSize::new(w as u32, h as u32));
+    }
+
+    let mut x = pos.x;
+    let mut y = pos.y;
+    if x + w > wa_r {
+        x = wa_r - w;
+    }
+    if y + h > wa_b {
+        y = wa_b - h;
+    }
+    if x < wa_x {
+        x = wa_x;
+    }
+    if y < wa_y {
+        y = wa_y;
+    }
+    if x != pos.x || y != pos.y {
+        let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
+    }
+}
+
 fn main() {
     let _ = diag::APP_START.set(std::time::Instant::now());
     install_panic_hook();
@@ -77,6 +129,9 @@ fn main() {
         .setup(|app| {
             // 视频子窗：父 = 主窗口 HWND（WebView2 的同父兄弟，后建者 z 序在上）
             if let Some(win) = app.get_webview_window("main") {
+                clamp_into_work_area(&win);
+                // 视频子窗拖放要回传前端，先存一份 AppHandle
+                mpv_host::set_app_handle(app.handle().clone());
                 if let Ok(hwnd) = win.hwnd() {
                     let child = mpv_host::VideoChild::create(hwnd.0 as isize);
                     *app.state::<state::PlayerState>()
@@ -100,6 +155,8 @@ fn main() {
             commands::analysis_settings_get,
             commands::analysis_settings_set,
             commands::tool_paths,
+            commands::app_paths,
+            commands::reveal_path,
             commands::thresholds_get,
             commands::thresholds_set,
             // 诊断日志

@@ -112,10 +112,20 @@ export interface Res {
   gop: [number, number, number][];
 }
 
+export interface NicRow {
+  ip: string;
+  prefix: number;
+  name: string;
+  desc: string;
+  up: boolean;
+  mac: string;
+  ifindex: number;
+}
+
 export const api = {
   // 通用
   appVersion: () => invoke<string>("app_version"),
-  listNics: () => invoke<string[]>("list_nics"),
+  listNics: () => invoke<NicRow[]>("list_nics"),
   sourceHistory: (key: string) => invoke<string[]>("source_history", { key }),
   pushSourceHistory: (key: string, url: string) =>
     invoke<void>("push_source_history", { key, url }),
@@ -124,6 +134,20 @@ export const api = {
     invoke<string | null>("browse_folder", { title, start }),
   toolPaths: () =>
     invoke<{ ffmpeg: string | null; ffprobe: string | null; mpv: string | null; davs2: string | null }>("tool_paths"),
+  /** 数据/日志目录（关于页「数据与日志」卡） */
+  appPaths: () =>
+    invoke<{
+      data: string;
+      shared: string;
+      logs: string;
+      log_file: string;
+      scratch: string;
+      snap: string;
+      rec: string;
+      crash: string;
+    }>("app_paths"),
+  /** 在资源管理器里打开目录 / 定位文件 */
+  reveal: (path: string) => invoke<void>("reveal_path", { path }),
   // 播放器
   play: (url: string, nicIp: string, forceBridge: boolean) =>
     invoke<void>("player_play", { url, nicIp, forceBridge }),

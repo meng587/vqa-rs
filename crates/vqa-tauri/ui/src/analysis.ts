@@ -1,9 +1,9 @@
 //! 视频分析页 —— 扫描/实时轮询 + 7 页签渲染。
 //! 数据源：analysis_progress（200ms）/ analysis_result（1s 实时）/ packet_rows。
 
-import { api, type Res } from "./api";
+import { api, type NicRow, type Res } from "./api";
 import { icon } from "./icons";
-import { setNavLamp } from "./main";
+import { setNavLamp, nicLabel } from "./main";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -54,8 +54,12 @@ export function initAnalysis() {
   const histBtn = $("a-hist") as HTMLButtonElement;
   const histPop = $("a-histpop") as HTMLElement;
 
-  api.listNics().then((list) => {
-    nic.innerHTML = [`<option>自动</option>`, ...list.map((n) => `<option>${esc(n)}</option>`)].join("");
+  // 网卡下拉：值 = IP，显示「IP · 网卡名」
+  api.listNics().then((list: NicRow[]) => {
+    nic.innerHTML = [
+      `<option value="">自动</option>`,
+      ...list.map((n) => `<option value="${esc(n.ip)}" title="${esc(n.desc || n.name)}">${esc(nicLabel(n))}</option>`),
+    ].join("");
   });
 
   histBtn.addEventListener("click", (e) => {
@@ -101,7 +105,7 @@ export function initAnalysis() {
     if (!u) return;
     await api.pushSourceHistory("analysis", u);
     try {
-      await api.analysisStart(u, nic.value === "自动" ? "" : nic.value);
+      await api.analysisStart(u, nic.value);
       running = true;
       setActUi(true);
     } catch (e: any) {

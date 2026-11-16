@@ -1,11 +1,11 @@
 {
-    "version":  "0.2.8",
-    "notes":  "0.2.8：修复媒体信息抽屉右上关闭按钮点了没反应（该按钮此前只设了图标、没绑事件；遮罩又被原生视频窗盖住，所以只剩 Esc 能用）。顺带带上 0.2.7 的抽屉让位：打开设置/媒体信息时视频自动缩到左侧让出 360px。",
-    "pub_date":  "2026-11-16T15:49:03Z",
+    "version":  "0.2.9",
+    "notes":  "界面按方案B重排；网卡下拉带网卡名；拖文件即播（含播放中画面区域，走 WM_DROPFILES）",
+    "pub_date":  "2026-11-16T17:46:43Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW9VU0laVzVXRUQ4RG5iM0x1eXlkNm9aejN0V3dnZGZrQmRDMGFjd3ZEdENicWpyaXFPR2lOMDFzSTJzR1dKMjhDY2g1L2JOSUtEWEpoTjAzY2RxUlEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0ODQ0MTQzCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi44X3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjIuOApCREVkQ2hqN01uUnhld04xTVlRc3JhdmFhcXBnRGM5bEFwWkt0ZTFJaUVDN2lIRmpodUZ0N29vK2xZcDQ1NTVkKzJQelZ4QUNxbUNET2tDWWhrWjlCQT09Cg==",
-                                             "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.8/vqa-workbench-0.2.8-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW40MmJxclJxOE5qenZzM2ttVGZOOXJWeVoxMHc3WExPREhMR0RSZGtFTHYyUFpmeHBjS2I2dkJoREU4a01NN3F5NkQ5aVpHWjU4RGNTbFJwMFN0S1FrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0ODUxMjAzCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi45X3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjIuOQpFTURKZ0xaTDIzMUJsZDdFQUwwVWpHV1hBMnhESDF0ODJvYWVkdUEzU1FNL3dFUk9LeTFxeXVqSFBOZDRGMWtzK01CVXlzMHUvUXlHSS9lYjhiRUNBZz09Cg==",
+                                             "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.9/vqa-workbench-0.2.9-setup.exe"
                                          }
                   }
 }

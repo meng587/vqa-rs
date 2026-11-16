@@ -5,7 +5,8 @@
   <title>视听质量检测工作站</title>
   <link rel="stylesheet" href="/src/style.css" />
 </head>
-<body>
+<body data-page="player">
+<div class="workspace">
   <aside class="side">
     <div class="brand">
       <span class="logo" data-ic="circledot"></span>
@@ -19,10 +20,6 @@
       <button class="mn is-dim" disabled><span data-ic="activity"></span>微突发巡检<em>三期</em></button>
       <button class="mn" data-goto="about"><span data-ic="info"></span>关于</button>
     </nav>
-    <div class="engine">
-      <span class="dot"></span>引擎就绪
-      <span class="mpv">mpv 0.41</span>
-    </div>
   </aside>
 
   <main>
@@ -30,38 +27,50 @@
     <section class="pg" data-page="player">
       <div class="srcbar">
         <span class="lbl">来源</span>
-        <input class="src" id="p-url" placeholder="本地文件 / udp://@239.x.x.x:port / rtsp://…" spellcheck="false" />
-        <div style="position:relative">
-          <button class="iconbtn" id="p-hist" title="历史" data-ic="chevrondown"></button>
+        <div class="srcbox">
+          <input class="src" id="p-url" placeholder="本地文件 / udp://@239.x.x.x:port / rtsp://…" spellcheck="false" />
+          <button class="iconbtn ghost histbtn" id="p-hist" title="历史" data-ic="chevrondown"></button>
           <div class="histpop" id="p-histpop" hidden></div>
         </div>
         <span class="lbl">网卡</span>
         <select class="nic" id="p-nic"></select>
-        <button class="gradbtn" id="p-act"><span data-ic="play"></span>开始</button>
-        <button class="iconbtn" id="p-browse" title="浏览本地文件…" data-ic="folder"></button>
-        <button class="iconbtn" id="p-info" title="媒体信息（容器/编码/帧率/码率…）" data-ic="info"></button>
-        <button class="iconbtn" id="p-set" title="播放器设置" data-ic="settings"></button>
+        <div class="vsep"></div>
+        <button class="gradbtn" id="p-act"><span data-ic="play"></span>开始播放</button>
+        <div class="vsep"></div>
+        <div class="icogroup">
+          <button class="iconbtn ghost" id="p-browse" title="浏览本地文件…" data-ic="folder"></button>
+          <button class="iconbtn ghost" id="p-info" title="媒体信息（容器/编码/帧率/码率…）" data-ic="info"></button>
+          <button class="iconbtn ghost" id="p-set" title="播放器设置" data-ic="settings"></button>
+        </div>
       </div>
 
       <div class="noteline" id="p-note"></div>
 
       <div class="vcard" id="vcard">
-        <div id="v-rect" style="position:absolute;left:0;top:0;right:0;bottom:46px;pointer-events:none;"></div>
+        <div id="v-rect" style="position:absolute;left:0;top:0;right:0;bottom:52px;pointer-events:none;"></div>
         <span class="tag tl" id="tag-tl"></span>
-        <span class="tag tr" id="tag-tr" hidden></span>
+        <span class="pill tr" id="tag-tr" hidden></span>
+        <div class="drophint" id="v-drophint" hidden>松手即播放</div>
         <div class="v-empty" id="v-empty">
-          <div class="inner">
+          <div class="emptybox">
             <button class="bigplay" id="v-replay" data-ic="play"></button>
-            <div class="hint" id="v-hint">输入来源后点「开始」播放</div>
+            <div class="empty-t" id="v-empty-title">还没有载入媒体</div>
+            <div class="empty-s" id="v-hint">支持 TS / MP4 / MKV / FLV 本地文件（也可直接拖入窗口），或 UDP / RTP 组播地址</div>
+            <div class="empty-btns">
+              <button class="md-export" id="v-empty-browse"><span data-ic="folder"></span>选择本地文件</button>
+            </div>
           </div>
         </div>
         <div class="ctrl" id="ctrl">
           <button class="cbtn" id="c-play" title="播放/暂停" data-ic="pause"></button>
           <button class="cbtn stop-glyph" id="c-stop" title="停止"></button>
-          <div class="seek off" id="c-seek"><div class="track"><div class="fill" id="c-seekfill"></div></div></div>
+          <div class="csep"></div>
+          <div class="seek off" id="c-seek"><div class="track"><div class="fill" id="c-seekfill"></div><div class="thumb" id="c-seekthumb"></div></div></div>
           <span class="ctime" id="c-time">00:00:00 / --:--</span>
+          <div class="csep"></div>
           <button class="cbtn" id="c-mute" title="静音" data-ic="volume"></button>
           <div class="vol" id="c-vol"><div class="track"><div class="fill" id="c-volfill"></div><div class="thumb" id="c-volthumb"></div></div></div>
+          <div class="csep"></div>
           <button class="cbtn" id="c-snap" title="快照到图片目录" data-ic="camera"></button>
           <button class="cbtn" id="c-rec" title="录制（stream-record 直拷）" data-ic="circledot"></button>
           <button class="cbtn" id="c-loop" title="循环播放（播完自动从头）" data-ic="repeat"></button>
@@ -71,40 +80,26 @@
           </div>
         </div>
       </div>
-
-      <!-- 底部状态行：桥转码说明 + 运行时指标合并成一行 -->
-      <div class="statusrow" id="statusrow">
-        <div class="bridgebar" id="bridge-bar" hidden>
-          <span class="bf-tag" id="bf-tag">桥转码</span>
-          <span class="bf-from" id="bf-from"></span>
-          <span class="bf-arrow">→</span>
-          <span class="bf-to" id="bf-to"></span>
-        </div>
-        <div class="chips" id="p-chips">
-          <div id="p-chips-dyn" style="display:flex;gap:8px;overflow:hidden;min-width:0;">
-            <span class="chip-m">◦ 待机 · 无流数据</span>
-          </div>
-          <label class="force-bridge">
-            <input type="checkbox" id="p-force" />强制走转码桥
-          </label>
-        </div>
-      </div>
     </section>
 
     <!-- ══════════ 视频分析页 ══════════ -->
     <section class="pg" data-page="analysis" hidden>
       <div class="srcbar">
         <span class="lbl">来源</span>
-        <input class="src" id="a-url" placeholder="TS 文件 / udp://@239.x.x.port / rtp://port" spellcheck="false" />
-        <div style="position:relative">
-          <button class="iconbtn" id="a-hist" title="历史" data-ic="chevrondown"></button>
+        <div class="srcbox">
+          <input class="src" id="a-url" placeholder="TS 文件 / udp://@239.x.x.port / rtp://port" spellcheck="false" />
+          <button class="iconbtn ghost histbtn" id="a-hist" title="历史" data-ic="chevrondown"></button>
           <div class="histpop" id="a-histpop" hidden></div>
         </div>
         <span class="lbl">网卡</span>
         <select class="nic" id="a-nic"></select>
+        <div class="vsep"></div>
         <button class="gradbtn" id="a-act"><span data-ic="search"></span>开始扫描</button>
-        <button class="iconbtn" id="a-browse" title="浏览本地文件…" data-ic="folder"></button>
-        <button class="iconbtn" id="a-set" title="视频分析设置" data-ic="settings"></button>
+        <div class="vsep"></div>
+        <div class="icogroup">
+          <button class="iconbtn ghost" id="a-browse" title="浏览本地文件…" data-ic="folder"></button>
+          <button class="iconbtn ghost" id="a-set" title="视频分析设置" data-ic="settings"></button>
+        </div>
       </div>
 
       <div class="statusline" id="a-status">
@@ -124,7 +119,14 @@
       </div>
 
       <div id="a-panels" style="flex:1;min-height:0;display:flex;flex-direction:column;">
-        <div class="empty" data-panel="overview" style="flex:1">输入 TS 文件或 UDP/RTP 组播地址后点「开始扫描」</div>
+        <div data-panel="overview" style="flex:1;min-height:0;display:flex;">
+          <div class="emptypane">
+            <span class="empty-ic" data-ic="scanline"></span>
+            <div class="empty-t">还没有扫描任务</div>
+            <div class="empty-s">选一个 TS 文件或填 UDP / RTP 组播地址；扫描会解析节目结构、PID 码率、PCR 抖动与 TR101 290</div>
+            <button class="md-export" id="a-empty-browse"><span data-ic="folder"></span>选择 TS 文件</button>
+          </div>
+        </div>
         <div data-panel="structure" hidden style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:10px;"></div>
         <div data-panel="errors" hidden style="flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;"></div>
         <div data-panel="bitrate" hidden style="flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;"></div>
@@ -135,38 +137,69 @@
     </section>
 
     <!-- ══════════ 关于页 ══════════ -->
-    <section class="pg" data-page="about" hidden>
-      <div class="about-cols">
-        <div class="panel"><h4>版本</h4>
-          <div class="kvgrid">
-            <span class="k">工作站</span><span class="v" id="ab-ver">v0.2.0（Tauri/Web UI 版）</span>
-            <span class="k">核心库</span><span class="v">vqa-core（TS 解析 / TR101 290 / PCR 双环 PLL）</span>
-          </div>
+    <section class="pg about" data-page="about" hidden>
+      <div class="hero">
+        <span class="hero-logo" data-ic="circledot"></span>
+        <div class="hero-txt">
+          <b>视听质量检测工作站<span class="ver" id="ab-ver">v0.2.8</span></b>
+          <p>Tauri / Web UI · vqa-core（TS 解析 · TR101 290 · PCR 双环 PLL）</p>
         </div>
-        <div class="panel"><h4>工具链</h4>
-          <div class="kvgrid" id="ab-tools"></div>
+        <div class="hero-btns">
+          <button class="gradbtn" id="up-check"><span data-ic="check"></span>检查更新</button>
+          <button class="md-export" id="ab-open-data">打开数据目录</button>
         </div>
-        <div class="panel" style="grid-column:1/-1"><h4>在线更新</h4>
-          <div style="display:flex;align-items:center;gap:12px;">
-            <button class="md-export" id="up-check">检查更新</button>
-            <span style="font-size:12px;color:var(--mut);" id="up-status">当前已是最新则无提示；新版将列出版本号</span>
-            <button class="gradbtn" id="up-install" hidden><span data-ic="check"></span>下载并安装</button>
-          </div>
-          <div style="margin-top:8px;font-size:11.5px;color:var(--faint);">更新包经 minisign 公钥验签（私钥离线保存），下载源为 Gitee Release 附件</div>
+      </div>
+
+      <div class="about2">
+        <div class="panel"><h4>更新与签名</h4>
+          <div class="orow"><span class="k">状态</span><span class="v" id="up-status">尚未检查 · 点「检查更新」</span></div>
+          <div class="orow"><span class="k">更新源</span><span class="v mono">gitee.com/meng587/vqa-rs · releases</span></div>
+          <div class="orow"><span class="k">校验</span><span class="v">minisign 公钥（私钥离线保存）</span></div>
+          <div class="ohint" id="up-hint">检测到新版时此处显示版本号与更新说明。</div>
+          <div style="margin-top:10px"><button class="gradbtn" id="up-install" hidden><span data-ic="check"></span>下载并安装</button></div>
         </div>
-        <div class="panel" style="grid-column:1/-1"><h4>诊断包</h4>
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <button class="md-export" id="dg-export">导出诊断包到本地</button>
-            <button class="md-export" id="dg-upload">上传诊断包给开发者</button>
+
+        <div class="panel"><h4>诊断包</h4>
+          <div class="obtns">
+            <button class="md-export" id="dg-export">导出到本地</button>
+            <button class="md-export" id="dg-upload">上传给开发者</button>
           </div>
-          <div style="margin-top:8px;font-size:11.5px;color:var(--faint);" id="dg-status">
-            包含环境信息、播放器/分析页状态、应用日志尾部与崩溃记录；以设备 MAC + 时间命名。导出为本地文件留档，上传则提交到代码仓库的 logs/ 目录，开发者拉取后即可分析
+          <div class="ohint" id="dg-status">含环境信息、播放器/分析页状态、事件时间线、播放采样、mpv 与应用日志。</div>
+          <div class="olink" id="dg-more">包含什么 ▸</div>
+          <div class="ohint" id="dg-detail" hidden>
+            环境信息（系统/CPU/内存/显卡/网卡）、播放器与分析页运行时状态、事件时间线、播放采样、mpv 日志尾部、应用日志尾部与崩溃记录；文件名以设备 MAC + 时间命名。
           </div>
         </div>
       </div>
+
+      <div class="panel"><h4>工具链</h4><div class="orows" id="ab-tools"></div></div>
+
+      <div class="panel"><h4>数据与日志</h4><div class="orows" id="ab-paths"></div></div>
     </section>
   </main>
+</div>
 
-  <script type="module" src="/src/main.ts"></script>
+<!-- ══════════ 贯通整宽的状态栏 ══════════ -->
+<div class="statusbar">
+  <div class="engine"><span class="dot"></span>引擎就绪<span class="mpv">· mpv 0.41</span></div>
+  <div class="vsep"></div>
+  <div class="sbtitle" id="sb-title">播放器</div>
+  <div class="bridgebar" id="bridge-bar" hidden>
+    <span class="bf-tag" id="bf-tag">桥转码</span>
+    <span class="bf-from" id="bf-from"></span>
+    <span class="bf-arrow">→</span>
+    <span class="bf-to" id="bf-to"></span>
+  </div>
+  <div class="chips" id="p-chips">
+    <div id="p-chips-dyn" style="display:flex;gap:8px;overflow:hidden;min-width:0;">
+      <span class="chip-m">◦ 待机 · 无流数据</span>
+    </div>
+  </div>
+  <label class="force-bridge" id="p-force-wrap">
+    <input type="checkbox" id="p-force" />强制走转码桥
+  </label>
+</div>
+
+<script type="module" src="/src/main.ts"></script>
 </body>
 </html>

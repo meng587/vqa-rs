@@ -1,10 +1,12 @@
 //! 播放器页 —— 来源栏/控制条/快照轮询/视频子窗对齐。
 //! 轮询模型对应 egui 版"每帧 poll"：100ms 拉一次 player_snapshot。
 
-import { api, type PlayerStateJson, type Snap } from "./api";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { listen } from "@tauri-apps/api/event";
+import { api, type NicRow, type PlayerStateJson, type Snap } from "./api";
 import { icon } from "./icons";
 import { SPEEDS } from "./constants";
-import { setNavLamp, setEngineLamp } from "./main";
+import { setNavLamp, setEngineLamp, nicLabel } from "./main";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -24,7 +26,7 @@ function fmtHms(ms: number): string {
 }
 
 function shortCodec(c: string): string {
-  return c.split("/")[0] || c;
+  return (c.split("/")[0] || c).trim();
 }
 
 /** 源帧率原始串 "50/1" → "50"；取不到返回空 */
@@ -47,10 +49,52 @@ export function initPlayer() {
   const histPop = $("p-histpop") as HTMLElement;
   const force = $("p-force") as HTMLInputElement;
 
-  // 网卡下拉
-  api.listNics().then((list) => {
-    nic.innerHTML = [`<option>自动</option>`, ...list.map((n) => `<option>${esc(n)}</option>`)].join("");
+  // 网卡下拉：值 = IP（取流绑定用），显示「IP · 网卡名」，断开的标注出来
+  api.listNics().then((list: NicRow[]) => {
+    nic.innerHTML = [
+      `<option value="">自动</option>`,
+      ...list.map((n) => `<option value="${esc(n.ip)}" title="${esc(n.desc || n.name)}">${esc(nicLabel(n))}</option>`),
+    ].join("");
   });
+
+  // 拖文件进来直接播：两条来源 ——
+  //  1) WebView2 的 Tauri 原生拖放（视频区没被 mpv 子窗盖住时）；
+  //  2) 视频子窗自己接的 WM_DROPFILES（播放中 mpv 盖住视频区时），Rust 转成 video://drop。
+  const vcard = $("vcard");
+  const dropHint = $("v-drophint");
+  const MEDIA_EXT = /\.(ts|m2ts|mp4|mkv|flv|mov|avi|mpg|mpeg|wmv|webm)$/i;
+  let lastDrop: { path: string; at: number } | null = null;
+  const clearDropUi = () => {
+    vcard.classList.remove("drop-hot");
+    dropHint.hidden = true;
+  };
+  const handleDrop = (paths: string[]) => {
+    if (document.body.dataset.page !== "player") return;
+    const file = paths.find((p) => MEDIA_EXT.test(p)) || paths[0];
+    if (!file) return;
+    const now = Date.now();
+    // 两条来源可能对同一次拖放各报一次，去抖
+    if (lastDrop && lastDrop.path === file && now - lastDrop.at < 400) return;
+    lastDrop = { path: file, at: now };
+    url.value = file;
+    const name = file.split(/[\\/]/).pop() || file;
+    api.play(file, nic.value, force.checked).catch(() => undefined);
+    showNote(`拖入即播：${name}`, false);
+  };
+  getCurrentWebview().onDragDropEvent((e) => {
+    const t = e.payload.type;
+    if (t === "enter" || t === "over") {
+      if (document.body.dataset.page === "player") {
+        vcard.classList.add("drop-hot");
+        dropHint.hidden = false;
+      }
+      return;
+    }
+    clearDropUi();
+    if (t === "drop") handleDrop(e.payload.paths);
+  });
+  // mpv 子窗那条路（播放中拖到画面上）：只收路径，不区分页
+  listen<string[]>("video://drop", (e) => handleDrop(e.payload));
 
   // 历史弹层
   histBtn.addEventListener("click", (e) => {
@@ -80,6 +124,8 @@ export function initPlayer() {
     const p = await api.browse();
     if (p) url.value = p;
   });
+  // 空态里的「选择本地文件」复用同一个浏览动作
+  $("v-empty-browse").addEventListener("click", () => ($("p-browse") as HTMLElement).click());
 
   // 开始/停止
   let running = false;
@@ -98,7 +144,7 @@ export function initPlayer() {
     if (!u) return;
     await api.pushSourceHistory("player", u);
     try {
-      await api.play(u, nic.value === "自动" ? "" : nic.value, force.checked);
+      await api.play(u, nic.value, force.checked);
       running = true;
       setActUi(true);
     } catch (e: any) {
@@ -107,7 +153,9 @@ export function initPlayer() {
   }
   function setActUi(on: boolean) {
     act.classList.toggle("stop", on);
-    act.innerHTML = on ? `<span>${icon("square", 13)}</span>停止` : `<span>${icon("play", 13)}</span>开始`;
+    act.innerHTML = on
+      ? `<span>${icon("square", 13)}</span>停止`
+      : `<span>${icon("play", 13)}</span>开始播放`;
   }
   setActUi(false);
 
@@ -160,16 +208,22 @@ export function initPlayer() {
     if (seek.classList.contains("off")) return;
     seek.setPointerCapture(e.pointerId);
     dragSeek = fracOf(e, seek);
+    moveThumb(dragSeek);
     api.seek(dragSeek);
   });
   seek.addEventListener("pointermove", (e) => {
     if (dragSeek < 0) return;
     dragSeek = fracOf(e, seek);
+    moveThumb(dragSeek);
     api.seek(dragSeek);
   });
   seek.addEventListener("pointerup", () => {
     dragSeek = -1.0;
   });
+  function moveThumb(frac: number) {
+    ($("c-seekfill") as HTMLElement).style.width = `${frac * 100}%`;
+    ($("c-seekthumb") as HTMLElement).style.left = `${frac * 100}%`;
+  }
 
   // 音量拖动
   const vol = $("c-vol") as HTMLElement;
@@ -267,17 +321,25 @@ function render(st: PlayerStateJson) {
   // 空态 / 视频区
   const empty = $("v-empty");
   const hint = $("v-hint");
+  const emptyTitle = $("v-empty-title");
+  const emptyBtns = empty.querySelector(".empty-btns") as HTMLElement;
   if (!st.playing) {
     empty.style.display = "";
-    hint.textContent = "输入来源后点「开始」播放";
+    emptyTitle.textContent = "还没有载入媒体";
+    hint.textContent = "支持 TS / MP4 / MKV / FLV 本地文件（也可直接拖入窗口），或 UDP / RTP 组播地址";
+    emptyBtns.style.display = "";
     (window as any).__muteCache = snap?.mute ?? false;
   } else if (st.preparing) {
     // 起播管线进行中（抽流/桥启动约数秒）
     empty.style.display = "";
-    hint.textContent = "⏳ AVS 桥启动中，数秒后出画…";
+    emptyTitle.textContent = "正在启动解码管线";
+    hint.textContent = "桥转码启动中，数秒后出画…";
+    emptyBtns.style.display = "none";
   } else if (snap && snap.idle) {
     empty.style.display = "";
-    hint.textContent = "已播完 · 点 ▶ 重播";
+    emptyTitle.textContent = "已播完";
+    hint.textContent = "点上方 ▶ 重播，或换一个来源";
+    emptyBtns.style.display = "none";
   } else {
     empty.style.display = "none";
   }
@@ -294,7 +356,9 @@ function render(st: PlayerStateJson) {
   const seek = $("c-seek");
   seek.classList.toggle("off", !seekable);
   if (dragSeek < 0) {
-    ($("c-seekfill") as HTMLElement).style.width = `${seekable ? (pos / dur) * 100 : 0}%`;
+    const pct = seekable ? (pos / dur) * 100 : 0;
+    ($("c-seekfill") as HTMLElement).style.width = `${pct}%`;
+    ($("c-seekthumb") as HTMLElement).style.left = `${pct}%`;
   }
   $("c-time").textContent = `${fmtHms(pos)} / ${seekable ? fmtHms(dur) : "--:--"}`;
 
@@ -339,14 +403,8 @@ function render(st: PlayerStateJson) {
     tl.style.display = "none";
   }
   const tr = $("tag-tr") as HTMLElement;
-  // 桥 tag：显示「由什么转什么」——源规格 → H.264 + 输出码率（Mbps）
-  const bridging = !!(st.bridge && st.playing && st.snap && !st.snap.idle);
-  tr.hidden = !bridging;
-  if (bridging && st.probe) {
-    const ten = st.probe.pix_fmt.includes("10") ? "10-bit" : "8-bit";
-    const mbps = snap && snap.v_bitrate > 0 ? (snap.v_bitrate / 1e6).toFixed(1) : "?";
-    tr.textContent = `⚠ 桥：AVS2 ${st.probe.w}×${st.probe.h} ${ten} → H.264 8-bit · ${mbps} Mbps`;
-  }
+  // mpv 是原生子窗，会盖住视频区内的 WebView 浮层 —— 状态一律走底部状态栏，这里不再放浮层
+  tr.hidden = true;
 
   // chips
   renderChips(st);
@@ -402,10 +460,11 @@ function renderChips(st: PlayerStateJson) {  // 只重建动态 chips 区；forc
       parts.push(`<span class="chip-m">◦ 已播完</span>`);
     } else {
       const hw = snap.hwdec && snap.hwdec !== "no" ? `硬解 ${snap.hwdec}` : "软解";
+      // 播放在跑且没走桥 = 直放；走了桥则由状态栏的桥条写明源→目标
       parts.push(
         bridged
           ? `<span class="chip-m">${hw}</span>`
-          : `<span class="chip-m">${snap.width}×${snap.height} · ${shortCodec(snap.video_codec)} · ${hw}</span>`,
+          : `<span class="chip-m ok">● 直放</span><span class="chip-m">${snap.width}×${snap.height} · ${shortCodec(snap.video_codec)} · ${hw}</span>`,
       );
       if (snap.vf_fps > 0 && !bridged)
         parts.push(`<span class="chip-m">${icon("gauge", 11)} ${snap.vf_fps.toFixed(1)} fps</span>`);

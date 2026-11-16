@@ -205,6 +205,22 @@ pub fn choices() -> Vec<String> {
     out
 }
 
+/// 下拉框用的网卡明细：与 choices() 同一套过滤（优先 up 且非 169.254，全断则退回全部）。
+/// 界面用 ip 做值、name/desc 做显示文案（「192.168.1.5 · 以太网」）。
+pub fn choices_detail() -> Vec<IfRow> {
+    let rows = interface_rows();
+    let up_rows: Vec<IfRow> = rows
+        .iter()
+        .filter(|r| r.up && !r.ip.starts_with("169.254."))
+        .cloned()
+        .collect();
+    if up_rows.is_empty() {
+        rows
+    } else {
+        up_rows
+    }
+}
+
 /// 把网卡名/状态写进提示，帮用户分清哪条是哪条。
 pub fn choices_tip() -> String {
     let rows = interface_rows();

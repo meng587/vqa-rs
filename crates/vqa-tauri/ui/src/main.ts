@@ -29,6 +29,13 @@ function goto(page: Page) {
   pages.forEach((p) => {
     p.hidden = p.getAttribute("data-page") !== page;
   });
+  // 状态栏按页切换：播放器页显示指标与桥说明，其它页只显示页名
+  document.body.dataset.page = page;
+  const sbTitle = document.getElementById("sb-title");
+  if (sbTitle) {
+    sbTitle.textContent =
+      page === "player" ? "播放器" : page === "analysis" ? "视频分析" : "关于";
+  }
   (window as any).__currentPage = page;
   window.dispatchEvent(new CustomEvent("page-changed", { detail: page }));
 }
@@ -82,17 +89,109 @@ document.addEventListener("click", () => {
 // ---- 关于页：版本号（单一来源 = Cargo package version）----
 api.appVersion().then((v) => {
   const el = document.getElementById("ab-ver");
-  if (el) el.textContent = `v${v}（Tauri/Web UI 版）`;
+  if (el) el.textContent = `v${v}`;
 });
+
+// ---- 路径行：单行省略 + 复制 / 打开 ----
+const esc = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/** 网卡下拉显示文案：`IP · 网卡名`，断开的补「未连接」；空描述则只显示 IP */
+export function nicLabel(n: { ip: string; name: string; desc: string; up: boolean }): string {
+  const nm = (n.name || n.desc || "").trim();
+  const base = nm ? `${n.ip} · ${nm}` : n.ip;
+  return n.up ? base : `${base}（未连接）`;
+}
+
+/** 长路径取中段省略（保留盘符与文件名），完整值仍放在 title 里 */
+function shortPath(p: string | null): string {  if (!p) return "未找到";
+  if (p.length <= 62) return p;
+  return `${p.slice(0, 26)}…${p.slice(-30)}`;
+}
+
+function pathRow(k: string, p: string | null, cls = ""): string {
+  const full = p ?? "";
+  const copy = full
+    ? `<button class="oicon" data-copy="${esc(full)}" title="复制路径">${icon("copy", 13)}</button>`
+    : "";
+  const open = full
+    ? `<button class="oicon" data-open="${esc(full)}" title="打开所在目录">${icon("folder", 13)}</button>`
+    : "";
+  return (
+    `<div class="orow"><span class="k">${esc(k)}</span>` +
+    `<span class="v mono ${cls}" title="${esc(p ?? "未找到")}">${esc(shortPath(p))}</span>${copy}${open}</div>`
+  );
+}
+
+/** 复制文本（优先剪贴板 API，退回 execCommand，兼容 WebView2） */
+async function copyText(t: string) {
+  try {
+    await navigator.clipboard.writeText(t);
+    return true;
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = t;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  }
+}
+
+/** 行内复制/打开按钮的事件委托 */
+function bindRowActions(root: HTMLElement, onMsg?: (m: string) => void) {
+  root.addEventListener("click", async (e) => {
+    const t = (e.target as HTMLElement).closest("button") as HTMLButtonElement | null;
+    if (!t) return;
+    const cp = t.getAttribute("data-copy");
+    const op = t.getAttribute("data-open");
+    if (cp) {
+      const ok = await copyText(cp);
+      onMsg?.(ok ? "已复制路径" : "复制失败，可手动选中");
+    } else if (op) {
+      try {
+        await api.reveal(op);
+      } catch (e2: any) {
+        onMsg?.(`打开失败：${e2}`);
+      }
+    }
+  });
+}
 
 // ---- 关于页：工具链路径 ----
 api.toolPaths().then((t) => {
   const el = document.getElementById("ab-tools");
   if (!el) return;
-  const row = (k: string, v: string | null) =>
-    `<span class="k">${k}</span><span class="v">${v ?? "未找到"}</span>`;
   el.innerHTML =
-    row("ffmpeg", t.ffmpeg) + row("ffprobe", t.ffprobe) + row("mpv", t.mpv) + row("davs2", t.davs2);
+    pathRow("ffmpeg", t.ffmpeg) +
+    pathRow("ffprobe", t.ffprobe) +
+    pathRow("mpv", t.mpv) +
+    pathRow("davs2", t.davs2);
+  bindRowActions(el, (m) => {
+    const hint = document.getElementById("up-hint");
+    if (hint) hint.textContent = m;
+  });
+});
+
+// ---- 关于页：数据与日志目录 ----
+api.appPaths().then((p) => {
+  const el = document.getElementById("ab-paths");
+  if (!el) return;
+  el.innerHTML =
+    pathRow("应用数据", p.shared) +
+    pathRow("运行日志", p.log_file) +
+    pathRow("临时目录", p.scratch) +
+    pathRow("快照目录", p.snap) +
+    pathRow("录像目录", p.rec);
+  bindRowActions(el, (m) => {
+    const hint = document.getElementById("up-hint");
+    if (hint) hint.textContent = m;
+  });
+  const btn = document.getElementById("ab-open-data");
+  btn?.addEventListener("click", () => api.reveal(p.data).catch(() => {}));
 });
 
 // ---- 关于页：在线更新 ----
@@ -151,11 +250,17 @@ if (import.meta.env.MODE !== "dev") {
 let diagCache: { name: string; content: string } | null = null;
 const dgStatus = document.getElementById("dg-status") as HTMLElement;
 
-api.diagHasToken().then((has) => {
-  const tok = document.getElementById("dg-token") as HTMLInputElement;
-  if (has) {
-    tok.placeholder = "已保存私人令牌（如需更换可重新粘贴）";
-  }
+api.diagHasToken().then(() => {
+  // 令牌已保存则不再在界面暴露输入框（改用「上传诊断包给开发者」按钮）
+});
+
+// 「包含什么 ▸」展开/收起
+document.getElementById("dg-more")?.addEventListener("click", () => {
+  const d = document.getElementById("dg-detail") as HTMLElement;
+  const more = document.getElementById("dg-more") as HTMLElement;
+  const opening = d.hidden;
+  d.hidden = !opening;
+  more.textContent = opening ? "收起 ▴" : "包含什么 ▸";
 });
 
 document.getElementById("dg-export")?.addEventListener("click", async () => {
@@ -186,4 +291,8 @@ initPlayer();
 initAnalysis();
 initSettings();
 initMediaInfo();
+// 空态里的「选择 TS 文件」复用顶栏的浏览动作
+document.getElementById("a-empty-browse")?.addEventListener("click", () =>
+  (document.getElementById("a-browse") as HTMLElement | null)?.click(),
+);
 goto("player");

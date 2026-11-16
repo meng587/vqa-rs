@@ -19,8 +19,9 @@ pub fn app_version() -> String {
 }
 
 #[tauri::command]
-pub fn list_nics() -> Vec<String> {
-    vqa_core::netif::choices()
+pub fn list_nics() -> Vec<vqa_core::netif::IfRow> {
+    // 带网卡名/描述/up 状态，界面显示「IP · 网卡名」；ip 仍是取值依据
+    vqa_core::netif::choices_detail()
 }
 
 #[tauri::command]
@@ -60,6 +61,43 @@ pub fn tool_paths() -> serde_json::Value {
         "mpv": vqa_core::tools::find_mpv().map(|p| p.to_string_lossy().to_string()),
         "davs2": vqa_core::tools::find_davs2().map(|p| p.to_string_lossy().to_string()),
     })
+}
+
+/// 数据/日志目录（关于页「数据与日志」卡）
+#[tauri::command]
+pub fn app_paths() -> serde_json::Value {
+    let logs = vqa_core::config::log_dir();
+    serde_json::json!({
+        "data": vqa_core::config::base_dir().to_string_lossy(),
+        "shared": vqa_core::config::shared_dir().to_string_lossy(),
+        "logs": logs.to_string_lossy(),
+        "log_file": logs.join("vqa.log").to_string_lossy(),
+        "scratch": vqa_core::config::scratch_dir().to_string_lossy(),
+        "snap": snap_dir().to_string_lossy(),
+        "rec": rec_dir().to_string_lossy(),
+        "crash": vqa_core::config::crash_dir().to_string_lossy(),
+    })
+}
+
+/// 在资源管理器打开目录 / 定位文件（路径不存在时退到其父目录）。
+#[tauri::command]
+pub fn reveal_path(path: String) -> Result<(), String> {
+    let p = PathBuf::from(path.trim());
+    if p.as_os_str().is_empty() {
+        return Err("路径为空".into());
+    }
+    let target = if p.exists() {
+        p.clone()
+    } else {
+        p.parent().filter(|x| x.exists()).map(|x| x.to_path_buf()).unwrap_or(p.clone())
+    };
+    let mut cmd = std::process::Command::new("explorer.exe");
+    if target.is_file() {
+        cmd.arg(format!("/select,{}", target.to_string_lossy()));
+    } else {
+        cmd.arg(target.to_string_lossy().to_string());
+    }
+    cmd.spawn().map(|_| ()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
