@@ -31,6 +31,7 @@ function build() {
   </aside>`;
   while (frag.firstElementChild) document.body.appendChild(frag.firstElementChild);
   $("mi-x").innerHTML = icon("x", 14);
+  $("mi-x").addEventListener("click", close);
   $("mi-refresh").innerHTML = icon("repeat", 14);
   $("mi-refresh").addEventListener("click", () => {
     if (lastPath) probe(lastPath);
