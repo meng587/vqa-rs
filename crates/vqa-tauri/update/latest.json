@@ -1,11 +1,11 @@
 {
-  "version": "0.2.5",
-  "notes": "AVS 播放卡顿终局修复：照搬 Python 版并行分片桥（4 路滑窗，单链 0.63×→并行 1.85×）——首播边转边播秒开，同文件再播走缓存直接播（0 等待、可拖动）。含内置官方 mpv 0.42、转码等待期提示、AVS2 失败不回退直放等此前修复",
-  "pub_date": "2026-11-16T01:30:00Z",
+  "version": "0.2.6",
+  "notes": "设置分功能化（各页独立抽屉：播放器截图/录像目录、默认循环/默认走桥；分析报告目录）；底部桥转码条与指标行合并单行、单位统一 Mbps、播完按钮回位；诊断包增强（事件时间线/分析结果摘要/mpv 日志/5 秒播放采样）并改为「导出诊断包到本地」「上传诊断包给开发者」、移除令牌输入框；播放器新增媒体信息（ffprobe 全量）；运行期临时文件统一落 scratch、缓存上限按卷余量自适应；整套新图标",
+  "pub_date": "2026-11-16T15:02:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWh1U0g4WHJDVno3Nm9IR21BQ2pmbmRCRmhWUjZCa2NPU3hhTTVPRk1XRm5CUFdRWEwwYmZDR2tvUUtMZ3paZEtOZnd0T0QwYlhPbzhmV2dBcUFneUFFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0ODI1ODc3CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi41X3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjIuNQo3NzhIQnpoVnFSc0U0Y3Zldkp6eDBRTWJEbVJ4OVdQK1JhT0NZbzZSQXJhQldEZEsyVlo2Smp3ME9SdE9DMnRqK25MQ0lNR0N6M3pKNjNEK2tYUVNEZz09Cg==",
-      "url": "https://gitee.com/meng587/video-analysis-toolkit-rs/releases/download/v0.2.5/vqa-workbench-0.2.5-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW15MHBDcHFoY3gvRVY3RUJxY2tyTmtKN2s5enpFVDRadmtxUUlzcjJQUU1UNlMxUG5YclV2aG1yOWM2TGhUUUpXcmRUUTJKdWkrUzl3RWJiZWh2ekE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0ODQyNjk0CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi42X3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjIuNgpZM1BuU2s5S3V2c0FRV3lnYlNOTDV6YUswR1FiWGR0bW9vMkYzQkIwMy9QOTltNno0cG9mWG53RXc3cUVMZTFEa3p2ekhnRUthbU1nMjJGV0tvWVNBZz09Cg==",
+      "url": "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.6/vqa-workbench-0.2.6-setup.exe"
     }
   }
 }
