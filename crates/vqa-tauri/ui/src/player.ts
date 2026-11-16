@@ -3,7 +3,7 @@
 
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { listen } from "@tauri-apps/api/event";
-import { api, type NicRow, type PlayerStateJson, type Snap } from "./api";
+import { api, type MediaInfo, type NicRow, type PlayerStateJson, type Snap } from "./api";
 import { icon } from "./icons";
 import { SPEEDS } from "./constants";
 import { setNavLamp, setEngineLamp, nicLabel } from "./main";
@@ -14,6 +14,16 @@ let snapCache: Snap | null = null;
 let stateCache: PlayerStateJson | null = null;
 let lastSpeed = 1.0;
 let dragSeek = -1.0; // 拖动中的 fraction（-1 = 未拖动）
+let osdOn = false; // Tab 触发的画面内媒体信息浮层
+let osdRefreshAt = 0; // 浮层刷新节流（播放中数字会变）
+let lastVb = 0; // mpv 的视频码率会间歇回 0，留住上一次有效值，浮层数字才不闪
+
+/** 收起画面浮层：id=1 这一层单独清掉，不影响 mpv 的其他提示 */
+function clearOsd() {
+  if (!osdOn) return;
+  osdOn = false;
+  api.playerOsd([], 1280, 720).catch(() => undefined);
+}
 
 function fmtHms(ms: number): string {
   if (!isFinite(ms) || ms < 0) ms = 0;
@@ -95,6 +105,163 @@ export function initPlayer() {
   });
   // mpv 子窗那条路（播放中拖到画面上）：只收路径，不区分页
   listen<string[]>("video://drop", (e) => handleDrop(e.payload));
+
+  // ── Tab：播放中在画面上叠加媒体信息 ────────────────────────────────
+  // HTML 浮层画不出来（mpv 是原生子窗、压在 WebView 之上），所以交给
+  // mpv 自己的 OSD 渲染到画面上；子窗加了 WS_EX_NOACTIVATE，点画面不会
+  // 把键盘焦点从 WebView 抢走，Tab 才能落到这里。
+  let miPath = "";
+  let miInfo: MediaInfo | null = null;
+  let osdPending = false; // 起播瞬间按的 Tab 先记下，画面出来再补
+
+  /** 取数并推一层浮层；失败就把开关打回关（下次 Tab 重新开） */
+  function showOsd(): void {
+    osdLines()
+      .then((lines) => {
+        if (!lines.length) return;
+        const snap = snapCache;
+        osdOn = true;
+        return api
+          .playerOsd(lines, snap?.width || 1280, snap?.height || 720)
+          .catch(() => {
+            osdOn = false;
+          });
+      })
+      .catch(() => {
+        osdOn = false;
+      });
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Tab") return;
+    if (document.body.dataset.page !== "player") return;
+    const t = e.target as HTMLElement | null;
+    if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return; // 表单里保留 Tab 换焦点
+    const st = stateCache;
+    if (!st?.playing) return; // 根本没在播：不抢 Tab
+    e.preventDefault();
+    if (osdOn) {
+      clearOsd();
+      return;
+    }
+    // 点了播放、mpv 还在一秒半秒的起播中：先记一笔，等有画面了自动出来
+    if (!snapCache || snapCache.idle) {
+      osdPending = !osdPending;
+      return;
+    }
+    osdPending = false;
+    showOsd();
+  });
+
+  async function osdLines(): Promise<string[]> {
+    const st = stateCache;
+    const snap = snapCache;
+    const path = url.value.trim();
+    if (!path || !st || !snap || snap.idle) return [];
+    if (miPath !== path) {
+      miPath = path;
+      miInfo = await api.mediaInfo(path).catch(() => null);
+      // 换片了：上一个片子的视频码率不能带到新片子上
+      lastVb = 0;
+    }
+    const info = miInfo;
+    const name = path.split(/[\\/]/).pop() || path;
+    const out: string[] = [`媒体信息 · ${name}`];
+    // ffprobe 给的是小写短名（h264 / mpegts），浮层上用行业写法更好读
+    const CODE: Record<string, string> = {
+      h264: "H.264",
+      hevc: "H.265",
+      h265: "H.265",
+      avs2: "AVS2",
+      avs3: "AVS3",
+      mpeg2video: "MPEG-2",
+      mpeg4: "MPEG-4",
+      aac: "AAC",
+      ac3: "AC-3",
+      eac3: "E-AC-3",
+      mp2: "MP2",
+      mp3: "MP3",
+      opus: "Opus",
+      vc1: "VC-1",
+    };
+    const CONT: Record<string, string> = {
+      mpegts: "MPEG-TS",
+      "matroska,webm": "MKV",
+      matroska: "MKV",
+      "mov,mp4,m4a,3gp,3g2,mj2": "MP4",
+      mov: "MOV",
+      flv: "FLV",
+      mpeg: "MPEG-PS",
+      avi: "AVI",
+      m2ts: "M2TS",
+    };
+    const lab = (m: Record<string, string>, s?: string | null) =>
+      !s ? "" : m[s.toLowerCase()] || s;
+    if (info) {
+      const f = info.format;
+      out.push(
+        `容器  ${[
+          lab(CONT, f.container),
+          f.duration_s ? `${f.duration_s.toFixed(2)} s` : "",
+          f.bit_rate ? `${(f.bit_rate / 1e6).toFixed(2)} Mbps` : "",
+          f.size_bytes ? `${(f.size_bytes / 1048576).toFixed(1)} MB` : "",
+        ]
+          .filter(Boolean)
+          .join(" · ")}`,
+      );
+      const v = info.video?.[0];
+      if (v) {
+        const br = v.bit_rate || snap.v_bitrate || lastVb;
+        const wh =
+          v.width && v.height
+            ? `${v.width}×${v.height}`
+            : snap.width > 0
+              ? `${snap.width}×${snap.height}`
+              : "";
+        const nominal = v.avg_frame_rate ? fmtFps(v.avg_frame_rate) : "";
+        out.push(
+          `视频  ${[
+            [lab(CODE, v.codec), v.profile].filter(Boolean).join(" "),
+            wh,
+            nominal ? `${nominal} fps` : "",
+            br ? `${(br / 1e6).toFixed(2)} Mbps` : "",
+          ]
+            .filter(Boolean)
+            .join(" · ")}`,
+        );
+        const color = [v.pix_fmt, v.field_order]
+          .filter((x) => x && x !== "unknown")
+          .join(" · ");
+        if (color) out.push(`画质  ${color}`);
+      }
+      const a = info.audio?.[0];
+      if (a) {
+        const sr = a.sample_rate
+          ? a.sample_rate % 1000 === 0
+            ? `${(a.sample_rate / 1000).toFixed(1)} kHz`
+            : `${a.sample_rate} Hz`
+          : "";
+        out.push(
+          `音频  ${[
+            [lab(CODE, a.codec), a.profile].filter(Boolean).join(" "),
+            sr,
+            a.channels ? `${a.channels} 声道` : "",
+          ]
+            .filter(Boolean)
+            .join(" · ")}`,
+        );
+      }
+    } else {
+      out.push("媒体信息  探测失败（ffprobe 没取到）");
+    }
+    // 解码态：硬解/软解 + 丢帧（帧率/码率上面已经写过，不再重复）
+    const hw = snap.hwdec && snap.hwdec !== "no" ? `硬解 ${snap.hwdec}` : "软解";
+    out.push(`解码  ${hw} · 丢帧 ${snap.decoder_drop}/${snap.render_drop}`);
+    if (st.bridge_to && st.playing) {
+      out.push(`桥    ${$("bf-from").textContent} → ${$("bf-to").textContent}`);
+    }
+    return out;
+  }
 
   // 历史弹层
   histBtn.addEventListener("click", (e) => {
@@ -259,6 +426,9 @@ export function initPlayer() {
   ro.observe(vrect);
   window.addEventListener("resize", placeChild);
   window.addEventListener("page-changed", placeChild);
+  window.addEventListener("page-changed", () => {
+    if ((window as any).__currentPage !== "player") clearOsd();
+  });
 
   function placeChild() {
     const r = vrect.getBoundingClientRect();
@@ -285,6 +455,7 @@ export function initPlayer() {
       const st = await api.snapshot();
       stateCache = st;
       snapCache = st.snap;
+      if (st.snap && st.snap.v_bitrate > 0) lastVb = st.snap.v_bitrate;
       // 右上「开始/停止」跟随后端状态：播完（mpv 回 idle 且不在准备中）要回到「开始」，
       // 否则 running 只由点击维护，播到结尾按钮会一直卡在「停止」。
       const active = !!st.playing && !(st.snap?.idle && !st.preparing);
@@ -293,6 +464,17 @@ export function initPlayer() {
         setActUi(active);
       }
       render(st);
+      // 起播瞬间按的 Tab：画面出来（不再 idle）就补上浮层
+      if (osdPending && !osdOn && st.playing && st.snap && !st.snap.idle) {
+        osdPending = false;
+        osdRefreshAt = Date.now();
+        showOsd();
+      }
+      // Tab 浮层开着时刷新一次数字（码率/帧率/丢帧会变），2s 一次足够
+      if (osdOn && Date.now() - osdRefreshAt > 2000) {
+        osdRefreshAt = Date.now();
+        showOsd();
+      }
       // nav 状态灯 + 页脚引擎灯
       setNavLamp(
         "player",
@@ -309,6 +491,10 @@ export function initPlayer() {
 
 function render(st: PlayerStateJson) {
   const snap = st.snap;
+
+  // 浮层只在播放中有效：播完/停止时收掉，别把一块信息板留在画面上
+  if (!st.playing) osdPending = false;
+  if (!st.playing || (snap && snap.idle && !st.preparing)) clearOsd();
 
   // 错误/提示行
   if (st.err) showNote(`✗ ${st.err}`, true);

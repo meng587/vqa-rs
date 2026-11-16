@@ -489,6 +489,81 @@ pub fn player_seek(st: State<PlayerState>, fraction: f64) {
     }
 }
 
+/// 播放画面上的媒体信息浮层（Tab 触发）。
+///
+/// mpv 是原生子窗、盖在 WebView 之上，任何 HTML 浮层都画不出来；所以走
+/// mpv 自己的 OSD —— `osd-overlay` 用 ASS 渲染到视频画面上，关掉只清这一层。
+/// ★ mpv 0.42 把 `osd-overlay` 改成了位置参数：
+///   (id, format, data, res_x, res_y, z, hidden, compute_bounds)，没有 name 了。
+/// `lines` 为空 = 收起。
+#[tauri::command]
+pub fn player_osd(st: State<PlayerState>, lines: Vec<String>, res_x: u32, res_y: u32) {
+    let Some(m) = st.mpv.lock().unwrap().clone() else {
+        return;
+    };
+    if lines.is_empty() {
+        let _ = m.command(serde_json::json!([
+            "osd-overlay", 1, "none", "", 0, 720, 0, false, false
+        ]));
+        return;
+    }
+    let rx = res_x.max(320);
+    let ry = res_y.max(180);
+    // 底板：mpv 的 OSD 用「背景框」样式，半透明黑，文字白色
+    for (k, v) in [
+        ("osd-border-style", serde_json::json!("background-box")),
+        ("osd-back-color", serde_json::json!("#C8000000")),
+        ("osd-border-size", serde_json::json!(1)),
+        ("osd-shadow-offset", serde_json::json!(0)),
+    ] {
+        let _ = m.set_prop(k, v);
+    }
+    let text = build_info_osd(&lines, rx, ry);
+    let r = m.command(serde_json::json!([
+        "osd-overlay",
+        1,
+        "ass-events",
+        text,
+        rx,
+        ry,
+        2,
+        false,
+        false
+    ]));
+    let _ = vqa_core::config::log_line(
+        "osd",
+        &format!(
+            "osd-overlay lines={} res={rx}x{ry} -> {}",
+            lines.len(),
+            match &r {
+                Ok(_) => "ok".to_string(),
+                Err(e) => format!("err: {e}"),
+            }
+        ),
+    );
+}
+
+/// mpv 的 osd-overlay 只吃「纯文本 + ASS 覆写标签」，不接受 ASS 文件头
+/// （实测给整份 ASS 会把 Script Info/Style 原样当文字画出来）。
+/// 头部标签负责左上角定位、字体、字号。
+fn build_info_osd(lines: &[String], rx: u32, ry: u32) -> String {
+    let fs = (ry as f32 / 27.0).round().max(12.0);
+    let margin = (rx as f32 / 45.0).round().max(12.0);
+    let escape = |s: &str| {
+        s.replace('\\', "/")
+            .replace('{', "（")
+            .replace('}', "）")
+    };
+    let body = lines
+        .iter()
+        .map(|l| escape(l))
+        .collect::<Vec<_>>()
+        .join("\\N");
+    format!(
+        "{{\\an7\\pos({margin},{margin})\\fnMicrosoft YaHei\\fs{fs}\\bord1\\shad0}}{body}"
+    )
+}
+
 #[tauri::command]
 pub fn player_set_volume(st: State<PlayerState>, volume: f64) {
     if let Some(m) = st.mpv.lock().unwrap().as_ref() {

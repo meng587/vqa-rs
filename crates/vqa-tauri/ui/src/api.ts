@@ -158,6 +158,9 @@ export const api = {
   setMute: (mute: boolean) => invoke<void>("player_set_mute", { mute }),
   setSpeed: (speed: number) => invoke<void>("player_set_speed", { speed }),
   setLoop: (on: boolean) => invoke<void>("player_set_loop", { on }),
+  /** 播放画面上的媒体信息浮层（Tab）；lines 为空 = 收起 */
+  playerOsd: (lines: string[], resX: number, resY: number) =>
+    invoke<void>("player_osd", { lines, resX, resY }),
   snapshot: () => invoke<PlayerStateJson>("player_snapshot"),
   snapshotSave: () => invoke<string>("player_snapshot_save"),
   recordToggle: () => invoke<string>("player_record_toggle"),

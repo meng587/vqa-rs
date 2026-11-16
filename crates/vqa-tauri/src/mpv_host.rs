@@ -122,8 +122,10 @@ impl VideoChild {
             // 起因：视频区被本子窗盖住时，文件拖放事件全被子窗吃掉，WebView2 收不到
             // （Tauri 的拖放事件挂在 WebView2 上）。视频区本身 pointer-events:none，
             // 让过去也不会误触；mpv 只负责渲染，不需要接收鼠标。
+            // WS_EX_NOACTIVATE：点画面不会把键盘焦点从 WebView2 抢走，
+            // 否则播放中按 Tab（媒体信息浮层）会被 mpv 窗口吃掉。
             let hwnd = CreateWindowExW(
-                WINDOW_EX_STYLE(WS_EX_TRANSPARENT.0),
+                WINDOW_EX_STYLE(WS_EX_TRANSPARENT.0 | WS_EX_NOACTIVATE.0),
                 windows::core::w!("vqa_video_tauri"),
                 windows::core::w!(""),
                 WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN, // 保持"可见"——mpv vo 对

@@ -1,11 +1,11 @@
 {
-    "version":  "0.2.9",
-    "notes":  "界面按方案B重排；网卡下拉带网卡名；拖文件即播（含播放中画面区域，走 WM_DROPFILES）",
-    "pub_date":  "2026-11-16T17:46:43Z",
+    "version":  "0.2.10",
+    "notes":  "播放中按 Tab 在画面上叠加媒体信息（mpv OSD）",
+    "pub_date":  "2026-11-16T23:15:34Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW40MmJxclJxOE5qenZzM2ttVGZOOXJWeVoxMHc3WExPREhMR0RSZGtFTHYyUFpmeHBjS2I2dkJoREU4a01NN3F5NkQ5aVpHWjU4RGNTbFJwMFN0S1FrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0ODUxMjAzCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi45X3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjIuOQpFTURKZ0xaTDIzMUJsZDdFQUwwVWpHV1hBMnhESDF0ODJvYWVkdUEzU1FNL3dFUk9LeTFxeXVqSFBOZDRGMWtzK01CVXlzMHUvUXlHSS9lYjhiRUNBZz09Cg==",
-                                             "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.9/vqa-workbench-0.2.9-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWpyRkhzMlVVMEREOE1VeEJ5OE5NalBFUU50L2VYd0lYb05ibXVsNFc0NzZwaC9VUnBVTFRxYlAzQVl2TWhqanpLUU1TRzhvZjdhUG92clp4SVErS0FFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0ODcwOTM0CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4xMF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjEwCkJUUXNpYjFja1F4aGtxUnF1QTBwdmg3WWNLSFo3R1RqS2ZGU0FrYkJEb2RWcmtZVDdGMjJNQmMvZzBKRWdlQjNtcU1hQVVuMFZTcVV6eDl3RE80QUFBPT0K",
+                                             "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.10/vqa-workbench-0.2.10-setup.exe"
                                          }
                   }
 }

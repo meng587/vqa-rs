@@ -175,6 +175,7 @@ fn main() {
             commands::player_set_mute,
             commands::player_set_speed,
             commands::player_set_loop,
+            commands::player_osd,
             commands::player_snapshot,
             commands::player_snapshot_save,
             commands::player_record_toggle,
