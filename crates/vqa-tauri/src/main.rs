@@ -4,7 +4,9 @@
 //! panic 钩子留物证、单实例拉前台、日志 3 天/3MB 清理。
 //! 视频子窗在 setup 阶段创建（WebView2 已就位，同父兄弟后建者在上）。
 
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// 始终按 GUI 子系统编译：不允许出现"打开程序附带一个 cmd 黑窗"，
+// 调试版的排障信息走 crash_dir 的 panic 文件与 config::log_line 落盘的日志。
+#![windows_subsystem = "windows"]
 
 mod commands;
 mod diag;
