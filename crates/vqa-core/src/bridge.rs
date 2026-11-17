@@ -79,6 +79,12 @@ pub fn pick_h264_encoder(ffmpeg: &Path) -> String {
     let enc = ["h264_nvenc", "h264_qsv", "h264_amf"]
         .into_iter()
         .find(|n| enc_ok(ffmpeg, n))
+        .or_else(|| {
+            // 软编兜底：GPL 版有 libx264，随包的 LGPL 版只有 libopenh264。
+            ["libx264", "libopenh264"]
+                .into_iter()
+                .find(|n| enc_ok(ffmpeg, n))
+        })
         .unwrap_or("libx264")
         .to_string();
     if let Ok(mut c) = ENC_CACHE.lock() {
@@ -96,6 +102,8 @@ pub fn encoder_args(enc: &str, crf: i32) -> Vec<String> {
         ],
         "h264_qsv" => &["-preset", "veryfast", "-g", "25", "-pix_fmt", "yuv420p"],
         "h264_amf" => &["-quality", "speed", "-g", "25", "-pix_fmt", "yuv420p"],
+        // libopenh264 不认 -preset/-tune，只给 GOP 与像素格式
+        "libopenh264" => &["-g", "25", "-pix_fmt", "yuv420p"],
         _ => &[
             "-preset", "ultrafast", "-tune", "zerolatency", "-g", "25",
             "-keyint_min", "25", "-sc_threshold", "0", "-pix_fmt", "yuv420p",
@@ -114,6 +122,20 @@ pub fn encoder_args(enc: &str, crf: i32) -> Vec<String> {
             "-qp_p".into(),
             cq,
         ],
+        // libopenh264 没有 crf，用码率近似：crf 越小给得越高
+        "libopenh264" => {
+            let kbps = match crf {
+                c if c >= 28 => "4000k",
+                c if c >= 24 => "8000k",
+                _ => "12000k",
+            };
+            vec![
+                "-c:v".into(),
+                enc.into(),
+                "-b:v".into(),
+                kbps.into(),
+            ]
+        }
         _ => vec!["-c:v".into(), "libx264".into(), "-crf".into(), cq],
     };
     v.extend(base.iter().map(|s| s.to_string()));

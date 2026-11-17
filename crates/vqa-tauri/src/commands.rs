@@ -904,6 +904,7 @@ fn enc_label(enc: &str) -> String {
         "h264_qsv" => "H.264 / QSV 硬编".into(),
         "h264_amf" => "H.264 / AMF 硬编".into(),
         "libx264" => "H.264 / libx264 软编".into(),
+        "libopenh264" => "H.264 / OpenH264 软编".into(),
         "" => "H.264".into(),
         other => format!("H.264 / {other}"),
     }

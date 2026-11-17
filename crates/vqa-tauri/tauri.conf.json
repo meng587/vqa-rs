@@ -46,6 +46,13 @@
       "../../bin/mpv/mpv.exe": "bin/mpv.exe",
       "../../bin/ffmpeg.exe": "bin/ffmpeg.exe",
       "../../bin/ffprobe.exe": "bin/ffprobe.exe",
+      "../../bin/avcodec-62.dll": "bin/avcodec-62.dll",
+      "../../bin/avdevice-62.dll": "bin/avdevice-62.dll",
+      "../../bin/avfilter-11.dll": "bin/avfilter-11.dll",
+      "../../bin/avformat-62.dll": "bin/avformat-62.dll",
+      "../../bin/avutil-60.dll": "bin/avutil-60.dll",
+      "../../bin/swresample-6.dll": "bin/swresample-6.dll",
+      "../../bin/swscale-9.dll": "bin/swscale-9.dll",
       "../../bin/vkit_davs2.exe": "bin/vkit_davs2.exe",
       "../../bin/diag_secret.json": "bin/diag_secret.json"
     }
