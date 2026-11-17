@@ -1,10 +1,10 @@
 {
     "version":  "0.2.11",
     "notes":  "视听质量检测工作站 0.2.11",
-    "pub_date":  "2026-11-17T08:49:21Z",
+    "pub_date":  "2026-11-17T09:14:53Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWluL21IQ3VqcmU5Mmo5Zzh1ZzJ2d055MHozQTJhS3dQd0JnV253bnV2ck5kWTNEc0ZCL3I2VGtHVEJ6RllQOUErMFpkaTd0alI1bUFCbWlsbFE1Z0FBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0OTA1MzYwCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4xMV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjExCnB0WUswbFQ0ZzR5bzIwQkxmcjZ4Y29ocEJQR01FWWUxNzVGTjBxcVdrTkVRTm1vN2pmTUFjYVdENGxxdU5saG5xaTRNdGlnOHN6bXRtYzQwdWcwWUF3PT0K",
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXRJc1VEWWVIWFlEeEZqNW9NeEEvUUVUM1BhK2N1VHo4NnBaais2d095U2VxdUw3WWgyVUlRUE93M21mZyt0UndpdFB3QUwvOGNaZUJLTWhoaXRvMUFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0OTA2ODkzCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4xMV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjExCldFQWx2N2lzTkRIQnlnNHI4Z0QzczQ0YmFETUVNcU9jY0oxMlo1VmhtdVd2V2EwcjZrMVhMUzZNZ2l3bkJ4UHE5ZzhZTXRSbUxJbGxLV2ZZdkFKVUFRPT0K",
                                              "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.11/vqa-workbench-0.2.11-setup.exe"
                                          }
                   }

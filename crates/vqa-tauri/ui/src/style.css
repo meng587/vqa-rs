@@ -369,8 +369,14 @@ table.dt tr:hover td { background: rgba(129, 140, 248, 0.05); }
 .tok { color: var(--ok); }
 .twarn { color: var(--warn); }
 
-.chartbox { flex: 1; min-height: 120px; position: relative; }
-.chartbox .uplot { position: absolute; inset: 0; }
+.chartbox { flex: 1; min-height: 240px; position: relative; overflow: hidden; }
+/* uPlot 的 .uplot 自带内联宽高，别再 inset:0 拉伸，否则画布高度和容器对不上 */
+.chartbox .uplot { position: absolute; top: 0; left: 0; }
+.charthead {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; color: var(--mut); margin: 0 2px 8px;
+}
+.charthead .chartunit { color: var(--faint); font-size: 11px; }
 .empty {
   flex: 1; display: grid; place-items: center;
   color: var(--faint); font-size: 13px;

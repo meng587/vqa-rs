@@ -446,15 +446,17 @@ function renderErrors(res: Res) {
 }
 
 let uplotCss = false;
+let chartRO: ResizeObserver | null = null;
 function renderBitrate(res: Res | null) {
   const el = document.querySelector<HTMLElement>('[data-panel="bitrate"]')!;
   el.hidden = curTab !== "bitrate";
   if (!res) return;
-  const rates = res.rate.map((r) => r[2]);
-  if (rates.length === 0) {
+  const pts = res.rate;
+  if (pts.length === 0) {
     el.innerHTML = `<div class="empty" style="flex:1">无码率区间（流中没有 PCR）</div>`;
     return;
   }
+  const rates = pts.map((r) => r[2]);
   const avg = rates.reduce((a, b) => a + b, 0) / rates.length;
   const min = Math.min(...rates);
   const max = Math.max(...rates);
@@ -465,7 +467,12 @@ function renderBitrate(res: Res | null) {
     ${scard("最大", (max / 1e6).toFixed(3), "Mbps", "峰值", max / avg > 2 ? "var(--warn)" : "", max / avg > 2)}
     ${scard("峰均比", (max / avg).toFixed(2), "x", "max/avg")}
   </div>`;
-  el.innerHTML = cards + `<div class="panel" style="flex:1;padding:8px"><div class="chartbox" id="rate-chart"></div></div>`;
+  el.innerHTML =
+    cards +
+    `<div class="panel chartpanel" style="flex:1;min-height:0;display:flex;flex-direction:column;padding:10px 12px">
+       <div class="charthead"><span>码率曲线</span><span class="chartunit">纵轴 Mbps · 横轴 秒</span></div>
+       <div class="chartbox" id="rate-chart"></div>
+     </div>`;
 
   import("uplot").then(async (m) => {
     const uPlot = m.default;
@@ -474,45 +481,88 @@ function renderBitrate(res: Res | null) {
       await import("uplot/dist/uPlot.min.css");
       uplotCss = true;
     }
-    const host = document.getElementById("rate-chart")!;
+    if (chartRO) {
+      chartRO.disconnect();
+      chartRO = null;
+    }
     if (chart) {
       chart.destroy();
       chart = null;
     }
-    const w = host.clientWidth || 600;
-    const hgt = host.clientHeight || 240;
-    chart = new uPlot(
-      {
-        width: w,
-        height: hgt,
-        cursor: { show: false },
-        legend: { show: false },
-        axes: [
-          {
-            stroke: "#71717a",
-            grid: { stroke: "rgba(63,63,70,.35)", width: 1 },
-            ticks: { stroke: "#3f3f46" },
-            values: (_, ticks) => ticks.map((t: number) => String(Math.round(t))),
-          },
-          {
-            stroke: "#71717a",
-            grid: { stroke: "rgba(63,63,70,.35)", width: 1 },
-            size: 62,
-            values: (_, ticks) => ticks.map((t: number) => `${(t / 1e6).toFixed(2)}`),
-          },
-        ],
-        series: [
-          {},
-          {
-            stroke: "#818cf8",
-            width: 1.4,
-            points: { show: false },
-          },
-        ],
-      },
-      [rates.map((_, i) => i), rates],
-      host,
-    );
+    // 超长流：横轴用 mm:ss
+    const span = Math.max(pts[pts.length - 1][1] - pts[0][0], 0);
+    const clock = span >= 120;
+    const fmtX = (t: number) => {
+      const s = Math.max(0, Math.round(t));
+      if (!clock) return String(s);
+      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    };
+    // 刻度小数位按量级统一（避免 36.7 与 110 混排）
+    const yDecimals = max / 1e6 >= 100 ? 0 : max / 1e6 >= 20 ? 1 : 2;
+    const fmtY = (v: number) => (v / 1e6).toFixed(yDecimals);
+
+    const build = () => {
+      const host = document.getElementById("rate-chart");
+      if (!host) return;
+      const w = Math.max(300, host.clientWidth);
+      const h = Math.max(240, host.clientHeight);
+      chart = new uPlot(
+        {
+          width: w,
+          height: h,
+          cursor: { show: false },
+          legend: { show: false },
+          padding: [8, 8, 0, 0],
+          axes: [
+            {
+              stroke: "#71717a",
+              font: "11px system-ui, sans-serif",
+              grid: { stroke: "rgba(63,63,70,.35)", width: 1 },
+              ticks: { stroke: "#3f3f46", size: 4 },
+              size: 48,
+              values: (_u, ticks) => ticks.map((t: number) => fmtX(t)),
+            },
+            {
+              stroke: "#71717a",
+              font: "11px system-ui, sans-serif",
+              grid: { stroke: "rgba(63,63,70,.35)", width: 1 },
+              ticks: { stroke: "#3f3f46", size: 4 },
+              size: 58,
+              // 固定 6 条刻度线（0 起、均分），高度变化时刻度数量不再塌缩
+              splits: (_u: any, _ai: number, lo: number, hi: number) => {
+                const n = 6;
+                const out: number[] = [];
+                for (let i = 0; i <= n; i++) out.push(lo + ((hi - lo) * i) / n);
+                return hi > lo ? out : [lo];
+              },
+              values: (_u, ticks) => ticks.map((t: number) => fmtY(t)),
+            },
+          ],
+          series: [
+            {},
+            {
+              stroke: "#818cf8",
+              width: 1.4,
+              points: { show: false },
+              fill: "rgba(129,140,248,.12)",
+            },
+          ],
+        },
+        [pts.map((r) => r[0]), rates],
+        host,
+      );
+      chartRO = new ResizeObserver(() => {
+        const box = document.getElementById("rate-chart");
+        if (!box || !chart) return;
+        chart.setSize({
+          width: Math.max(300, box.clientWidth),
+          height: Math.max(240, box.clientHeight),
+        });
+      });
+      chartRO.observe(host);
+    };
+    // 等布局落定（innerHTML 刚换完时 clientHeight 只是 min-height）
+    requestAnimationFrame(() => requestAnimationFrame(build));
   });
 }
 
