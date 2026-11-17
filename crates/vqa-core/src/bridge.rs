@@ -145,6 +145,7 @@ pub struct RealtimeBridge {
 impl RealtimeBridge {
     /// 起桥。`chain10` 为 true 走三段链（10-bit AVS2）。
     /// `localaddr`：组播源的出口网卡（空 = 自动）。
+    /// `audio_lead`：源里音频比画面提前的秒数（>0 时裁掉音频头，否则全程恒差错位）。
     pub fn start(
         ffmpeg: &Path,
         davs2: &Path,
@@ -152,6 +153,7 @@ impl RealtimeBridge {
         chain10: bool,
         crf: i32,
         localaddr: &str,
+        audio_lead: f64,
     ) -> Result<RealtimeBridge, String> {
         let port = free_udp_port().map_err(|e| format!("挑 UDP 端口失败：{e}"))?;
         let local = is_local(url);
@@ -327,6 +329,19 @@ impl RealtimeBridge {
         cmd3.args(["-map", "0:v:0"]);
         if local {
             cmd3.args(["-map", "1:a:0?"]);
+            // ★ 音画同步：源里音频常比画面早到（抓流/录制起点所致）。
+            //   视频走 y4m 管道，时间戳从 0 重排；音频按源时间轴走——
+            //   不裁头就是全程恒定"声音超前画面 audio_lead 秒"（实测 avs1.ts
+            //   音频 1.400s 起、视频 3.256s 起，错位 1.856s）。
+            if audio_lead > 0.05 {
+                cmd3.args([
+                    "-af",
+                    &format!(
+                        "atrim=start={:.3},asetpts=PTS-STARTPTS",
+                        audio_lead
+                    ),
+                ]);
+            }
         }
         // ★ 10-bit → 8-bit：davs2 输出 yuv420p10le（y4m C420p10），而
         //   h264_nvenc 对 10-bit H.264 报 "No capable devices found"
@@ -438,8 +453,9 @@ impl RealtimeBridge {
             }
             // p3 交给 procs：正常结束自己退出；用户中途停止时 stop() kill
             procs.lock().unwrap().push(p3);
-            // 读端就绪窗口（mpv 在 Outcome 收割后才连接，listen 已就绪）
-            std::thread::sleep(Duration::from_millis(1200));
+            // 读端就绪窗口：TCP listen 随 spawn 就绪，mpv 在 Outcome 收割后才连接，
+            // 这里只需给首包留一点余量——原 1200ms 是白等（起播慢的直接原因之一）。
+            std::thread::sleep(Duration::from_millis(400));
             // 立即返回：mpv 连接 tcp 流，抽流+解码在前台继续
             return Ok(RealtimeBridge {
                 procs,

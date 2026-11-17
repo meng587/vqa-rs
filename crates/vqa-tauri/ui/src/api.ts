@@ -122,6 +122,17 @@ export interface NicRow {
   ifindex: number;
 }
 
+/** 多节目 TS 的单个节目（播放器「节目」下拉） */
+export interface ProgRow {
+  /** 节目号（PAT/PMT 里的 program_id，显示用） */
+  number: number;
+  /** ffmpeg `-map 0:p:N` 用的节目序号（从 1 起，按 PAT 顺序） */
+  ord: number;
+  pmt_pid: number;
+  /** 「视频 h264」「音频 aac」 */
+  streams: string[];
+}
+
 export const api = {
   // 通用
   appVersion: () => invoke<string>("app_version"),
@@ -151,6 +162,9 @@ export const api = {
   // 播放器
   play: (url: string, nicIp: string, forceBridge: boolean) =>
     invoke<void>("player_play", { url, nicIp, forceBridge }),
+  /** ★ 开播前预热：文件一选定/拖入就在后台转码攒缓存，点播放直接读缓存秒开 */
+  prewarm: (url: string, nicIp: string, forceBridge: boolean) =>
+    invoke<void>("player_prewarm", { url, nicIp, forceBridge }),
   stop: () => invoke<void>("player_stop"),
   pauseToggle: () => invoke<void>("player_pause_toggle"),
   seek: (fraction: number) => invoke<void>("player_seek", { fraction }),
@@ -161,6 +175,12 @@ export const api = {
   /** 播放画面上的媒体信息浮层（Tab）；lines 为空 = 收起 */
   playerOsd: (lines: string[], resX: number, resY: number) =>
     invoke<void>("player_osd", { lines, resX, resY }),
+  /** 多节目 TS 的节目列表（只读 PAT/PMT，单节目返回 1 条） */
+  playerPrograms: (url: string, nicIp: string) =>
+    invoke<ProgRow[]>("player_programs", { url, nicIp }),
+  /** 切节目：后端用 ffmpeg 抽出该节目喂给 mpv（ord 为 ffmpeg 的节目序号，从 1 起） */
+  playerSetProgram: (url: string, program: number, nicIp: string) =>
+    invoke<void>("player_set_program", { url, program, nicIp }),
   snapshot: () => invoke<PlayerStateJson>("player_snapshot"),
   snapshotSave: () => invoke<string>("player_snapshot_save"),
   recordToggle: () => invoke<string>("player_record_toggle"),
@@ -177,6 +197,9 @@ export const api = {
     invoke<{ total: number; rows: { idx: number; pid: number; pusi: boolean; afc: number; cc: number; hex: string }[] }>("packet_rows", { start, count }),
   exportReport: (path?: string) =>
     invoke<string | null>("export_report_md", { path: path ?? null }),
+  /** 导出 HTML/CSV 报告（系统保存对话框） */
+  reportExport: (name: string, content: string, ext: string) =>
+    invoke<string | null>("report_export", { name, content, ext }),
   // 诊断日志
   diagCollect: () => invoke<{ name: string; content: string }>("diag_collect"),
   diagExport: (name: string, content: string) =>

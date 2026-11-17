@@ -1,11 +1,11 @@
 {
-    "version":  "0.2.10",
-    "notes":  "播放中按 Tab 在画面上叠加媒体信息（mpv OSD）",
-    "pub_date":  "2026-11-16T23:15:34Z",
+    "version":  "0.2.11",
+    "notes":  "视听质量检测工作站 0.2.11",
+    "pub_date":  "2026-11-17T08:49:21Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWpyRkhzMlVVMEREOE1VeEJ5OE5NalBFUU50L2VYd0lYb05ibXVsNFc0NzZwaC9VUnBVTFRxYlAzQVl2TWhqanpLUU1TRzhvZjdhUG92clp4SVErS0FFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0ODcwOTM0CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4xMF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjEwCkJUUXNpYjFja1F4aGtxUnF1QTBwdmg3WWNLSFo3R1RqS2ZGU0FrYkJEb2RWcmtZVDdGMjJNQmMvZzBKRWdlQjNtcU1hQVVuMFZTcVV6eDl3RE80QUFBPT0K",
-                                             "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.10/vqa-workbench-0.2.10-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWluL21IQ3VqcmU5Mmo5Zzh1ZzJ2d055MHozQTJhS3dQd0JnV253bnV2ck5kWTNEc0ZCL3I2VGtHVEJ6RllQOUErMFpkaTd0alI1bUFCbWlsbFE1Z0FBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0OTA1MzYwCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4xMV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjExCnB0WUswbFQ0ZzR5bzIwQkxmcjZ4Y29ocEJQR01FWWUxNzVGTjBxcVdrTkVRTm1vN2pmTUFjYVdENGxxdU5saG5xaTRNdGlnOHN6bXRtYzQwdWcwWUF3PT0K",
+                                             "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.11/vqa-workbench-0.2.11-setup.exe"
                                          }
                   }
 }

@@ -31,7 +31,10 @@ extern "system" {
 
 #[link(name = "kernel32")]
 extern "system" {
+    // 仅 test 造 HDROP 用，release 构建里没有调用点
+    #[allow(dead_code)]
     fn GlobalAlloc(flags: u32, bytes: usize) -> *mut core::ffi::c_void;
+    #[allow(dead_code)]
     fn GlobalFree(h: *mut core::ffi::c_void) -> *mut core::ffi::c_void;
     fn GlobalLock(h: *mut core::ffi::c_void) -> *mut core::ffi::c_void;
     fn GlobalUnlock(h: *mut core::ffi::c_void) -> i32;

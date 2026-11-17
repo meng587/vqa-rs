@@ -144,6 +144,48 @@ pub fn collect(
 
 pub static APP_START: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
 
+/// 随安装包下发的上传凭据（`bin/diag_secret.json`，内容 `{"token":"..."}`）。
+///
+/// 打包时由 `tools/release.ps1` 从本机 `%APPDATA%\vqa\shared\settings.json` 的
+/// `diag_token` 生成，文件名匹配 `.gitignore` 的 `secret*.json`，不进代码库。
+/// 目的是让「装完即能上传」：新机器没有本机保存的凭据时用它兜底。
+pub fn bundled_token() -> Option<String> {
+    let exe = std::env::current_exe().ok()?;
+    let dir = exe.parent()?;
+    for p in [
+        dir.join("bin").join("diag_secret.json"),
+        dir.join("diag_secret.json"),
+    ] {
+        if let Ok(txt) = std::fs::read_to_string(&p) {
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&txt) {
+                if let Some(t) = v.get("token").and_then(|t| t.as_str()) {
+                    let t = t.trim();
+                    if !t.is_empty() {
+                        return Some(t.to_string());
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+/// 实际可用的上传凭据：本机已保存 → 环境变量 `VQA_DIAG_TOKEN` → 安装包自带。
+pub fn resolve_token() -> Option<String> {
+    let saved: String = vqa_core::config::shared_get_or("diag_token", String::new());
+    let saved = saved.trim().to_string();
+    if !saved.is_empty() {
+        return Some(saved);
+    }
+    if let Ok(t) = std::env::var("VQA_DIAG_TOKEN") {
+        let t = t.trim().to_string();
+        if !t.is_empty() {
+            return Some(t);
+        }
+    }
+    bundled_token()
+}
+
 /// 上传到仓库 `logs/` 目录（Gitee Contents API；token 存 shared config `diag_token`）。
 /// 日志文件直接进仓库，维护者 git pull 即可阅读分析。
 pub fn upload_issue(token: &str, name: &str, content: &str) -> Result<String, String> {

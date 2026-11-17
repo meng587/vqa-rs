@@ -30,6 +30,8 @@ pub enum ProbeMsg {
 /// 桥句柄的统一接口——实时桥（RealtimeBridge）与并行分片桥（ParBridge）
 /// 对外行为一致，播放器状态只认这个接口。
 pub trait BridgeHandle: Send {
+    /// 保留接口：桥地址由 state 侧另存，实现里仍然提供（便于诊断打印）
+    #[allow(dead_code)]
     fn url(&self) -> String;
     fn mode(&self) -> String;
     /// 缓存/文件桥：EOF 播完是正常结束（豁免"2 分钟无画面"误报）
@@ -37,6 +39,10 @@ pub trait BridgeHandle: Send {
     fn alive(&self) -> usize;
     fn stderr_tail(&self) -> String;
     fn progress(&self) -> String;
+    /// mpv 已绑上 UDP 端口 → 放开发送（只有分片桥需要，实时桥空实现）
+    fn go(&self) {}
+    /// 保留接口：现在的停止路径直接 drop 句柄，实现仍提供
+    #[allow(dead_code)]
     fn stop(&self);
 }
 
@@ -83,6 +89,9 @@ impl BridgeHandle for vqa_core::bridge_par::ParBridge {
     fn progress(&self) -> String {
         vqa_core::bridge_par::ParBridge::progress(self)
     }
+    fn go(&self) {
+        vqa_core::bridge_par::ParBridge::go(self)
+    }
     fn stop(&self) {
         vqa_core::bridge_par::ParBridge::stop(self)
     }
@@ -114,6 +123,11 @@ pub struct PlayerState {
     pub bridge_url: Mutex<String>,
     /// 桥就绪时刻（2.6 性能诊断的计时起点；起播瞬间 mpv 短暂 idle 不算失败）
     pub bridge_since: Mutex<Option<std::time::Instant>>,
+    /// 桥流是否已经喂给 mpv（预转模式下要等全片转完才 loadfile——
+    /// mpv 打开 udp 时读不到数据会立刻判"无法识别格式"并放弃，之后不再重试）
+    pub bridge_loaded: Mutex<bool>,
+    /// 桥开始推流的时刻：loadfile 要等数据流稳定一下再进行，否则 mpv 打开的是空流
+    pub bridge_ready_at: Mutex<Option<std::time::Instant>>,
     /// 桥是否已出过画面——流式桥播完 EOF 回 idle 是正常结束，
     /// 不能被 2.6 的"2 分钟无画面"误报
     pub bridge_had_picture: Mutex<bool>,
@@ -125,8 +139,18 @@ pub struct PlayerState {
     pub bridge_enc: Mutex<String>,
     /// 播放采样节流（诊断包每 5s 采一条 avsync/丢帧/码率）
     pub last_sample: Mutex<Option<std::time::Instant>>,
+    /// ★ 开播前预热（后台静默转码，把关的缓存先攒出来）：
+    ///   文件一拖入/选定就起桥转码，用户点播放时要么直接命中缓存（0.3~1 秒），
+    ///   要么接上已经在跑的桥（数据早已写好，mpv 一读就有）。
+    ///   存 (规范化后的源 url, 已经在跑的桥句柄)。
+    pub prewarm: Mutex<Option<(String, Box<dyn BridgeHandle>)>>,
+    /// 正在预热（还没起成桥）的源。用户在这 1~2 秒里点播放时，靠它避免
+    /// 又起一条桥、两条链同时写同一个缓存文件。
+    pub prewarm_url: Mutex<String>,
     /// 上一轮采样时的丢帧计数，用于"丢帧突增"事件
     pub last_drop: Mutex<i64>,
+    /// 抽节目模式的 ffmpeg 子进程（mpv 从 fd://0 读它的输出）
+    pub feed: Mutex<Option<std::process::Child>>,
 }
 
 impl PlayerState {
@@ -148,11 +172,16 @@ impl PlayerState {
             bridge_last_retry: Mutex::new(None),
             bridge_url: Mutex::new(String::new()),
             bridge_since: Mutex::new(None),
+            bridge_loaded: Mutex::new(false),
+            bridge_ready_at: Mutex::new(None),
             bridge_had_picture: Mutex::new(false),
             loop_file: Mutex::new(false),
             bridge_enc: Mutex::new(String::new()),
             last_sample: Mutex::new(None),
+            prewarm: Mutex::new(None),
+            prewarm_url: Mutex::new(String::new()),
             last_drop: Mutex::new(0),
+            feed: Mutex::new(None),
         }
     }
 

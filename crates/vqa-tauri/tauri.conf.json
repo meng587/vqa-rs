@@ -37,8 +37,17 @@
     "targets": ["nsis"],
     "createUpdaterArtifacts": true,
     "icon": ["icons/icon.ico"],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico"
+      }
+    },
     "resources": {
-      "../../bin/mpv/mpv.exe": "bin/mpv.exe"
+      "../../bin/mpv/mpv.exe": "bin/mpv.exe",
+      "../../bin/ffmpeg.exe": "bin/ffmpeg.exe",
+      "../../bin/ffprobe.exe": "bin/ffprobe.exe",
+      "../../bin/vkit_davs2.exe": "bin/vkit_davs2.exe",
+      "../../bin/diag_secret.json": "bin/diag_secret.json"
     }
   }
 }

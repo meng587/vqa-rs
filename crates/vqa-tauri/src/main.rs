@@ -167,6 +167,7 @@ fn main() {
             commands::diag_has_token,
             // 播放器
             commands::place_video,
+            commands::player_prewarm,
             commands::player_play,
             commands::player_stop,
             commands::player_pause_toggle,
@@ -176,6 +177,9 @@ fn main() {
             commands::player_set_speed,
             commands::player_set_loop,
             commands::player_osd,
+            commands::player_programs,
+            commands::player_set_program,
+            commands::report_export,
             commands::player_snapshot,
             commands::player_snapshot_save,
             commands::player_record_toggle,

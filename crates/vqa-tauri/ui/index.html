@@ -34,6 +34,8 @@
         </div>
         <span class="lbl">网卡</span>
         <select class="nic" id="p-nic"></select>
+        <span class="lbl" id="p-proglbl" hidden>节目</span>
+        <select class="nic progsel" id="p-prog" hidden title="多节目 TS 切换节目"></select>
         <div class="vsep"></div>
         <button class="gradbtn" id="p-act"><span data-ic="play"></span>开始播放</button>
         <div class="vsep"></div>
@@ -98,6 +100,8 @@
         <div class="vsep"></div>
         <div class="icogroup">
           <button class="iconbtn ghost" id="a-browse" title="浏览本地文件…" data-ic="folder"></button>
+          <button class="iconbtn ghost" id="a-export" title="导出报告（Markdown）" data-ic="download"></button>
+          <button class="iconbtn ghost" id="a-export-html" title="导出报告（HTML，可直接打开）" data-ic="download"></button>
           <button class="iconbtn ghost" id="a-set" title="视频分析设置" data-ic="settings"></button>
         </div>
       </div>

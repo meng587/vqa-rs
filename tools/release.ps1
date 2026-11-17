@@ -27,6 +27,25 @@ $ver = [regex]::Match($toml, '(?m)^version\s*=\s*"([^"]+)"').Groups[1].Value
 if (-not $ver) { throw 'Cargo.toml 里没读到 version' }
 Write-Host "版本：$ver"
 
+# ---- 2.5 随包下发上传凭据（bin/diag_secret.json，匹配 .gitignore 的 secret*.json） ----
+# 新机器装完即可「上传诊断包给开发者」，不必先在本机存 token。
+$diagTok = $env:VQA_DIAG_TOKEN
+if (-not $diagTok) {
+  $settings = Join-Path $env:APPDATA 'vqa\shared\settings.json'
+  if (Test-Path -LiteralPath $settings) {
+    try { $diagTok = (Get-Content -LiteralPath $settings -Raw | ConvertFrom-Json).diag_token } catch { $diagTok = '' }
+  }
+}
+$secretFile = Join-Path $root 'bin\diag_secret.json'
+if ($diagTok) {
+  $doc = [ordered]@{ token = "$diagTok".Trim() }
+  [IO.File]::WriteAllText($secretFile, (($doc | ConvertTo-Json) + "`n"), (New-Object Text.UTF8Encoding $false))
+  Write-Host "上传凭据：已写入 bin\diag_secret.json（随安装包分发）"
+} else {
+  [IO.File]::WriteAllText($secretFile, '{"token":""}' + "`n", (New-Object Text.UTF8Encoding $false))
+  Write-Host "上传凭据：本机无 diag_token，安装包内将不含可用凭据（上传会提示未配置）"
+}
+
 # ---- 3. 前端 + 打包（带签名） ----
 $ui = Join-Path $root 'crates\vqa-tauri\ui'
 Push-Location -LiteralPath $ui

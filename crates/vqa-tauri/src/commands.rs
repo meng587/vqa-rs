@@ -8,7 +8,7 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use tauri::State;
 
-use crate::state::{AnalysisState, Launch, PlayerState, ProbeMsg};
+use crate::state::{AnalysisState, BridgeHandle, Launch, PlayerState, ProbeMsg};
 use vqa_core::probe;
 
 // ═══════════════════════════ 通用 ═══════════════════════════
@@ -223,7 +223,8 @@ pub fn diag_export(
     Ok(Some(dest))
 }
 
-/// 上传诊断包给开发者（凭据存本机 shared config `diag_token`，界面不再暴露输入框）。
+/// 上传诊断包给开发者（凭据：本机 saved > `VQA_DIAG_TOKEN` > 安装包自带的
+/// `bin/diag_secret.json`；界面不再暴露输入框）。
 #[tauri::command]
 pub fn diag_upload(token: Option<String>, name: String, content: String) -> Result<String, String> {
     let tok = match token {
@@ -231,23 +232,17 @@ pub fn diag_upload(token: Option<String>, name: String, content: String) -> Resu
             let _ = vqa_core::config::shared_set("diag_token", serde_json::json!(t.trim()));
             t.trim().to_string()
         }
-        _ => {
-            let saved: String =
-                vqa_core::config::shared_get_or("diag_token", String::new());
-            if saved.is_empty() {
-                return Err("本机未配置上传凭据，请先用「导出诊断包到本地」把文件发给开发者".into());
-            }
-            saved
-        }
+        _ => crate::diag::resolve_token().ok_or_else(|| {
+            "本机未配置上传凭据，请先用「导出诊断包到本地」把文件发给开发者".to_string()
+        })?,
     };
     crate::diag::upload_issue(&tok, &name, &content)
 }
 
-/// 已保存的 token 是否存在（前端决定是否显示输入框）。
+/// 是否具备上传能力（本机已存或安装包自带凭据）。
 #[tauri::command]
 pub fn diag_has_token() -> bool {
-    let saved: String = vqa_core::config::shared_get_or("diag_token", String::new());
-    !saved.is_empty()
+    crate::diag::resolve_token().is_some()
 }
 
 #[tauri::command]
@@ -273,6 +268,154 @@ pub fn place_video(
     }
 }
 
+/// 收掉抽节目模式的 ffmpeg 子进程（mpv 会因 stdin EOF 回 idle）
+fn kill_feed(st: &PlayerState) {
+    if let Some(mut c) = st.feed.lock().unwrap().take() {
+        let _ = c.kill();
+        let _ = c.wait();
+    }
+}
+
+// ═══════════════════════════ 播放器：开播前预热 ═══════════════════════════
+/// 预热窗口的收尾标记：线程结束（成功/早退/失败）都把 `prewarm_url` 清掉，
+/// 免得留下"正在预热"的假状态，让下一次点播放白等 3 秒。
+struct PrewarmMark(tauri::AppHandle, String);
+
+impl Drop for PrewarmMark {
+    fn drop(&mut self) {
+        use tauri::Manager;
+        let st = self.0.state::<PlayerState>();
+        let mut u = st.prewarm_url.lock().unwrap();
+        if *u == self.1 {
+            u.clear();
+        }
+    }
+}
+
+/// ★ 文件一拖入/选定就在后台起桥转码，点播放时直接读缓存。
+///
+/// 起播慢的账是硬账：准备（音频规范化 ∥ 切分片）1.6~1.8 秒 + 首片整链 4.3 秒
+/// + mpv 探测出画 0.4~0.6 秒 ≈ 7 秒。这段算力开销压不掉，只能**提前花掉**——
+/// 挪到用户拖入文件、看信息、挑时间那段空闲里，点播放时就是缓存命中（0.3~1 秒）。
+///
+/// 只给真正需要桥的本地 AVS 源预热：能直放的文件本来就秒开，预热纯属白烧 CPU。
+#[tauri::command]
+pub fn player_prewarm(
+    app: tauri::AppHandle,
+    url: String,
+    nic_ip: String,
+    force_bridge: bool,
+) -> Result<(), String> {
+    use tauri::Manager;
+    let cleaned = crate::clean_stream_url(&url);
+    if cleaned.is_empty() {
+        return Err("来源为空".into());
+    }
+    {
+        // 同一个文件已经在预热：不重来（每重起一次都作废已转好的分片）
+        let st = app.state::<PlayerState>();
+        if let Some((u, _)) = st.prewarm.lock().unwrap().as_ref() {
+            if u == &cleaned {
+                return Ok(());
+            }
+        }
+        // 已经在播这个文件：没必要再起一座并行的桥抢 NVENC
+        let playing = st.playing_url.lock().unwrap().clone();
+        if !playing.is_empty() && playing == cleaned {
+            return Ok(());
+        }
+        // 打上"正在预热"标记：这 1~2 秒里用户点播放，player_play 会等桥就位再接手，
+        // 不会另起一条链同时写同一个缓存文件
+        *st.prewarm_url.lock().unwrap() = cleaned.clone();
+    }
+    let app2 = app.clone();
+    std::thread::Builder::new()
+        .name("vqa-prewarm".into())
+        .spawn(move || {
+            use tauri::Manager;
+            // 线程退出（成功/早退/失败）时把标记清掉，不留假状态
+            let _mark = PrewarmMark(app2.clone(), cleaned.clone());
+            // 探测（probe_quick 内部带缓存，重复调用近乎零成本）
+            let q = probe::probe_quick(
+                &cleaned,
+                if vqa_core::bridge::is_local(&cleaned) { 5.0 } else { 6.0 },
+                &nic_ip,
+            );
+            if !vqa_core::bridge::needs_bridge(&q, force_bridge) {
+                return; // 直放够快，不需要预热
+            }
+            // 与 decide_bridge 同口径：只有 AVS2/10-bit 的本地源才走 chain10 桥
+            let chain10 = q
+                .as_ref()
+                .map(|x| x.video.codec.contains("avs2") || x.video.pix_fmt.contains("10"))
+                .unwrap_or(false);
+            if !chain10 || !vqa_core::bridge::is_local(&cleaned) {
+                return;
+            }
+            let Some(ffmpeg) = vqa_core::tools::find_ffmpeg() else {
+                return;
+            };
+            let Some(davs2) = vqa_core::tools::find_davs2() else {
+                return;
+            };
+            let audio_lead = q.as_ref().map(|x| x.audio_lead()).unwrap_or(0.0);
+            match vqa_core::bridge_par::ParBridge::start(&ffmpeg, &davs2, &cleaned, 26, audio_lead) {
+                Ok(pb) => {
+                    let prog = pb.progress();
+                    crate::events::ev("prewarm", &format!("后台预热已起（{prog}）"));
+                    let st = app2.state::<PlayerState>();
+                    // 这段时间用户可能已经点了播放（桥被认领走）或换了文件：只在
+                    // 槽里还空着、且没在播同一个文件时才存下，免得两份同时写缓存
+                    let playing = st.playing_url.lock().unwrap().clone();
+                    if !playing.is_empty() && playing == cleaned {
+                        crate::events::ev("prewarm", "已在播放，丢弃这次预热");
+                        return;
+                    }
+                    // 用户在等预热期间换去播别的文件了：这条预热没意义，收掉让出 NVENC
+                    if !playing.is_empty() {
+                        crate::events::ev("prewarm", "正在播别的文件，预热让位");
+                        return;
+                    }
+                    {
+                        // 槽里若不是同一个文件（更晚的预热占了位），别覆盖
+                        let mut pw = st.prewarm.lock().unwrap();
+                        match pw.as_ref() {
+                            Some((u, _)) if u != &cleaned => return,
+                            _ => {}
+                        }
+                        *pw = Some((cleaned.clone(), Box::new(pb)));
+                    }
+                    // 盯到转完：完成后把桥收掉，只留磁盘缓存（下次播放直接命中）
+                    loop {
+                        std::thread::sleep(std::time::Duration::from_millis(500));
+                        let st2 = app2.state::<PlayerState>();
+                        let mut pw = st2.prewarm.lock().unwrap();
+                        let (ours, p) = match pw.as_ref() {
+                            Some((u, b)) if u == &cleaned => (true, b.progress()),
+                            _ => (false, String::new()),
+                        };
+                        if !ours {
+                            break; // 已被播放认领走，或用户换了文件
+                        }
+                        if !(p.starts_with("准备中")
+                            || p.starts_with("预转")
+                            || p.starts_with("转码"))
+                        {
+                            *pw = None; // Drop → stop；已 done 的缓存文件保留
+                            crate::events::ev("prewarm", "预热完成，已转成缓存");
+                            break;
+                        }
+                    }
+                }
+                Err(e) => {
+                    vqa_core::config::log_line("prewarm", &format!("预热起不来：{e}"));
+                }
+            }
+        })
+        .ok();
+    Ok(())
+}
+
 #[tauri::command]
 pub fn player_play(
     st: State<'_, PlayerState>,
@@ -280,16 +423,52 @@ pub fn player_play(
     nic_ip: String,
     force_bridge: bool,
 ) -> Result<(), String> {
+    // 上一次若切过节目，先收掉抽流进程（mpv 会回 idle，接着 loadfile 正常播）
+    kill_feed(&st);
     let cleaned = crate::clean_stream_url(&url);
     if cleaned.is_empty() {
         return Err("来源为空".into());
     }
+    // ★ 预热复用：同一个文件已经在后台预热过，就直接接上那座桥——转码早在跑、
+    //   缓存也在同步写，用户点播放时要么直接是缓存（0.3~1 秒），要么 mpv 一读
+    //   就有数据（不必再等首片 4~7 秒）。换文件则把旧预热丢掉（Drop 会 kill 子进程）。
+    let adopted: Option<Box<dyn BridgeHandle>> = {
+        // 若此刻预热刚起步（桥还没立起来），等它一下再接手——否则会另起一条
+        // 并行链同时写同一个缓存文件，两份输出互相踩。
+        let mut waited_ms = 0u64;
+        loop {
+            {
+                let mut pw = st.prewarm.lock().unwrap();
+                match pw.as_ref() {
+                    Some((u, _)) if u == &cleaned => {
+                        let b = pw.take().map(|(_, b)| b);
+                        break b;
+                    }
+                    Some(_) => {
+                        // 别的文件在预热：丢掉
+                        *pw = None;
+                        break None;
+                    }
+                    None => {}
+                }
+            }
+            let pending = st.prewarm_url.lock().unwrap().clone();
+            if pending == cleaned && waited_ms < 3000 {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                waited_ms += 100;
+                continue;
+            }
+            break None;
+        }
+    };
     // 停旧桥、清错误
     *st.bridge.lock().unwrap() = None;
     *st.bridge_note.lock().unwrap() = String::new();
     *st.bridge_url.lock().unwrap() = String::new();
     *st.bridge_since.lock().unwrap() = None;
     *st.bridge_had_picture.lock().unwrap() = false;
+    *st.bridge_loaded.lock().unwrap() = false;
+    *st.bridge_ready_at.lock().unwrap() = None;
     *st.preparing.lock().unwrap() = true;
     *st.err.lock().unwrap() = None;
     *st.playing_url.lock().unwrap() = cleaned.clone();
@@ -331,7 +510,7 @@ pub fn player_play(
                 &nic_ip,
             );
             let _ = tx.send(ProbeMsg::Info(q.clone()));
-            let outcome = decide_bridge(&q, force_bridge, &probe_url, &nic_ip, &tx);
+            let outcome = decide_bridge(&q, force_bridge, &probe_url, &nic_ip, &tx, adopted);
             let _ = tx.send(ProbeMsg::Outcome(outcome));
         })
         .ok();
@@ -349,8 +528,11 @@ fn decide_bridge(
     url: &str,
     nic_ip: &str,
     bridge_wait_tx: &std::sync::mpsc::Sender<ProbeMsg>,
+    adopt: Option<Box<dyn BridgeHandle>>,
 ) -> Launch {
     let need = vqa_core::bridge::needs_bridge(q, force);
+    // ★ 音画同步修正量：源里音频比画面早到多少秒（桥必须裁掉音频头）
+    let audio_lead = q.as_ref().map(|x| x.audio_lead()).unwrap_or(0.0);
     vqa_core::config::log_line(
         "bridge-decide",
         &format!(
@@ -363,6 +545,30 @@ fn decide_bridge(
     );
     if !need {
         return Launch::Direct;
+    }
+    // ★ 预先预热好的桥优先复用：这座桥从文件拖入那一刻就在转码，缓存也一直在
+    //   同步写。命中完整缓存时它 mode=cache（url 就是 .ts 文件）→ 直接秒开；
+    //   还在转码时它 mode=par（url 是回环 TCP）→ mpv 一读就有数据，不必等首片。
+    if let Some(b) = adopt {
+        let prog = b.progress();
+        let still_streaming = prog.starts_with("准备中")
+            || prog.starts_with("预转")
+            || prog.starts_with("转码");
+        if still_streaming || b.mode() == "cache" {
+            let reason = format!("预热复用（{}，{}）", b.mode(), prog);
+            let burl = b.url();
+            vqa_core::config::log_line("bridge-decide", &format!("复用预热桥：{reason} → {burl}"));
+            let _ = bridge_wait_tx.send(ProbeMsg::Bridging(reason.clone()));
+            return Launch::Bridged {
+                url: burl,
+                reason,
+                bridge: b,
+            };
+        }
+        // ★ 已经转完的桥：TCP 发送端随时会收工，接上去有打不开的风险。
+        //   直接丢掉，让下面的常规流程去命中磁盘缓存（.done 已在，0.3~1 秒）。
+        vqa_core::config::log_line("bridge-decide", "预热已转完，改走缓存命中");
+        drop(b);
     }
     vqa_core::config::log_line("bridge-decide", "起 10-bit chain10 桥…");
     // ★ 立刻告知前端"转码中"——全片转码大文件要 1-3 分钟，无反馈会被
@@ -399,7 +605,7 @@ fn decide_bridge(
     //   ~1.85×，转码跑在播放前面——秒开、流畅、二次打开走缓存可拖动。
     //   起不来（切不出分片等）回退实时桥。
     if chain10 && vqa_core::bridge::is_local(url) {
-        match vqa_core::bridge_par::ParBridge::start(&ffmpeg, &davs2, url, 26) {
+        match vqa_core::bridge_par::ParBridge::start(&ffmpeg, &davs2, url, 26, audio_lead) {
             Ok(pb) => {
                 let reason = format!("并行转码桥（{}，{}）", pb.mode(), pb.progress());
                 let url = pb.url();
@@ -417,7 +623,7 @@ fn decide_bridge(
             }
         }
     }
-    match vqa_core::bridge::RealtimeBridge::start(&ffmpeg, &davs2, url, chain10, 26, nic_ip) {
+    match vqa_core::bridge::RealtimeBridge::start(&ffmpeg, &davs2, url, chain10, 26, nic_ip, audio_lead) {
         Ok(b) => {
             let reason = format!("AVS 源自动转码桥（{}）", b.mode);
             let url = b.url();
@@ -433,6 +639,7 @@ fn decide_bridge(
 
 #[tauri::command]
 pub fn player_stop(st: State<PlayerState>) {
+    kill_feed(&st);
     *st.playing_url.lock().unwrap() = String::new();
     *st.bridge.lock().unwrap() = None;
     *st.bridge_enc.lock().unwrap() = String::new();
@@ -441,7 +648,7 @@ pub fn player_stop(st: State<PlayerState>) {
     *st.bridge_since.lock().unwrap() = None;
     *st.preparing.lock().unwrap() = false;
     if let Some(m) = st.mpv.lock().unwrap().as_ref() {
-        m.stop();
+        let _ = m.stop();
     }
 }
 
@@ -468,10 +675,10 @@ pub fn player_pause_toggle(st: State<PlayerState>) {
                 //   第二次会命中缓存，直接播本地文件（秒开、可拖动）
                 replay_via_play = true;
             } else if !url.is_empty() {
-                m.loadfile(&url);
+                let _ = m.loadfile(&url);
             }
         } else {
-            m.set_pause(!snap.paused);
+            let _ = m.set_pause(!snap.paused);
         }
     }
     if replay_via_play {
@@ -485,7 +692,7 @@ pub fn player_pause_toggle(st: State<PlayerState>) {
 #[tauri::command]
 pub fn player_seek(st: State<PlayerState>, fraction: f64) {
     if let Some(m) = st.mpv.lock().unwrap().as_ref() {
-        m.seek_percent(fraction * 100.0);
+        let _ = m.seek_percent(fraction * 100.0);
     }
 }
 
@@ -533,12 +740,13 @@ pub fn player_osd(st: State<PlayerState>, lines: Vec<String>, res_x: u32, res_y:
     let _ = vqa_core::config::log_line(
         "osd",
         &format!(
-            "osd-overlay lines={} res={rx}x{ry} -> {}",
+            "osd-overlay lines={} res={rx}x{ry} -> {}\n  {}",
             lines.len(),
             match &r {
                 Ok(_) => "ok".to_string(),
                 Err(e) => format!("err: {e}"),
-            }
+            },
+            lines.join(" ⏎ ").chars().take(300).collect::<String>()
         ),
     );
 }
@@ -567,21 +775,21 @@ fn build_info_osd(lines: &[String], rx: u32, ry: u32) -> String {
 #[tauri::command]
 pub fn player_set_volume(st: State<PlayerState>, volume: f64) {
     if let Some(m) = st.mpv.lock().unwrap().as_ref() {
-        m.set_volume(volume);
+        let _ = m.set_volume(volume);
     }
 }
 
 #[tauri::command]
 pub fn player_set_mute(st: State<PlayerState>, mute: bool) {
     if let Some(m) = st.mpv.lock().unwrap().as_ref() {
-        m.set_mute(mute);
+        let _ = m.set_mute(mute);
     }
 }
 
 #[tauri::command]
 pub fn player_set_speed(st: State<PlayerState>, speed: f64) {
     if let Some(m) = st.mpv.lock().unwrap().as_ref() {
-        m.set_speed(speed);
+        let _ = m.set_speed(speed);
     }
 }
 
@@ -596,6 +804,97 @@ pub fn player_set_loop(st: State<PlayerState>, on: bool) {
             serde_json::Value::String(if on { "inf" } else { "no" }.into()),
         );
     }
+}
+
+/// 列多节目 TS 的节目（播放器「节目」下拉）。本地文件与网络源都支持，
+/// 只读 PAT/PMT，超时就不列。
+#[tauri::command]
+pub fn player_programs(url: String, nic_ip: String) -> Vec<vqa_core::probe::ProgInfo> {
+    vqa_core::probe::probe_programs(&url, 3.0, &nic_ip)
+}
+
+/// 切节目：mpv 的 TS 解复用只暴露第一个节目的轨道（本版无 `--program` 选项，
+/// 运行时改 vid/aid 会把音频丢掉），所以这里用 ffmpeg `-map 0:p:N -c copy` 抽
+/// 出选中节目，经管道喂给 mpv（`fd://0`）。代价是重开一次播放（本地文件从头、
+/// 组播重新入组），换来音画都正确的节目切换。
+#[tauri::command]
+pub fn player_set_program(
+    st: State<PlayerState>,
+    url: String,
+    program: i64,
+    nic_ip: String,
+) -> Result<(), String> {
+    if program < 1 {
+        return Err("节目序号无效".into());
+    }
+    if st.bridge.lock().unwrap().is_some() {
+        return Err("桥转码中不支持切节目（请先停止）".into());
+    }
+    let ff = vqa_core::tools::find_ffmpeg().ok_or("未找到 ffmpeg.exe")?;
+    let mpv_exe = vqa_core::tools::find_mpv().ok_or("未找到 mpv.exe（bin/mpv/mpv.exe）")?;
+    let wid = st.child.lock().unwrap().as_ref().map(|c| c.hwnd());
+
+    // 收掉旧的播放器与抽流进程，避免两条管道抢读同一个组播源
+    if let Some(old) = st.mpv.lock().unwrap().take() {
+        drop(old);
+    }
+    if let Some(mut c) = st.feed.lock().unwrap().take() {
+        let _ = c.kill();
+        let _ = c.wait();
+    }
+
+    let mut args: Vec<String> = vec!["-hide_banner".into(), "-v".into(), "error".into()];
+    if !nic_ip.is_empty() && !vqa_core::bridge::is_local(&url) {
+        args.push("-localaddr".into());
+        args.push(nic_ip);
+    }
+    args.extend([
+        "-i".into(),
+        url.clone(),
+        "-map".into(),
+        format!("0:p:{program}"),
+        "-c".into(),
+        "copy".into(),
+        "-f".into(),
+        "mpegts".into(),
+        "-".into(),
+    ]);
+
+    let (mpv, ff_child) = vqa_core::player::Mpv::launch_feed(&mpv_exe, wid, &ff, &args)?;
+    // 循环播放是跨 loadfile 的开关：新起的播放器要再下发一次，否则切节目就丢了
+    if *st.loop_file.lock().unwrap() {
+        let _ = mpv.set_prop("loop-file", serde_json::Value::String("inf".into()));
+    }
+    *st.feed.lock().unwrap() = Some(ff_child);
+    *st.mpv.lock().unwrap() = Some(mpv);
+    st.set_hint_for(format!("正在切到节目 {program}（重新抽流，约 1-2 秒）"), 6);
+    crate::events::ev("player", &format!("切节目 {program}（抽流模式）"));
+    Ok(())
+}
+
+/// 导出分析报告（HTML/CSV）：走系统保存对话框，返回落盘路径。
+#[tauri::command]
+pub fn report_export(
+    app: tauri::AppHandle,
+    name: String,
+    content: String,
+    ext: String,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let (desc, filter) = match ext.as_str() {
+        "csv" => ("CSV 表格", "csv"),
+        _ => ("HTML 报告", "html"),
+    };
+    let dest = app
+        .dialog()
+        .file()
+        .add_filter(desc, &[filter])
+        .set_file_name(&name)
+        .blocking_save_file()
+        .map(|p| p.to_string())
+        .ok_or_else(|| "已取消".to_string())?;
+    std::fs::write(&dest, content).map_err(|e| format!("写文件失败：{e}"))?;
+    Ok(Some(dest))
 }
 
 /// 编码器 → 人话（播放器页"桥格式"条用）
@@ -690,9 +989,26 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                             // ★ chain10 本地文件模式：url = 全片转码完成的 TS 文件
                             //   （start 同步等转码完成后返回），loadfile 即完整播放，
                             //   可拖动、零丢包零卡顿。直播源 url 仍是流地址。
-                            let _ = m.loadfile(&url);
-                            let _ = m.show_text(&reason, 4000);
-                            crate::events::ev("bridge", &format!("桥就绪 → {reason}"));
+                            // ★ 预转模式（url 是回环 UDP）：此刻流里还没有数据，
+                            //   mpv 打开 UDP 读到 0 字节就判"无法识别格式"并放弃，
+                            //   之后再发数据也不会重试——所以预转期间不 loadfile，
+                            //   等全片转完再由 player_snapshot 的 2.4 段加载。
+                            let preload = bridge.progress().starts_with("预转")
+                                || bridge.progress().starts_with("准备中");
+                            if preload {
+                                st.set_hint_for(
+                                    format!("{} · 首片转完即播放", bridge.progress()),
+                                    300,
+                                );
+                            } else {
+                                let _ = m.loadfile(&url);
+                                *st.bridge_loaded.lock().unwrap() = true;
+                                let _ = m.show_text(&reason, 4000);
+                            }
+                            crate::events::ev(
+                                "bridge",
+                                &format!("桥就绪 → {reason}{}", if preload { "（预转中）" } else { "" }),
+                            );
                             *st.bridge_note.lock().unwrap() = reason;
                             *st.bridge_url.lock().unwrap() = url.clone();
                             *st.bridge_since.lock().unwrap() = Some(std::time::Instant::now());
@@ -742,6 +1058,55 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
         }
     }
 
+    // 2.4) 预转进度 + 转完才加载 mpv。
+    //      不显示进度的话用户对着黑屏干等，会以为卡死而重复点播——而每一次
+    //      重复点播都会把整片转码作废重来，越点越等不到。
+    //      转完这一刻才 loadfile：UDP 里已经有整片数据，mpv 一打开就有流。
+    {
+        let prog = st.bridge.lock().unwrap().as_ref().map(|b| b.progress());
+        if let Some(prog) = prog {
+            if prog.starts_with("预转") || prog.starts_with("准备中") {
+                *st.preparing.lock().unwrap() = true;
+                st.set_hint_for(format!("{prog} · 首片转完即播放"), 300);
+            } else {
+                *st.preparing.lock().unwrap() = false;
+                if !*st.bridge_loaded.lock().unwrap() {
+                    // ★ 原先这里硬等 600ms"让流稳定"，那是在没有发送门限的年代
+                    //   补的；现在 send_loop 在 mpv 绑端口前只放 GO_PRIME（256KB）
+                    //   探测字节、等 go() 才全速发，mpv 打开时流还停在开头，
+                    //   不需要再白等这 0.6 秒。首片一拼完就 loadfile。
+                    let u = st.bridge_url.lock().unwrap().clone();
+                    if !u.is_empty() {
+                        if let Some(m) = &mpv_arc {
+                            let _ = m.loadfile(&u);
+                            st.set_hint_for("首片就绪，开始播放", 30);
+                            crate::events::ev("player", "首片就绪 → 加载播放");
+                        }
+                        *st.bridge_loaded.lock().unwrap() = true;
+                        *st.bridge_since.lock().unwrap() = Some(std::time::Instant::now());
+                    }
+                }
+            }
+        }
+    }
+
+    // 2.4b) loadfile 之后约 700ms，mpv 才真正绑上 UDP 端口。这之后才放开发送，
+    //       否则前面发的都被当成"没人接收"丢掉，mpv 从流中段起播（时长少 2 秒、
+    //       音画起点错位）。顺手做幂等，每帧调一次也无妨。
+    if *st.bridge_loaded.lock().unwrap() {
+        let due = st
+            .bridge_since
+            .lock()
+            .unwrap()
+            .map(|t| t.elapsed().as_millis() > 700)
+            .unwrap_or(false);
+        if due {
+            if let Some(b) = st.bridge.lock().unwrap().as_ref() {
+                b.go();
+            }
+        }
+    }
+
     // 2.5) 桥流自动重连：播放中 + 桥模式 + mpv 已回 idle → 周期性重载桥流
     //（仅直播流桥；本地文件桥播完 EOF 是正常结束，不重播）
     {
@@ -753,7 +1118,30 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
             .map(|b| b.is_file())
             .unwrap_or(false);
         let retry_left = *st.bridge_retry_left.lock().unwrap();
-        if retry_left > 0 && !file_bridge {
+        // 预转期间 UDP 里还没有数据：这时候 loadfile 只会让 mpv 读到 0 字节
+        // 然后判"无法识别格式"，白白烧掉重试次数。
+        let preloading = st
+            .bridge
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|b| {
+                let p = b.progress();
+                p.starts_with("预转") || p.starts_with("准备中")
+            })
+            .unwrap_or(false);
+        // ★ 回环 TCP 的桥不需要这个兜底：TCP 下 mpv 打开流后会阻塞等字节，
+        //   "暂时 idle" 是正常的等待，而不是"读到空流就永久放弃"。
+        //   不排除掉的话这里会在起播途中把流重载一次（日志实测第二次
+        //   Opening tcp 就在播到 20 多秒时出现），画面直接被拉回开头重来。
+        let tcp_bridge = st
+            .bridge
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|b| b.url().starts_with("tcp://"))
+            .unwrap_or(false);
+        if !preloading && retry_left > 0 && !file_bridge && !tcp_bridge {
             let idle = mpv_arc.as_ref().map(|m| m.snapshot().idle).unwrap_or(true);
             let due = st
                 .bridge_last_retry
@@ -802,7 +1190,18 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
             .unwrap_or(false);
         let had_picture = *st.bridge_had_picture.lock().unwrap();
         let retry_left = *st.bridge_retry_left.lock().unwrap();
-        if retry_left == 0 && !file_bridge && !had_picture {
+        // 预转期间本来就"没有画面"（还没开始发流），不能按 2 分钟判死
+        let preloading = st
+            .bridge
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|b| {
+                let p = b.progress();
+                p.starts_with("预转") || p.starts_with("准备中")
+            })
+            .unwrap_or(false);
+        if retry_left == 0 && !file_bridge && !had_picture && !preloading {
             let bridge_on = !st.bridge_note.lock().unwrap().is_empty();
             // ★ 计时 2 分钟：起播瞬间 mpv 短暂 idle 是正常的（loadfile 异步
             //   生效），不立即判死；只有桥就绪超过 2 分钟仍无画面才是真失败
@@ -905,7 +1304,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
             }
         }
     }
-    let mut hint = st
+    let hint = st
         .hint
         .lock()
         .unwrap()

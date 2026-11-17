@@ -3,7 +3,7 @@
 
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { listen } from "@tauri-apps/api/event";
-import { api, type MediaInfo, type NicRow, type PlayerStateJson, type Snap } from "./api";
+import { api, type MediaInfo, type NicRow, type PlayerStateJson, type ProgRow, type Snap } from "./api";
 import { icon } from "./icons";
 import { SPEEDS } from "./constants";
 import { setNavLamp, setEngineLamp, nicLabel } from "./main";
@@ -15,8 +15,45 @@ let stateCache: PlayerStateJson | null = null;
 let lastSpeed = 1.0;
 let dragSeek = -1.0; // 拖动中的 fraction（-1 = 未拖动）
 let osdOn = false; // Tab 触发的画面内媒体信息浮层
+let osdPending = false; // 起播瞬间按的 Tab 先记下，画面出来再补
 let osdRefreshAt = 0; // 浮层刷新节流（播放中数字会变）
 let lastVb = 0; // mpv 的视频码率会间歇回 0，留住上一次有效值，浮层数字才不闪
+let miPath = ""; // 当前媒体信息对应的源
+let miInfo: MediaInfo | null = null;
+
+/** 取媒体信息（按路径缓存）。换片时清掉上一片的码率兜底值。 */
+async function ensureMediaInfo(path: string): Promise<MediaInfo | null> {
+  if (miPath === path) return miInfo;
+  miPath = path;
+  miInfo = null;
+  lastVb = 0; // 换片了：上一个片子的视频码率不能带到新片子上
+  const got = await api.mediaInfo(path).catch(() => null);
+  if (miPath === path) miInfo = got;
+  return got;
+}
+
+/** 软解/硬解标签。8K H.264 是 NVDEC 的硬上限，明确点出来，免得把卡顿当机器问题。 */
+function hwLabel(snap: Snap): string {
+  if (snap.hwdec && snap.hwdec !== "no") return `硬解 ${snap.hwdec}`;
+  const k = snap.height >= 4000 ? "8K" : snap.height >= 2000 ? "4K" : "";
+  if (k && /264/i.test(snap.video_codec)) return `软解 · ${k} H.264 无硬解`;
+  if (k) return `软解 · ${k}`;
+  return "软解";
+}
+
+/** 当前媒体里「能播但不解」的编码：AC-4 音频、H.266 视频。
+ *  本地文件看 ffprobe 的媒体信息；网络源 ffprobe 常探不到，就退回 mpv
+ *  自己报的编码名（snap.audio_codec / video_codec），组播 AC-4 也能提示。 */
+function codecWarns(snap?: Snap): string[] {
+  const mi = miInfo;
+  const v = (mi?.video[0]?.codec || snap?.video_codec || "").trim();
+  const auds = [...(mi?.audio.map((a) => a.codec) || []), snap?.audio_codec || ""];
+  const out: string[] = [];
+  if (/^(vvc|h266|h\.266)/i.test(v)) out.push("H.266 需更新解码器");
+  if (auds.some((a) => /^(ac4|ac-4)/i.test((a || "").trim())))
+    out.push("AC-4 音频无解码 · 无声");
+  return out;
+}
 
 /** 收起画面浮层：id=1 这一层单独清掉，不影响 mpv 的其他提示 */
 function clearOsd() {
@@ -58,6 +95,8 @@ export function initPlayer() {
   const histBtn = $("p-hist") as HTMLButtonElement;
   const histPop = $("p-histpop") as HTMLElement;
   const force = $("p-force") as HTMLInputElement;
+  const progSel = $("p-prog") as HTMLSelectElement;
+  const progLbl = $("p-proglbl") as HTMLElement;
 
   // 网卡下拉：值 = IP（取流绑定用），显示「IP · 网卡名」，断开的标注出来
   api.listNics().then((list: NicRow[]) => {
@@ -65,6 +104,49 @@ export function initPlayer() {
       `<option value="">自动</option>`,
       ...list.map((n) => `<option value="${esc(n.ip)}" title="${esc(n.desc || n.name)}">${esc(nicLabel(n))}</option>`),
     ].join("");
+  });
+
+  // 节目下拉：只有多节目 TS 才露出来。起播后探一次 PAT/PMT，>1 个节目才显示。
+  let progKey = "";
+  let progRows: ProgRow[] = [];
+  const hideProg = () => {
+    progSel.hidden = true;
+    progLbl.hidden = true;
+    progSel.innerHTML = "";
+    progRows = [];
+  };
+  const loadPrograms = (src: string, nicIp: string) => {
+    const key = `${src}|${nicIp}`;
+    if (key === progKey) return;
+    progKey = key;
+    hideProg();
+    api
+      .playerPrograms(src, nicIp)
+      .then((rows) => {
+        if (key !== progKey) return;
+        progRows = rows || [];
+        if (progRows.length <= 1) return;
+        progSel.innerHTML = progRows
+          .map(
+            (p) =>
+              `<option value="${p.ord}" title="${esc(p.streams.join(' · '))}">节目 ${p.number}</option>`,
+          )
+          .join("");
+        progSel.value = String(progRows[0].ord);
+        progSel.hidden = false;
+        progLbl.hidden = false;
+      })
+      .catch(() => hideProg());
+  };
+  progSel.addEventListener("change", () => {
+    const ord = Number(progSel.value);
+    const row = progRows.find((p) => p.ord === ord);
+    if (!ord) return;
+    const src = url.value.trim();
+    api
+      .playerSetProgram(src, ord, nic.value)
+      .then(() => showNote(`正在切到节目 ${row?.number ?? ord}（重新抽流，约 1-2 秒）`, false))
+      .catch((e) => showNote(`✗ ${String(e)}`, true));
   });
 
   // 拖文件进来直接播：两条来源 ——
@@ -88,8 +170,10 @@ export function initPlayer() {
     lastDrop = { path: file, at: now };
     url.value = file;
     const name = file.split(/[\\/]/).pop() || file;
-    api.play(file, nic.value, force.checked).catch(() => undefined);
-    showNote(`拖入即播：${name}`, false);
+    // ★ 拖入只预热、不自动播：转码在后台先跑起来，用户点播放时直接读缓存
+    //   （4K AVS2 10bit 冷启动的 7 秒准备是压不掉的，只能提前花掉）
+    api.prewarm(file, nic.value, force.checked).catch(() => undefined);
+    showNote(`${name} 已加入，正在后台预热——点播放即秒开`, false);
   };
   getCurrentWebview().onDragDropEvent((e) => {
     const t = e.payload.type;
@@ -110,9 +194,6 @@ export function initPlayer() {
   // HTML 浮层画不出来（mpv 是原生子窗、压在 WebView 之上），所以交给
   // mpv 自己的 OSD 渲染到画面上；子窗加了 WS_EX_NOACTIVATE，点画面不会
   // 把键盘焦点从 WebView 抢走，Tab 才能落到这里。
-  let miPath = "";
-  let miInfo: MediaInfo | null = null;
-  let osdPending = false; // 起播瞬间按的 Tab 先记下，画面出来再补
 
   /** 取数并推一层浮层；失败就把开关打回关（下次 Tab 重新开） */
   function showOsd(): void {
@@ -158,12 +239,7 @@ export function initPlayer() {
     const snap = snapCache;
     const path = url.value.trim();
     if (!path || !st || !snap || snap.idle) return [];
-    if (miPath !== path) {
-      miPath = path;
-      miInfo = await api.mediaInfo(path).catch(() => null);
-      // 换片了：上一个片子的视频码率不能带到新片子上
-      lastVb = 0;
-    }
+    await ensureMediaInfo(path);
     const info = miInfo;
     const name = path.split(/[\\/]/).pop() || path;
     const out: string[] = [`媒体信息 · ${name}`];
@@ -255,8 +331,9 @@ export function initPlayer() {
       out.push("媒体信息  探测失败（ffprobe 没取到）");
     }
     // 解码态：硬解/软解 + 丢帧（帧率/码率上面已经写过，不再重复）
-    const hw = snap.hwdec && snap.hwdec !== "no" ? `硬解 ${snap.hwdec}` : "软解";
-    out.push(`解码  ${hw} · 丢帧 ${snap.decoder_drop}/${snap.render_drop}`);
+    out.push(`解码  ${hwLabel(snap)} · 丢帧 ${snap.decoder_drop}/${snap.render_drop}`);
+    const warns = codecWarns(snap);
+    if (warns.length) out.push(`提示  ${warns.join(" · ")}`);
     if (st.bridge_to && st.playing) {
       out.push(`桥    ${$("bf-from").textContent} → ${$("bf-to").textContent}`);
     }
@@ -289,7 +366,12 @@ export function initPlayer() {
   // 浏览
   $("p-browse").addEventListener("click", async () => {
     const p = await api.browse();
-    if (p) url.value = p;
+    if (p) {
+      url.value = p;
+      // ★ 选定即预热：后台先把转码跑起来，点播放读缓存秒开
+      api.prewarm(p, nic.value, force.checked).catch(() => undefined);
+      showNote("已选定，正在后台预热——点播放即秒开", false);
+    }
   });
   // 空态里的「选择本地文件」复用同一个浏览动作
   $("v-empty-browse").addEventListener("click", () => ($("p-browse") as HTMLElement).click());
@@ -470,6 +552,22 @@ export function initPlayer() {
         osdRefreshAt = Date.now();
         showOsd();
       }
+      // 节目下拉：播起来了才探 PAT/PMT；停了就收回去
+      if (!st.playing || !st.snap || st.snap.idle) {
+        if (progKey) {
+          progKey = "";
+          hideProg();
+        }
+      } else if (!st.bridge_to) {
+        loadPrograms(url.value.trim(), nic.value);
+      }
+      // 本地文件预取媒体信息：状态栏要拿它标「AC-4 无解码」「H.266 需更新」这类
+      {
+        const src = url.value.trim();
+        if (st.playing && src && !/^(udp|rtp|rtsp|rtmp|rtmps|https?):/i.test(src)) {
+          void ensureMediaInfo(src);
+        }
+      }
       // Tab 浮层开着时刷新一次数字（码率/帧率/丢帧会变），2s 一次足够
       if (osdOn && Date.now() - osdRefreshAt > 2000) {
         osdRefreshAt = Date.now();
@@ -645,12 +743,13 @@ function renderChips(st: PlayerStateJson) {  // 只重建动态 chips 区；forc
     if (snap.idle) {
       parts.push(`<span class="chip-m">◦ 已播完</span>`);
     } else {
-      const hw = snap.hwdec && snap.hwdec !== "no" ? `硬解 ${snap.hwdec}` : "软解";
+      const hw = hwLabel(snap);
+      const soft = snap.hwdec === "no" || !snap.hwdec;
       // 播放在跑且没走桥 = 直放；走了桥则由状态栏的桥条写明源→目标
       parts.push(
         bridged
           ? `<span class="chip-m">${hw}</span>`
-          : `<span class="chip-m ok">● 直放</span><span class="chip-m">${snap.width}×${snap.height} · ${shortCodec(snap.video_codec)} · ${hw}</span>`,
+          : `<span class="chip-m ok">● 直放</span><span class="chip-m ${soft ? "warn" : ""}">${snap.width}×${snap.height} · ${shortCodec(snap.video_codec)} · ${hw}</span>`,
       );
       if (snap.vf_fps > 0 && !bridged)
         parts.push(`<span class="chip-m">${icon("gauge", 11)} ${snap.vf_fps.toFixed(1)} fps</span>`);
@@ -663,6 +762,9 @@ function renderChips(st: PlayerStateJson) {  // 只重建动态 chips 区；forc
         `<span class="chip-m ${drop > 0 ? "warn" : "ok"}">${icon("check", 11)} 丢帧 ${snap.decoder_drop}/${snap.render_drop}</span>`,
       );
       if (snap.audio_codec) parts.push(`<span class="chip-m">${icon("audiolines", 11)} ${snap.audio_codec}</span>`);
+      // AC-4 / H.266：mpv 侧没有解码器，播成无声/黑画面，必须说出来
+      for (const w of codecWarns(snap))
+        parts.push(`<span class="chip-m warn">${icon("alert", 11)} ${w}</span>`);
       if (Math.abs(snap.avsync) > 0.001)
         parts.push(
           `<span class="chip-m ${Math.abs(snap.avsync) > 0.1 ? "warn" : ""}">avsync ${snap.avsync >= 0 ? "+" : ""}${snap.avsync.toFixed(3)}s</span>`,

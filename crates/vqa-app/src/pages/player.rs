@@ -203,7 +203,8 @@ impl PlayerPage {
                 }
                 let chain10 = ten_bit;
                 let davs2_path = davs2.unwrap_or_else(|| PathBuf::from("davs2"));
-                match RealtimeBridge::start(&ffmpeg, &davs2_path, &url, chain10, 26, &nic_ip) {
+                let audio_lead = q.as_ref().map(|x| x.audio_lead()).unwrap_or(0.0);
+                match RealtimeBridge::start(&ffmpeg, &davs2_path, &url, chain10, 26, &nic_ip, audio_lead) {
                     Ok(b) => {
                         let mode = b.mode.clone();
                         let port = b.port;

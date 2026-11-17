@@ -170,9 +170,8 @@ pub struct Mpv {
 }
 
 impl Mpv {
-    /// 起 mpv 进程并接上 IPC。`wid` 给了就把视频嵌进该 HWND。
-    pub fn launch(mpv: &Path, wid: Option<isize>) -> Result<Arc<Mpv>, String> {
-        let pipe = format!(r"\\.\pipe\vqa-mpv-{}", std::process::id());
+    /// mpv 启动参数（直放与抽流喂管道两种模式共用）
+    fn base_args(pipe: &str) -> Vec<String> {
         let mut args: Vec<String> = vec![
             format!("--input-ipc-server={pipe}"),
             "--idle=yes".into(),
@@ -203,6 +202,45 @@ impl Mpv {
             args.push(format!("--log-file={}", logf.display()));
             args.push("--msg-level=all=info".into());
         }
+        args
+    }
+
+    /// 每次起进程用独立的管道名。切节目/重拉播放器时旧 mpv 还没退干净，
+    /// 同名管道会让新客户端连到旧实例上（发过去的命令没人应答，界面卡住）。
+    fn pipe_name() -> String {
+        static SEQ: AtomicU64 = AtomicU64::new(1);
+        format!(
+            r"\\.\pipe\vqa-mpv-{}-{}",
+            std::process::id(),
+            SEQ.fetch_add(1, Ordering::Relaxed)
+        )
+    }
+
+    fn connect(pipe: &str) -> Result<Arc<Mpv>, String> {        let mut conn = None;
+        for _ in 0..120 {
+            match miow::pipe::connect(pipe) {
+                Ok(f) => {
+                    conn = Some(Conn { f, pend: Vec::new() });
+                    break;
+                }
+                Err(_) => std::thread::sleep(Duration::from_millis(100)),
+            }
+        }
+        let conn = conn.ok_or("连不上 mpv IPC 管道（12s 超时）")?;
+        Ok(Arc::new(Mpv {
+            child: Mutex::new(None),
+            conn: Mutex::new(Some(conn)),
+            next_id: AtomicU64::new(1),
+            props: Arc::new(Mutex::new(HashMap::new())),
+            events: Arc::new(Mutex::new(VecDeque::new())),
+            dead: Arc::new(AtomicBool::new(false)),
+        }))
+    }
+
+    /// 起 mpv 进程并接上 IPC。`wid` 给了就把视频嵌进该 HWND。
+    pub fn launch(mpv: &Path, wid: Option<isize>) -> Result<Arc<Mpv>, String> {
+        let pipe = Self::pipe_name();
+        let mut args = Self::base_args(&pipe);
         if let Some(w) = wid {
             args.push(format!("--wid={w}"));
         }
@@ -214,32 +252,62 @@ impl Mpv {
         cmd.creation_flags(crate::ffmpeg::CREATE_NO_WINDOW);
         let child = cmd.spawn().map_err(|e| format!("起 mpv 进程失败：{e}"))?;
 
-        let mut conn = None;
-        for _ in 0..120 {
-            match miow::pipe::connect(&pipe) {
-                Ok(f) => {
-                    conn = Some(Conn { f, pend: Vec::new() });
-                    break;
-                }
-                Err(_) => std::thread::sleep(Duration::from_millis(100)),
-            }
-        }
-        let conn = conn.ok_or("连不上 mpv IPC 管道（12s 超时）")?;
-
-        let this = Arc::new(Mpv {
-            child: Mutex::new(Some(child)),
-            conn: Mutex::new(Some(conn)),
-            next_id: AtomicU64::new(1),
-            props: Arc::new(Mutex::new(HashMap::new())),
-            events: Arc::new(Mutex::new(VecDeque::new())),
-            dead: Arc::new(AtomicBool::new(false)),
-        });
+        let mut this = Self::connect(&pipe)?;
+        // Arc 已在别处克隆过才用 Mutex；这里尚未共享，直接取出来塞
+        Arc::get_mut(&mut this).unwrap().child = Mutex::new(Some(child));
 
         // 观察全部界面要用的属性
         for &id in OBSERVED {
             let _ = this.command(json!(["observe_property", id, obs_name(id)]));
         }
         Ok(this)
+    }
+
+    /// 起 mpv 从 `fd://0` 读流，stdin 接 `ff`（ffmpeg 抽节目/转封装）的输出。
+    /// 返回 (mpv, ffmpeg 子进程)——ffmpeg 要由调用方保存并在停止时结束。
+    pub fn launch_feed(
+        mpv: &Path,
+        wid: Option<isize>,
+        ff: &Path,
+        ff_args: &[String],
+    ) -> Result<(Arc<Mpv>, Child), String> {
+        use std::process::Stdio;
+        let mut ffcmd = Command::new(ff);
+        ffcmd.args(ff_args);
+        ffcmd.stdout(Stdio::piped());
+        ffcmd.stderr(Stdio::null());
+        ffcmd.stdin(Stdio::null());
+        #[cfg(windows)]
+        ffcmd.creation_flags(crate::ffmpeg::CREATE_NO_WINDOW);
+        let mut ff_child = ffcmd
+            .spawn()
+            .map_err(|e| format!("起 ffmpeg 抽节目失败：{e}"))?;
+        let ff_out = ff_child
+            .stdout
+            .take()
+            .ok_or_else(|| "拿不到 ffmpeg 输出管道".to_string())?;
+
+        let pipe = Self::pipe_name();
+        let mut args = Self::base_args(&pipe);
+        if let Some(w) = wid {
+            args.push(format!("--wid={w}"));
+        }
+        args.push("fd://0".into());
+
+        let mut cmd = Command::new(mpv);
+        cmd.args(&args);
+        cmd.stdin(Stdio::from(ff_out));
+        #[cfg(windows)]
+        cmd.creation_flags(crate::ffmpeg::CREATE_NO_WINDOW);
+        let child = cmd.spawn().map_err(|e| format!("起 mpv（抽流模式）失败：{e}"))?;
+
+        let mut this = Self::connect(&pipe)?;
+        Arc::get_mut(&mut this).unwrap().child = Mutex::new(Some(child));
+
+        for &id in OBSERVED {
+            let _ = this.command(json!(["observe_property", id, obs_name(id)]));
+        }
+        Ok((this, ff_child))
     }
 
     /// 排空管道（UI 每帧调用，保活必需）。
@@ -310,8 +378,42 @@ impl Mpv {
     }
 
     // ------------------------------------------------------------ 播放控制
+    /// 只发不等：给会阻塞很久的命令用（sync 模式下响应回来的 request_id
+    /// 与后续命令不匹配，command() 会把它当"迟到的旧响应"丢掉，安全）。
+    fn command_async(&self, cmd: Value) -> Result<(), String> {
+        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
+        let mut guard = self.conn.lock().unwrap();
+        let conn = guard
+            .as_mut()
+            .ok_or_else(|| "IPC 连接未建立".to_string())?;
+        let msg = json!({ "command": cmd, "request_id": id, "async": true });
+        if let Err(e) = conn.f.write_all(format!("{}\n", msg).as_bytes()) {
+            self.dead.store(true, Ordering::Relaxed);
+            return Err(format!("IPC 写失败：{e}"));
+        }
+        Ok(())
+    }
     pub fn loadfile(&self, url: &str) -> Result<(), String> {
-        self.command(json!(["loadfile", url, "replace"])).map(|_| ())
+        // ★ 必须异步：mpv 的同步 loadfile 会一直阻塞到 udp 探测完成
+        //   （实测 6 秒），而这条命令是在 player_snapshot 里发的——同步就
+        //   等于把整个播放诊断循环（含桥重连判断）卡死 6 秒。
+        //
+        // ★★ UDP 桥流还要压 lavf 的分析窗口：mpv 默认
+        //   demuxer-lavf-analyzeduration=5 秒、probesize=5MB，也就是"先攒
+        //   5 秒流再开播"。桥是按 1.05×实时喂的，这 5 秒纯属干等——实测
+        //   `Opening udp` 11.967s → `on_preloaded` 17.266s（5.3 秒），
+        //   首帧因此晚了整整 5 秒。TS 结构固定、而且我们从关键帧开始发，
+        //   0.6 秒 / 2MB 足够认出来。
+        if url.starts_with("udp://") || url.starts_with("tcp://") {
+            return self.command_async(json!([
+                "loadfile",
+                url,
+                "replace",
+                -1,
+                "demuxer-lavf-analyzeduration=0.6,demuxer-lavf-probesize=2097152"
+            ]));
+        }
+        self.command_async(json!(["loadfile", url, "replace"]))
     }
     pub fn stop(&self) -> Result<(), String> {
         self.command(json!(["stop"])).map(|_| ())

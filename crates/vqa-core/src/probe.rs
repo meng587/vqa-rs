@@ -230,12 +230,13 @@ pub fn probe_quick(url: &str, timeout: f64, localaddr: &str) -> Option<QuickProb
         cmd.args(["-localaddr", localaddr]);
     }
     // 512KB/0.52s 对 4K 10-bit 不够（只认出 codec、尺寸全空）→ 8MB/4s。
+    // start_time 一并取：音频比画面早到时，桥要按这段差值裁音频头（音画同步）。
     cmd.args([
         "-probesize", "8388608",
         "-analyzeduration", "4000000",
         "-i", url,
         "-show_entries",
-        "stream=codec_name,width,height,pix_fmt,bit_rate,avg_frame_rate:format=bit_rate",
+        "stream=codec_name,width,height,pix_fmt,bit_rate,avg_frame_rate,start_time:format=bit_rate,start_time",
         "-of", "json",
     ]);
     let out = run_limited(cmd, Duration::from_secs_f64(timeout))?;
@@ -263,12 +264,16 @@ pub fn probe_quick(url: &str, timeout: f64, localaddr: &str) -> Option<QuickProb
                     ..Default::default()
                 },
                 bit_rate: if cont_bit > 0 { cont_bit } else { 0 },
+                video_start: num(st.get("start_time")),
+                format_start: num(fmt.get("start_time")),
             });
         }
     }
     Some(QuickProbe {
         video: VideoStream::default(),
         bit_rate: cont_bit,
+        video_start: 0.0,
+        format_start: num(fmt.get("start_time")),
     })
 }
 
@@ -276,6 +281,107 @@ pub fn probe_quick(url: &str, timeout: f64, localaddr: &str) -> Option<QuickProb
 pub struct QuickProbe {
     pub video: VideoStream,
     pub bit_rate: i64,
+    /// 视频首帧时间戳（秒，源时间轴）
+    pub video_start: f64,
+    /// 容器起始时间戳（秒）——通常等于最早流（多为音频）的首帧
+    pub format_start: f64,
+}
+
+impl QuickProbe {
+    /// 音轨相对视频"提前"了多少秒（>0 表示音频开头比画面早）。
+    ///
+    /// 抓流从半途开始、或录制起点落在音频先到时，TS 里普遍是
+    /// `audio.start < video.start`。桥转码把视频时间轴从 0 重排（y4m 无时间戳），
+    /// 音频却按源时间轴走，于是全程恒定错位——必须把这段音频头裁掉才能对齐。
+    pub fn audio_lead(&self) -> f64 {
+        if self.format_start > 0.0 && self.video_start > self.format_start {
+            (self.video_start - self.format_start).max(0.0)
+        } else {
+            0.0
+        }
+    }
+}
+
+/// 多节目 TS 的一个节目（播放器「节目」下拉用）
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct ProgInfo {
+    /// 节目号（节目表里 program_id，显示用）
+    pub number: i64,
+    /// 抽流用的节目序号（ffmpeg `-map 0:p:N` 的 N，从 1 开始，按 PAT 顺序）
+    pub ord: i64,
+    pub pmt_pid: i64,
+    /// 「视频 h264」「音频 aac」这类简述，给下拉做副标题
+    pub streams: Vec<String>,
+}
+
+/// 列节目：只读 PAT/PMT，不探流细节。单节目/非 TS 返回空。
+pub fn probe_programs(url: &str, timeout: f64, localaddr: &str) -> Vec<ProgInfo> {
+    if url.is_empty() {
+        return Vec::new();
+    }
+    let Ok(exe) = ffprobe_path() else {
+        return Vec::new();
+    };
+    let mut cmd = ffmpeg::hidden(&exe);
+    cmd.args(["-hide_banner", "-v", "error"]);
+    if !localaddr.is_empty() && looks_net(url) {
+        cmd.args(["-localaddr", localaddr]);
+    }
+    cmd.args([
+        "-probesize", "4194304",
+        "-analyzeduration", "2000000",
+        "-i", url,
+        "-show_programs",
+        "-show_entries", "program=program_id,program_num,pmt_pid:program_stream=codec_type,codec_name",
+        "-of", "json",
+    ]);
+    let Some(out) = run_limited(cmd, Duration::from_secs_f64(timeout.max(1.0))) else {
+        return Vec::new();
+    };
+    if !out.status.success() {
+        return Vec::new();
+    }
+    let Ok(d) = serde_json::from_slice::<serde_json::Value>(&out.stdout) else {
+        return Vec::new();
+    };
+    let mut rows = Vec::new();
+    for (i, p) in d.get("programs").and_then(|v| v.as_array()).cloned().unwrap_or_default().iter().enumerate() {
+        let number = {
+            let id = num(p.get("program_id")) as i64;
+            if id > 0 { id } else { num(p.get("program_num")) as i64 }
+        };
+        if number <= 0 {
+            continue;
+        }
+        let streams = p
+            .get("streams")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .map(|s| {
+                let kind = match safe(s.get("codec_type")).as_str() {
+                    "video" => "视频",
+                    "audio" => "音频",
+                    "data" => "数据",
+                    _ => "流",
+                };
+                let codec = safe(s.get("codec_name"));
+                if codec.is_empty() {
+                    kind.to_string()
+                } else {
+                    format!("{kind} {codec}")
+                }
+            })
+            .collect::<Vec<_>>();
+        rows.push(ProgInfo {
+            number,
+            ord: i as i64 + 1,
+            pmt_pid: num(p.get("pmt_pid")) as i64,
+            streams,
+        });
+    }
+    rows
 }
 
 /// ffprobe JSON → ProbeResult。失败字段一律空，不抛。

@@ -135,9 +135,28 @@ export function initAnalysis() {
   // 报告导出
   document.addEventListener("click", (e) => {
     if ((e.target as HTMLElement).closest("#a-export")) {
-      api.exportReport().then((p) => {
-        if (p) pushLog(`报告已导出：${p}`);
-      });
+      api
+        .exportReport()
+        .then((p) => {
+          if (p) pushLog(`报告已导出：${p}`);
+        })
+        .catch((err) => pushLog(`导出失败：${String(err)}`));
+    }
+    if ((e.target as HTMLElement).closest("#a-export-html")) {
+      if (!resCache) {
+        pushLog("还没有扫描结果，先扫描再导出");
+        return;
+      }
+      const stamp = new Date()
+        .toLocaleString("sv-SE", { hour12: false })
+        .replace(/[-: ]/g, (m) => (m === " " ? "_" : m))
+        .slice(0, 17);
+      api
+        .reportExport(`TS流质量检测报告_${stamp}.html`, buildHtmlReport(resCache), "html")
+        .then((p) => {
+          if (p) pushLog(`HTML 报告已导出：${p}（可直接用浏览器打开/发邮件）`);
+        })
+        .catch((err) => pushLog(`导出失败：${String(err)}`));
     }
     if ((e.target as HTMLElement).closest("#a-pkt-prev")) {
       if (pktPage > 0) {
@@ -226,11 +245,17 @@ function pushLogList(list: string[]) {
   renderLog();
 }
 function renderLog() {
-  const el = document.querySelector<HTMLElement>('[data-panel="logs"] .logwrap');
-  if (el) {
-    el.scrollTop = el.scrollHeight;
-    el.innerHTML = logLines.map(esc).join("<br>");
+  const panel = document.querySelector<HTMLElement>('[data-panel="logs"]');
+  if (!panel) return;
+  let el = panel.querySelector<HTMLElement>(".logwrap");
+  // 首次写日志时面板还是空的：补一个容器，否则日志永远看不见
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "logwrap";
+    panel.appendChild(el);
   }
+  el.scrollTop = el.scrollHeight;
+  el.innerHTML = logLines.map(esc).join("<br>");
 }
 
 // ═══════════════════════════ 结果渲染 ═══════════════════════════
@@ -564,6 +589,105 @@ function scard(
 
 export function esc(s: string): string {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/** 自包含 HTML 报告：给巡检/外发用，双击就能看，不依赖本程序 */
+function buildHtmlReport(r: Res): string {
+  const mb = (n: number) => `${(n / 1048576).toFixed(2)} MB`;
+  const mbps = (n: number) => `${(n / 1e6).toFixed(2)} Mbps`;
+  const now = new Date().toLocaleString("zh-CN", { hour12: false });
+  const tr = r.tr290 || [];
+  const bad = tr.filter((t) => t.level >= 2);
+  const pids = (r.pids || []).slice(0, 400);
+  const progs = r.programs || [];
+  const rateMax = (r.rate || []).reduce((m, x) => Math.max(m, x[1] || 0), 0);
+
+  const kv = (k: string, v: string) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`;
+  const trRow = (t: { level: number; name: string; count: number; first: string; detail: string }) =>
+    `<tr class="${t.level >= 2 ? "bad" : t.level === 1 ? "mid" : ""}"><td>L${t.level}</td><td>${esc(
+      t.name,
+    )}</td><td class="num">${t.count}</td><td>${esc(t.first || "")}</td><td>${esc(t.detail || "")}</td></tr>`;
+  const progBlock = progs
+    .map(
+      (p) => `<div class="pg"><h3>节目 ${p.number}</h3><table class="t">
+      <tr><th>PMT PID</th><td class="num">${p.pmt_pid}</td><th>PCR PID</th><td class="num">${p.pcr_pid}</td></tr></table>
+      <table class="t"><thead><tr><th>PID</th><th>类型</th><th>种类</th></tr></thead><tbody>${(p.streams || [])
+        .map((s) => `<tr><td class="num">${s.pid}</td><td>${esc(s.type_name)}</td><td>${esc(s.kind)}</td></tr>`)
+        .join("")}</tbody></table></div>`,
+    )
+    .join("");
+  const pidRows = pids
+    .map(
+      (p) =>
+        `<tr class="${p.scrambled ? "bad" : ""}"><td class="num">${p.pid}</td><td>${esc(p.kind)}</td>
+        <td class="num">${p.packets}</td><td class="num">${mb(p.bytes)}</td>
+        <td class="num">${mb(p.payload_bytes)}</td><td class="num">${p.scrambled || 0}</td></tr>`,
+    )
+    .join("");
+
+  return `<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>TS 流质量检测报告</title>
+<style>
+  :root{--ink:#111827;--mut:#6b7280;--line:#e5e7eb;--bad:#b42318;--mid:#b45309;--ok:#15803d;--acc:#6366f1}
+  *{box-sizing:border-box}
+  body{margin:0;padding:32px 28px 48px;font:14px/1.6 "Microsoft YaHei",system-ui,sans-serif;color:var(--ink);background:#f8fafc}
+  .wrap{max-width:980px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:14px;padding:28px 30px 34px}
+  h1{margin:0 0 4px;font-size:22px;letter-spacing:.5px}
+  .sub{color:var(--mut);font-size:12.5px;margin-bottom:20px}
+  h2{margin:26px 0 10px;font-size:15px;border-left:3px solid var(--acc);padding-left:8px}
+  .sum{display:flex;flex-wrap:wrap;gap:10px;margin:6px 0 4px}
+  .kv{min-width:150px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:#fbfbfe}
+  .kv small{display:block;color:var(--mut);font-size:11.5px}
+  .kv b{font-size:15px}
+  table.t{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0}
+  table.t th,table.t td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+  table.t thead th{background:#f3f4f8;font-weight:600;color:#374151}
+  table.t td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  table.t th[scope],table.t th{white-space:nowrap}
+  tr.bad td{background:#fef3f2;color:var(--bad)}
+  tr.mid td{background:#fffbeb}
+  .pg{margin:10px 0 14px}
+  .pg h3{margin:8px 0 4px;font-size:13px;color:#374151}
+  .empty{color:var(--mut);font-size:12.5px;padding:6px 0}
+  .foot{margin-top:26px;padding-top:12px;border-top:1px solid var(--line);color:var(--mut);font-size:11.5px}
+</style></head><body><div class="wrap">
+  <h1>TS 流质量检测报告</h1>
+  <div class="sub">生成时间 ${esc(now)} · 视听质量检测工作站</div>
+
+  <div class="sum">
+    <div class="kv"><small>码流平均码率</small><b>${mbps(r.bitrate_avg)}</b></div>
+    <div class="kv"><small>文件大小</small><b>${mb(r.file_size)}</b></div>
+    <div class="kv"><small>包数</small><b>${r.packets}</b></div>
+    <div class="kv"><small>同步错误</small><b style="color:${r.sync_errors ? "var(--bad)" : "var(--ok)"}">${r.sync_errors}</b></div>
+    <div class="kv"><small>PCR 时长</small><b>${(r.duration_pcr || 0).toFixed(2)} s</b></div>
+    <div class="kv"><small>TR290 异常项</small><b style="color:${bad.length ? "var(--bad)" : "var(--ok)"}">${bad.length}</b></div>
+    <div class="kv"><small>节目数 / PID 数</small><b>${progs.length} / ${(r.pids || []).length}</b></div>
+    <div class="kv"><small>加密</small><b>${r.encrypted || r.has_scrambled ? "有（加扰）" : "无"}</b></div>
+  </div>
+
+  <h2>基本信息</h2>
+  <table class="t"><tbody>
+    ${kv("来源", r.path)}
+    ${kv("包长", `${r.packet_size} 字节`)}
+    ${kv("PCR PID", r.pcr_pid == null ? "无" : String(r.pcr_pid))}
+    ${kv("PCR 恒定码率", r.pcr_cbr ? "是" : "否")}
+    ${kv("SI 截断", r.si_truncated ? "是（表未取全）" : "否")}
+    ${kv("GOP", r.gop_note || "—")}
+    ${kv("峰值码率（采样）", rateMax ? mbps(rateMax) : "—")}
+  </tbody></table>
+
+  <h2>TR 290 优先级 1/2/3</h2>
+  ${tr.length ? `<table class="t"><thead><tr><th>级别</th><th>项目</th><th>次数</th><th>首次</th><th>说明</th></tr></thead><tbody>${tr.map(trRow).join("")}</tbody></table>` : `<div class="empty">未采到 TR290 指标。</div>`}
+
+  <h2>节目结构</h2>
+  ${progBlock || `<div class="empty">未读到节目表（PAT/PMT 缺失或非 TS 封装）。</div>`}
+
+  <h2>PID 占用（${pids.length} / ${(r.pids || []).length}，按字节降序）</h2>
+  ${pidRows ? `<table class="t"><thead><tr><th>PID</th><th>种类</th><th>包数</th><th>字节</th><th>净荷</th><th>加扰</th></tr></thead><tbody>${pidRows}</tbody></table>` : `<div class="empty">无 PID 数据。</div>`}
+
+  <div class="foot">本报告由「视听质量检测工作站」自动生成，数值取自对源的一次完整扫描；如需复核请保留原始码流与同版本程序。</div>
+</div></body></html>`;
 }
 
 void TAB_LABELS;
