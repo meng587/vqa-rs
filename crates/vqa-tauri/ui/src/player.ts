@@ -7,6 +7,7 @@ import { api, type MediaInfo, type NicRow, type PlayerStateJson, type ProgRow, t
 import { icon } from "./icons";
 import { SPEEDS } from "./constants";
 import { setNavLamp, setEngineLamp, nicLabel } from "./main";
+import { flags } from "./flags";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -94,7 +95,6 @@ export function initPlayer() {
   const act = $("p-act") as HTMLButtonElement;
   const histBtn = $("p-hist") as HTMLButtonElement;
   const histPop = $("p-histpop") as HTMLElement;
-  const force = $("p-force") as HTMLInputElement;
   const progSel = $("p-prog") as HTMLSelectElement;
   const progLbl = $("p-proglbl") as HTMLElement;
 
@@ -172,7 +172,7 @@ export function initPlayer() {
     const name = file.split(/[\\/]/).pop() || file;
     // ★ 拖入只预热、不自动播：转码在后台先跑起来，用户点播放时直接读缓存
     //   （4K AVS2 10bit 冷启动的 7 秒准备是压不掉的，只能提前花掉）
-    api.prewarm(file, nic.value, force.checked).catch(() => undefined);
+    api.prewarm(file, nic.value, flags.forceBridge).catch(() => undefined);
     showNote(`${name} 已加入，正在后台预热——点播放即秒开`, false);
   };
   getCurrentWebview().onDragDropEvent((e) => {
@@ -369,7 +369,7 @@ export function initPlayer() {
     if (p) {
       url.value = p;
       // ★ 选定即预热：后台先把转码跑起来，点播放读缓存秒开
-      api.prewarm(p, nic.value, force.checked).catch(() => undefined);
+      api.prewarm(p, nic.value, flags.forceBridge).catch(() => undefined);
       showNote("已选定，正在后台预热——点播放即秒开", false);
     }
   });
@@ -393,7 +393,7 @@ export function initPlayer() {
     if (!u) return;
     await api.pushSourceHistory("player", u);
     try {
-      await api.play(u, nic.value, force.checked);
+      await api.play(u, nic.value, flags.forceBridge);
       running = true;
       setActUi(true);
     } catch (e: any) {
@@ -729,7 +729,7 @@ function renderBridgeBar(st: PlayerStateJson) {
   bar.hidden = false;
 }
 
-function renderChips(st: PlayerStateJson) {  // 只重建动态 chips 区；force-bridge 是固定 DOM（重建会丢勾选状态）
+function renderChips(st: PlayerStateJson) {  // 只重建动态 chips 区，固定 DOM（图标、按钮）不动
   const box = $("p-chips-dyn");
   const parts: string[] = [];
   const snap = st.snap;

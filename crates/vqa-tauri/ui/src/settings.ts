@@ -7,6 +7,7 @@
 import { api } from "./api";
 import { icon } from "./icons";
 import { drawerHold } from "./drawer";
+import { setForceBridge } from "./flags";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -144,8 +145,7 @@ function wirePlayerDrawer() {
   api
     .playerSettings()
     .then((p) => {
-      const cb = $("p-force") as HTMLInputElement;
-      if (cb) cb.checked = !!p.default_force_bridge;
+      setForceBridge(!!p.default_force_bridge);
       if (p.default_loop) api.setLoop(true).catch(() => {});
     })
     .catch(() => {});
@@ -173,7 +173,7 @@ function wirePlayerDrawer() {
       });
       snap.value = p.snap_custom ?? "";
       rec.value = p.rec_custom ?? "";
-      ($("p-force") as HTMLInputElement).checked = !!p.default_force_bridge;
+      setForceBridge(!!p.default_force_bridge);
       say(`已保存 · 截图 → ${p.snap_dir} · 录像 → ${p.rec_dir}`, "ok");
     } catch (e) {
       say(String(e), "err");
