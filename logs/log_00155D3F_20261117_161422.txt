@@ -1,0 +1,354 @@
+===== VQA 诊断日志 =====
+生成时间   : 2026-11-17 16:14:22
+应用版本   : 0.2.11 (Tauri/Web UI)
+核心库     : vqa-core TS 解析 / TR101 290 / PCR 双环 PLL
+操作系统   : Microsoft Windows [Version 10.0.26200.9974]
+主机名     : LAPTOP-FH5U20VM (x86_64)
+设备MAC    : 00155D3FEC20
+运行时长   : 4 分钟
+
+===== 播放器状态 =====
+{
+  "bridge": {
+    "alive": 0,
+    "mode": "par",
+    "progress": "转完",
+    "stderr_tail": ""
+  },
+  "bridge_note": "预热复用（par，准备中 4%（1/22））",
+  "bridge_to": {
+    "audio": "AAC 96k",
+    "container": "MPEG-TS",
+    "enc": "h264_nvenc",
+    "enc_label": "H.264 / NVENC 硬编",
+    "fps": "",
+    "mode": "par",
+    "pix": "yuv420p"
+  },
+  "err": null,
+  "hint": null,
+  "loop": false,
+  "playing": true,
+  "preparing": false,
+  "probe": {
+    "bit_rate": 24252795,
+    "codec": "avs2",
+    "fps": "50/1",
+    "h": 2160,
+    "pix_fmt": "yuv420p10le",
+    "w": 3840
+  },
+  "recording": false,
+  "snap": {
+    "a_bitrate": 98328.0,
+    "audio_codec": "aac",
+    "avsync": 0.0,
+    "container_fps": 50.0,
+    "dec_pixfmt": "d3d11",
+    "decoder_drop": 0,
+    "duration_ms": 42820.0,
+    "height": 2160,
+    "hwdec": "d3d11va",
+    "idle": true,
+    "mute": false,
+    "paused": false,
+    "render_drop": 0,
+    "seekable": false,
+    "speed": 1.0,
+    "time_ms": 42800.0,
+    "v_bitrate": 45534976.0,
+    "vf_fps": 50.0,
+    "video_codec": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+    "volume": 100.0,
+    "width": 3840
+  }
+}
+
+===== 分析页状态 =====
+模式: 0  错误: 无
+
+===== 分析结果摘要 =====
+（尚未扫描）
+
+===== 事件时间线（最近 50 条）=====
+[+   9.19s] [prewarm] 后台预热已起（准备中 0%（0/22））
+[+  15.48s] [player] 起播 D:\Users\Lenovo\Downloads\avs1.ts
+[+  15.70s] [bridge] 转码中：预热复用（par，准备中 4%（1/22））
+[+  15.70s] [bridge] 桥就绪 → 预热复用（par，准备中 4%（1/22））（预转中）
+[+  16.60s] [player] 首片就绪 → 加载播放
+
+===== 播放采样（每 5s 一条，最近 60 条）=====
+[+  15.48s] t=0.0s avsync=+0.0ms 丢帧=0/0 0.00Mbps vf_fps=0.00 硬解= 0x0
+[+  20.51s] t=3.3s avsync=-0.0ms 丢帧=0/0 33.29Mbps vf_fps=50.00 硬解=d3d11va 3840x2160
+[+  29.25s] t=11.9s avsync=-0.0ms 丢帧=0/0 23.64Mbps vf_fps=50.00 硬解=d3d11va 3840x2160
+[+  36.25s] t=18.8s avsync=+0.0ms 丢帧=0/0 25.51Mbps vf_fps=50.00 硬解=d3d11va 3840x2160
+[+  43.14s] t=24.2s avsync=-0.0ms 丢帧=0/0 30.77Mbps vf_fps=50.00 硬解=d3d11va 3840x2160
+[+  50.13s] t=30.6s avsync=+0.0ms 丢帧=0/0 24.06Mbps vf_fps=50.00 硬解=d3d11va 3840x2160
+[+  56.87s] t=36.3s avsync=-0.0ms 丢帧=0/0 27.62Mbps vf_fps=50.00 硬解=d3d11va 3840x2160
+[+  62.32s] t=41.7s avsync=-0.0ms 丢帧=0/0 34.17Mbps vf_fps=50.00 硬解=d3d11va 3840x2160
+
+===== mpv 日志（尾部 50 行）=====
+[  48.930][v][lavf] EOF reached.
+[  48.930][d][ao/wasapi] Thread Unpause
+[  48.930][v][cplayer] End buffering (waited 1.865498 secs) [0.000000s].
+[  48.930][v][af] filter input EOF
+[  48.930][v][af] filter output EOF
+[  48.930][v][cplayer] audio filter EOF
+[  48.930][v][cplayer] audio draining
+[  48.930][v][cplayer] audio EOF reached
+[  48.930][d][vo/gpu-next/libplacebo] (Re)creating 1122x631x0 texture with format rgba16hf: ../../../../../src_packages/libplacebo/src/renderer.c:4258
+[  49.989][v][vf] filter input EOF
+[  49.989][v][vf] filter output EOF
+[  49.989][v][cplayer] EOF code: 1  
+[  49.989][d][ad] Uninit decoder.
+[  49.990][v][async_queue_in] dropping request due to pin disconnect
+[  49.990][d][vd] Uninit decoder.
+[  49.994][d][cplayer] Terminating demuxers...
+[  49.994][d][ffmpeg] AVIOContext: Statistics: 142378228 bytes read, 0 seeks
+[  49.995][d][cplayer] Done terminating demuxers.
+[  49.995][v][cplayer] finished playback, success (reason 0)
+[  49.995][v][cplayer] Running hook: ytdl_hook/on_after_end_file
+[  50.023][d][cplayer] Run command: del, flags=64, args=[name="user-data/mpv/ytdl/json-subprocess-result"]
+[  50.025][d][ao/wasapi] Uninit wasapi
+[  50.025][d][ao/wasapi] Thread Reset
+[  50.025][d][ao/wasapi] Thread Pause
+[  50.025][d][ao/wasapi] Thread shutdown
+[  50.026][d][ao/wasapi] Thread uninit done
+[  50.026][d][ao/wasapi] Thread return
+[  50.027][d][ao/wasapi] Uninit wasapi done
+[  50.027][v][async_queue_out] dropping request due to pin disconnect
+[  50.027][v][vo/gpu-next] reconfig to 960x540 rgba rgb/bt.709/srgb/full/display CL=mpeg1/jpeg
+[  50.027][d][vo/gpu-next] max content size: 2560x1392
+[  50.028][d][vo/gpu-next] monitor size: 2560x1440
+[  50.031][v][vo/gpu-next] Window size: 1122x665 (Borders: l=0 t=0 r=0 b=0)
+[  50.031][v][vo/gpu-next] Video source: 960x540 (1:1)
+[  50.031][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (0, 17) 1122x631
+[  50.031][v][vo/gpu-next] Video scale: 1.168750/1.168519
+[  50.031][v][vo/gpu-next] OSD borders: l=0 t=17 r=0 b=17
+[  50.031][v][vo/gpu-next] Video borders: l=0 t=17 r=0 b=17
+[  50.033][v][vo/gpu-next] Window size: 1122x665 (Borders: l=0 t=0 r=0 b=0)
+[  50.033][v][vo/gpu-next] Video source: 960x540 (1:1)
+[  50.033][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (0, 17) 1122x631
+[  50.033][v][vo/gpu-next] Video scale: 1.168750/1.168519
+[  50.033][v][vo/gpu-next] OSD borders: l=0 t=17 r=0 b=17
+[  50.033][v][vo/gpu-next] Video borders: l=0 t=17 r=0 b=17
+[ 192.888][v][vo/gpu-next] Window size: 1x1 (Borders: l=0 t=0 r=0 b=0)
+[ 192.888][v][vo/gpu-next] Video source: 960x540 (1:1)
+[ 192.888][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (0, 0) 1x1
+[ 192.888][v][vo/gpu-next] Video scale: 0.001042/0.001852
+[ 192.888][v][vo/gpu-next] OSD borders: l=0 t=0 r=0 b=0
+[ 192.888][v][vo/gpu-next] Video borders: l=0 t=0 r=0 b=0
+
+===== 应用日志（尾部 200 行）=====
+[2026-11-17 08:07:45.428] [osd] osd-overlay lines=6 res=640x360 -> ok
+  媒体信息 · two_prog.ts ⏎ 容器  MPEG-TS · 10.02 s · 2.87 Mbps · 3.4 MB ⏎ 视频  H.264 Constrained Baseline · 640×360 · 25 fps · 1.87 Mbps ⏎ 画质  yuv420p · progressive ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 08:07:47.524] [osd] osd-overlay lines=6 res=640x360 -> ok
+  媒体信息 · two_prog.ts ⏎ 容器  MPEG-TS · 10.02 s · 2.87 Mbps · 3.4 MB ⏎ 视频  H.264 Constrained Baseline · 640×360 · 25 fps · 1.87 Mbps ⏎ 画质  yuv420p · progressive ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 08:07:49.580] [osd] osd-overlay lines=6 res=640x360 -> ok
+  媒体信息 · two_prog.ts ⏎ 容器  MPEG-TS · 10.02 s · 2.87 Mbps · 3.4 MB ⏎ 视频  H.264 Constrained Baseline · 640×360 · 25 fps · 1.97 Mbps ⏎ 画质  yuv420p · progressive ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 08:07:51.683] [osd] osd-overlay lines=6 res=640x360 -> ok
+  媒体信息 · two_prog.ts ⏎ 容器  MPEG-TS · 10.02 s · 2.87 Mbps · 3.4 MB ⏎ 视频  H.264 Constrained Baseline · 640×360 · 25 fps · 1.97 Mbps ⏎ 画质  yuv420p · progressive ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 08:07:53.689] [osd] osd-overlay lines=6 res=640x360 -> ok
+  媒体信息 · two_prog.ts ⏎ 容器  MPEG-TS · 10.02 s · 2.87 Mbps · 3.4 MB ⏎ 视频  H.264 Constrained Baseline · 640×360 · 25 fps · 1.88 Mbps ⏎ 画质  yuv420p · progressive ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 08:11:12.361] [bridge-decide] force=false need=false probe=Some("codec=h264 640x360 pix=yuv420p")
+[2026-11-17 08:11:27.192] [bridge-decide] force=false need=false probe=Some("codec=h264 640x360 pix=yuv420p")
+[2026-11-17 08:11:44.432] [bridge-decide] force=false need=false probe=Some("codec=h264 1280x720 pix=yuv420p")
+[2026-11-17 08:23:11.269] [bridge-decide] force=false need=false probe=Some("codec=h264 640x360 pix=yuv420p")
+[2026-11-17 08:24:44.986] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 08:24:44.987] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 08:27:10.885] [bridge-decide] force=false need=false probe=Some("codec=h264 1280x720 pix=yuv420p")
+[2026-11-17 08:27:18.270] [bridge-decide] force=false need=false probe=Some("codec=h264 640x360 pix=yuv420p")
+[2026-11-17 08:29:05.486] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 08:29:05.487] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 08:39:09.075] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 08:39:09.075] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 09:22:30.473] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 09:22:31.919] [bridge-decide] 自带 mpv 能解 → 直放（0 等待）
+[2026-11-17 09:23:01.892] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 09:23:01.894] [bridge-decide] 自带 mpv 能解 → 直放（0 等待）
+[2026-11-17 10:43:16.208] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 10:43:16.209] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 10:46:34.484] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 10:46:34.485] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 10:53:16.282] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 10:53:16.283] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 11:05:58.019] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 11:05:58.020] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 11:06:26.571] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 11:06:26.572] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 11:19:50.272] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 11:19:50.273] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 11:23:21.559] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 11:23:21.560] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 11:24:48.774] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 11:24:48.774] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 11:25:06.983] [osd] osd-overlay lines=7 res=3840x2160 -> ok
+  媒体信息 · avs1.ts ⏎ 容器  MPEG-TS · 44.68 s · 24.25 Mbps · 129.2 MB ⏎ 视频  AVS2 · 3840×2160 · 50 fps · 31.64 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AC-3 · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 0/0 ⏎ 桥    AVS2 3840×2160 10-bit 50fps → H.264/NVENC 硬编 8-bit 50.0fps
+[2026-11-17 11:25:07.007] [osd] osd-overlay lines=7 res=3840x2160 -> ok
+  媒体信息 · avs1.ts ⏎ 容器  MPEG-TS · 44.68 s · 24.25 Mbps · 129.2 MB ⏎ 视频  AVS2 · 3840×2160 · 50 fps · 31.64 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AC-3 · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 0/0 ⏎ 桥    AVS2 3840×2160 10-bit 50fps → H.264/NVENC 硬编 8-bit 50.0fps
+[2026-11-17 11:25:15.874] [osd] osd-overlay lines=7 res=3840x2160 -> ok
+  媒体信息 · avs1.ts ⏎ 容器  MPEG-TS · 44.68 s · 24.25 Mbps · 129.2 MB ⏎ 视频  AVS2 · 3840×2160 · 50 fps · 1.43 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AC-3 · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 0/0 ⏎ 桥    AVS2 3840×2160 10-bit 50fps → H.264/NVENC 硬编 8-bit 50.0fps
+[2026-11-17 11:25:23.879] [osd] osd-overlay lines=7 res=3840x2160 -> ok
+  媒体信息 · avs1.ts ⏎ 容器  MPEG-TS · 44.68 s · 24.25 Mbps · 129.2 MB ⏎ 视频  AVS2 · 3840×2160 · 50 fps · 22.52 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AC-3 · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 0/0 ⏎ 桥    AVS2 3840×2160 10-bit 50fps → H.264/NVENC 硬编 8-bit 50.0fps
+[2026-11-17 11:25:28.934] [osd] osd-overlay lines=7 res=3840x2160 -> ok
+  媒体信息 · avs1.ts ⏎ 容器  MPEG-TS · 44.68 s · 24.25 Mbps · 129.2 MB ⏎ 视频  AVS2 · 3840×2160 · 50 fps · 35.99 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AC-3 · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 0/0 ⏎ 桥    AVS2 3840×2160 10-bit 50fps → H.264/NVENC 硬编 8-bit 50.0fps
+[2026-11-17 11:25:31.447] [osd] osd-overlay lines=7 res=3840x2160 -> ok
+  媒体信息 · avs1.ts ⏎ 容器  MPEG-TS · 44.68 s · 24.25 Mbps · 129.2 MB ⏎ 视频  AVS2 · 3840×2160 · 50 fps · 33.99 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AC-3 · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 0/0 ⏎ 桥    AVS2 3840×2160 10-bit 50fps → H.264/NVENC 硬编 8-bit 50.0fps
+[2026-11-17 11:27:50.457] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 11:27:50.458] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 11:31:34.387] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 11:31:34.388] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 11:34:51.026] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 11:34:51.027] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 11:38:10.925] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 11:38:10.926] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 11:42:51.270] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 11:42:51.271] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 11:47:23.991] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 11:47:23.992] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 11:51:19.409] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 11:51:19.410] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 11:52:21.275] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 11:52:21.275] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 11:57:24.722] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 11:57:24.723] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 12:08:35.313] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 12:08:35.314] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 12:11:13.736] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 12:11:13.737] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 12:11:30.189] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 12:11:30.190] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 12:16:58.406] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 12:16:58.407] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 12:17:12.623] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 12:17:12.624] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 12:20:30.375] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 12:20:30.376] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 12:23:55.802] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 12:23:55.803] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 12:24:12.229] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 12:24:12.230] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 12:29:05.681] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 12:29:05.681] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 12:33:56.138] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 12:33:56.139] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 12:35:50.920] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 12:35:50.920] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 12:38:30.335] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 12:38:30.336] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 13:57:42.238] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 13:57:42.239] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 13:59:48.705] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 13:59:48.705] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 13:59:58.834] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 13:59:58.835] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 14:04:03.871] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 14:04:03.872] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 14:07:20.994] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 14:07:20.995] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 14:07:30.762] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 14:07:30.764] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 14:10:45.506] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 14:10:45.507] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 14:11:19.951] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 14:11:19.952] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 14:23:07.642] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 14:23:07.643] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 14:26:48.048] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 14:26:48.050] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 14:27:17.957] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 14:27:17.958] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 14:32:35.526] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 14:32:35.527] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 14:32:49.077] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 14:32:49.078] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 14:49:50.605] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 14:49:50.606] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 14:53:39.914] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 14:53:39.915] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 14:53:53.782] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 14:53:53.783] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:00:11.046] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:00:11.047] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:00:24.291] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:00:24.293] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:04:53.285] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:04:53.286] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:05:06.719] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:05:06.720] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:07:11.078] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:07:11.079] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:07:11.290] [osd] osd-overlay lines=7 res=3840x2160 -> ok
+  媒体信息 · avs1.ts ⏎ 容器  MPEG-TS · 44.68 s · 24.25 Mbps · 129.2 MB ⏎ 视频  AVS2 · 3840×2160 · 50 fps · 45.53 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AC-3 · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 50/0 ⏎ 桥    AVS2 3840×2160 10-bit 50fps → H.264/NVENC 硬编 8-bit 50.0fps
+[2026-11-17 15:07:13.301] [osd] osd-overlay lines=7 res=3840x2160 -> ok
+  媒体信息 · avs1.ts ⏎ 容器  MPEG-TS · 44.68 s · 24.25 Mbps · 129.2 MB ⏎ 视频  AVS2 · 3840×2160 · 50 fps · 33.74 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AC-3 · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 0/0 ⏎ 桥    AVS2 3840×2160 10-bit 50fps → H.264/NVENC 硬编 8-bit 50.0fps
+[2026-11-17 15:07:15.928] [osd] osd-overlay lines=7 res=3840x2160 -> ok
+  媒体信息 · avs1.ts ⏎ 容器  MPEG-TS · 44.68 s · 24.25 Mbps · 129.2 MB ⏎ 视频  AVS2 · 3840×2160 · 50 fps · 30.86 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AC-3 · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 0/0 ⏎ 桥    AVS2 3840×2160 10-bit 50fps → H.264/NVENC 硬编 8-bit 50.0fps
+[2026-11-17 15:07:15.997] [osd] osd-overlay lines=7 res=3840x2160 -> ok
+  媒体信息 · avs1.ts ⏎ 容器  MPEG-TS · 44.68 s · 24.25 Mbps · 129.2 MB ⏎ 视频  AVS2 · 3840×2160 · 50 fps · 30.86 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AC-3 · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 0/0 ⏎ 桥    AVS2 3840×2160 10-bit 50fps → H.264/NVENC 硬编 8-bit 50.0fps
+[2026-11-17 15:07:18.105] [osd] osd-overlay lines=7 res=3840x2160 -> ok
+  媒体信息 · avs1.ts ⏎ 容器  MPEG-TS · 44.68 s · 24.25 Mbps · 129.2 MB ⏎ 视频  AVS2 · 3840×2160 · 50 fps · 27.88 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AC-3 · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 0/0 ⏎ 桥    AVS2 3840×2160 10-bit 50fps → H.264/NVENC 硬编 8-bit 50.0fps
+[2026-11-17 15:10:22.507] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:10:22.509] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:10:34.281] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:10:34.282] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:12:30.916] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:12:30.917] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:12:31.833] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:12:31.835] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:13:45.584] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:13:45.585] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:14:02.957] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:14:02.958] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:14:04.088] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:14:04.089] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:19:50.216] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:19:50.217] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:20:00.249] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:20:00.251] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:23:52.503] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:23:52.504] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:27:57.934] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:27:57.936] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:28:09.933] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:28:09.934] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:30:54.625] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:30:54.626] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:31:08.000] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:31:08.001] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:32:05.072] [bridge-decide] force=false need=false probe=None
+[2026-11-17 15:32:53.591] [bridge-decide] force=false need=false probe=None
+[2026-11-17 15:35:38.615] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:35:38.616] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:35:52.084] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:35:52.085] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:40:49.067] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:40:49.068] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:41:08.832] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:41:08.833] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:44:02.893] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:44:02.895] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 15:44:32.360] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 15:44:32.362] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 16:06:23.383] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 16:06:23.384] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 16:06:49.677] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 16:06:49.678] [bridge-decide] 复用预热桥：预热复用（par，准备中 4%（1/22）） → tcp://127.0.0.1:7406
+[2026-11-17 16:07:40.637] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 16:07:40.638] [bridge-decide] 复用预热桥：预热复用（par，准备中 4%（1/22）） → tcp://127.0.0.1:9080
+[2026-11-17 16:08:58.601] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 16:08:58.602] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 16:11:01.375] [bridge-decide] force=false need=true probe=Some("codec=avs2 3840x2160 pix=yuv420p10le")
+[2026-11-17 16:11:01.377] [bridge-decide] 复用预热桥：预热复用（par，准备中 4%（1/22）） → tcp://127.0.0.1:12478
+
+===== 崩溃记录 =====
+--- panic_20261114_111231.log ---
+panicked at C:\Users\Lenovo\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ecolor-0.28.1\src\color32.rs:204:9:
+assertion failed: 0.0 <= factor && factor <= 1.0
+
+--- panic_20261114_111212.log ---
+panicked at C:\Users\Lenovo\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ecolor-0.28.1\src\color32.rs:204:9:
+assertion failed: 0.0 <= factor && factor <= 1.0
+
+
+===== 结束 =====
