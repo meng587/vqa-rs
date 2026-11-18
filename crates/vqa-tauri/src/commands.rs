@@ -471,6 +471,8 @@ pub fn player_play(
             *st.auto_scale_url.lock().unwrap() = String::new();
             *st.auto_scale_w.lock().unwrap() = 0;
             *st.bridge_auto_restarts.lock().unwrap() = 0;
+            *st.bridge_stderr_last.lock().unwrap() = String::new();
+            *st.auto_decoder.lock().unwrap() = String::new();
             0
         }
     };
@@ -600,7 +602,18 @@ fn start_auto_bridge(
     let ffmpeg = vqa_core::tools::find_ffmpeg().ok_or("需要转码降级但未找到 ffmpeg")?;
     // ★ 重启桥时必须先停掉旧桥：旧 ffmpeg 还占着 udp 输入端口，
     //   新桥会报 "No such device or address" 起不来。Drop 会 kill+wait。
-    drop(st.bridge.lock().unwrap().take());
+    //   同时先把旧桥 stderr 尾部留下来——旧句柄一 drop，退出原因就没了。
+    if let Some(old) = st.bridge.lock().unwrap().take() {
+        let tail = old.stderr_tail();
+        if !tail.trim().is_empty() {
+            *st.bridge_stderr_last.lock().unwrap() = tail.clone();
+            vqa_core::config::log_line(
+                "bridge",
+                &format!("旧桥 stderr 尾部：{}", tail.trim()),
+            );
+        }
+        drop(old);
+    }
     let q = st.probe_info.lock().unwrap().clone();
     let probe_missing = q.is_none();
     let audio_lead = q.as_ref().map(|x| x.audio_lead()).unwrap_or(0.0);
@@ -611,18 +624,29 @@ fn start_auto_bridge(
             c.contains("avs3") || c == "uavs3d"
         })
         .unwrap_or(false);
+    let known_decoder = st.auto_decoder.lock().unwrap().clone();
     // 探测失败时不能赌一种解码器：8K AVS3 必须 libuavs3d，8K H.264
-    // 又必须默认解码器。先按默认试，秒退后自动回退 libuavs3d。
-    let tries: &[Option<&str>] = if avs3 {
-        &[Some("libuavs3d")]
+    // 又必须默认解码器。已经成功起过桥的解码器优先复用，避免每次重启
+    // 都先拿错的解码器试一遍（8K AVS3 上默认解码器必失败）。
+    let mut tries: Vec<Option<&'static str>> = Vec::new();
+    if avs3 {
+        tries.push(Some("libuavs3d"));
+    } else if known_decoder == "libuavs3d" {
+        tries.push(Some("libuavs3d"));
+        tries.push(None);
+    } else if known_decoder == "default" {
+        tries.push(None);
+        tries.push(Some("libuavs3d"));
     } else if probe_missing {
         // 先赌默认：真实 8K H.264 的 UDP 源 probe 失败时，默认解码器能起；
         // 万一是 AVS3，默认会秒退，再回退 libuavs3d。
-        &[None, Some("libuavs3d")]
+        tries.push(None);
+        tries.push(Some("libuavs3d"));
     } else {
-        &[None]
-    };
+        tries.push(None);
+    }
     let mut bridge = None;
+    let mut used_decoder: Option<&str> = None;
     let mut last_err = String::new();
     for dec in tries {
         match vqa_core::bridge::RealtimeBridge::start_scaled(
@@ -634,10 +658,11 @@ fn start_auto_bridge(
             nic_ip,
             audio_lead,
             scale_w,
-            *dec,
+            dec,
         ) {
             Ok(b) => {
                 bridge = Some(b);
+                used_decoder = dec;
                 break;
             }
             Err(e) => last_err = e,
@@ -648,6 +673,8 @@ fn start_auto_bridge(
     })?;
     let bridge_url = b.url();
     let enc = vqa_core::bridge::pick_h264_encoder(&ffmpeg);
+    *st.auto_decoder.lock().unwrap() =
+        used_decoder.unwrap_or("default").to_string();
     *st.bridge.lock().unwrap() = Some(Box::new(b));
     *st.bridge_enc.lock().unwrap() = enc;
     *st.bridge_note.lock().unwrap() =
@@ -879,6 +906,8 @@ pub fn player_stop(st: State<PlayerState>) {
     *st.auto_scale_w.lock().unwrap() = 0;
     *st.bridge_dead_since.lock().unwrap() = None;
     *st.bridge_auto_restarts.lock().unwrap() = 0;
+    *st.bridge_stderr_last.lock().unwrap() = String::new();
+    *st.auto_decoder.lock().unwrap() = String::new();
     if let Some(m) = st.mpv.lock().unwrap().as_ref() {
         let _ = m.stop();
     }
@@ -1462,28 +1491,68 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
             false
         };
         if bridge_dead {
+            // 先把死桥的 stderr 留下来，再让 start_auto_bridge 接管旧句柄。
+            let tail = {
+                let b = st.bridge.lock().unwrap();
+                b.as_ref().map(|b| b.stderr_tail()).unwrap_or_default()
+            };
+            if !tail.trim().is_empty() {
+                *st.bridge_stderr_last.lock().unwrap() = tail.clone();
+                vqa_core::config::log_line(
+                    "bridge",
+                    &format!("桥进程退出 stderr：{}", tail.trim()),
+                );
+            }
             let since = *st.bridge_dead_since.lock().unwrap();
             let due = since
                 .map(|t| t.elapsed() >= std::time::Duration::from_secs(3))
                 .unwrap_or(false);
             if due {
-                let mut scale = *st.auto_scale_w.lock().unwrap();
-                if scale == 0 && st.bridge_note.lock().unwrap().contains("8K") {
-                    scale = 3840;
-                }
-                let restarts = *st.bridge_auto_restarts.lock().unwrap();
-                if scale > 0 && restarts < 1 {
-                    *st.bridge_auto_restarts.lock().unwrap() = restarts + 1;
-                    *st.bridge_dead_since.lock().unwrap() = None;
-                    let nic = st.last_nic_ip.lock().unwrap().clone();
-                    // 先收掉已经死掉的桥，避免两座桥同时占同一个端口/解码器
-                    *st.bridge.lock().unwrap() = None;
-                    crate::events::ev(
-                        "bridge",
-                        &format!("转码桥进程退出，按 {scale} 宽自动重启"),
-                    );
-                    if let Err(e) = start_auto_bridge(&st, &url, &nic, scale) {
-                        *st.err.lock().unwrap() = Some(format!("转码桥重启失败：{e}"));
+                let scale = *st.auto_scale_w.lock().unwrap();
+                if scale > 0 {
+                    let restarts = *st.bridge_auto_restarts.lock().unwrap();
+                    // 第一次按原宽度重启；还退出就把 4K 降到 1920，再退到
+                    // 1280。8K 源在弱机上 4K 实时编码不一定撑得住，降一档
+                    // 比直接显示“反复退出、已停止播放”更有用。
+                    let next_scale = if restarts == 0 {
+                        scale
+                    } else if scale > 1920 {
+                        1920
+                    } else if scale > 1280 {
+                        1280
+                    } else {
+                        scale
+                    };
+                    if restarts < 2 {
+                        *st.bridge_auto_restarts.lock().unwrap() = restarts + 1;
+                        *st.bridge_dead_since.lock().unwrap() = None;
+                        *st.auto_scale_w.lock().unwrap() = next_scale;
+                        let nic = st.last_nic_ip.lock().unwrap().clone();
+                        // 先收掉已经死掉的桥，避免两座桥同时占同一个端口/解码器
+                        *st.bridge.lock().unwrap() = None;
+                        crate::events::ev(
+                            "bridge",
+                            &format!(
+                                "转码桥进程退出，按 {next_scale} 宽自动重启（第 {} 次）",
+                                restarts + 1
+                            ),
+                        );
+                        if let Err(e) = start_auto_bridge(&st, &url, &nic, next_scale) {
+                            *st.err.lock().unwrap() =
+                                Some(format!("转码桥重启失败：{e}"));
+                        }
+                    } else {
+                        *st.bridge.lock().unwrap() = None;
+                        let stderr = st.bridge_stderr_last.lock().unwrap().clone();
+                        *st.err.lock().unwrap() = Some(if stderr.trim().is_empty() {
+                            "转码桥进程反复退出，已停止播放。请检查源或降低输出宽度后重试"
+                                .into()
+                        } else {
+                            format!(
+                                "转码桥进程反复退出，已停止播放：{}",
+                                stderr.trim()
+                            )
+                        });
                     }
                 } else {
                     *st.bridge.lock().unwrap() = None;
@@ -1840,6 +1909,8 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
         "loop": *st.loop_file.lock().unwrap(),
         "bridge_to": bridge_to,
         "bridge_note": *st.bridge_note.lock().unwrap(),
+        "bridge_stderr_last": *st.bridge_stderr_last.lock().unwrap(),
+        "auto_decoder": *st.auto_decoder.lock().unwrap(),
         "bridge": st.bridge.lock().unwrap().as_ref().map(|b| {
             serde_json::json!({
                 "mode": b.mode(),

@@ -1,11 +1,11 @@
 {
-  "version": "0.2.16",
-  "notes": "修复 8K H.264 起播卡顿：8K 预转 4K/25fps、自动降级锁、桥进程 watchdog；补桥 stderr 诊断",
-  "pub_date": "2026-11-18T08:07:40Z",
+  "version": "0.2.17",
+  "notes": "修复 8K 直播桥反复退出：保存桥 stderr、重启复用已知解码器、4K 失败自动降 1920/1280；补诊断字段",
+  "pub_date": "2026-11-18T08:30:15Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWlyV3RXV21IRjVHOGR3S3FxR2JMOG5Ocm4xWmFZTVNEWmU1TXFPSlY5TEVpbktNcTVEVFMrMVRwRG5NYXZwcmVodTFhUVJvWmpoNTN3Q2Qwd0Q3K2dnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0OTg5MjYwCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4xNl94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjE2Ck4rY3ZkY3padFJ5UW9ZRmJ6OTBVUnpXdFpWOVpFeFZkeWJOckprMTlZYTJ5ZjY5b0UxL2ZONHRydmZVR2htRkRxRlh2RzAvaXl0cTRvL1NXNlJiNkF3PT0K",
-      "url": "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.16/vqa-workbench-0.2.16-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXJXaUxBMEl5aWwreHNkK0xRYUo4YnNhR0lOd3lNNVBPQ2IvdkxVMlFubDhrak5LZ3UzOUQ0anp5a3BzSnBlTnUrQS9XZXhTVVpiMEYrbHBNZlRQSEFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0OTkwNjE1CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4xN194NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjE3CjNoZ1p6U0NRYlozM09zSWcrYWJvWGVmQ3FxZGZ6YzBlN1k5VHNMZ3hkRERMblN4WmI5bUNxRHhiZDEzWmVvYVVGZjljN2diNWthd2lodEFUS29BUUF3PT0K",
+      "url": "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.17/vqa-workbench-0.2.17-setup.exe"
     }
   }
 }

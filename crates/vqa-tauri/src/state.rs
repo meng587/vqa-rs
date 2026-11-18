@@ -175,6 +175,12 @@ pub struct PlayerState {
     /// 桥进程异常退出的起始时刻与自动重启次数（直播桥 watchdog）
     pub bridge_dead_since: Mutex<Option<std::time::Instant>>,
     pub bridge_auto_restarts: Mutex<u32>,
+    /// 最近一次桥进程 stderr 尾部：桥被重启替换时旧句柄会被 drop，
+    /// 必须先把原因留下来，否则诊断包只剩一句“桥反复退出”，无法定位。
+    pub bridge_stderr_last: Mutex<String>,
+    /// 已经成功起过的解码器（"default" 或 "libuavs3d"），重启时优先复用，
+    /// 避免 8K AVS3 每次都先拿默认解码器试一遍再回退。
+    pub auto_decoder: Mutex<String>,
     /// 抽节目模式的 ffmpeg 子进程（mpv 从 fd://0 读它的输出）
     pub feed: Mutex<Option<std::process::Child>>,
 }
@@ -220,6 +226,8 @@ impl PlayerState {
             auto_scale_w: Mutex::new(0),
             bridge_dead_since: Mutex::new(None),
             bridge_auto_restarts: Mutex::new(0),
+            bridge_stderr_last: Mutex::new(String::new()),
+            auto_decoder: Mutex::new(String::new()),
         }
     }
 
