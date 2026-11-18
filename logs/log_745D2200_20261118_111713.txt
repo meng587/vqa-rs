@@ -1,0 +1,199 @@
+===== VQA 诊断日志 =====
+生成时间   : 2026-11-18 11:17:13
+应用版本   : 0.2.11 (Tauri/Web UI)
+核心库     : vqa-core TS 解析 / TR101 290 / PCR 双环 PLL
+操作系统   : Microsoft Windows [�汾 10.0.26300.9974]
+主机名     : DESKTOP-HP8EL40 (x86_64)
+设备MAC    : 745D22003E68
+运行时长   : 1 分钟
+
+===== 播放器状态 =====
+{
+  "bridge": null,
+  "bridge_note": "",
+  "bridge_to": null,
+  "err": null,
+  "hint": null,
+  "loop": false,
+  "playing": false,
+  "preparing": false,
+  "probe": null,
+  "recording": false,
+  "snap": null
+}
+
+===== 分析页状态 =====
+模式: 0  错误: 无
+
+===== 分析结果摘要 =====
+（尚未扫描）
+
+===== 事件时间线（最近 50 条）=====
+（本次运行还没有事件记录）
+
+===== 播放采样（每 5s 一条，最近 60 条）=====
+（还没有播放采样）
+
+===== mpv 日志（尾部 50 行）=====
+[ 173.609][v][vo/gpu-next] Window size: 1122x665 (Borders: l=0 t=0 r=0 b=0)
+[ 173.609][v][vo/gpu-next] Video source: 960x540 (1:1)
+[ 173.609][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (0, 17) 1122x631
+[ 173.609][v][vo/gpu-next] Video scale: 1.168750/1.168519
+[ 173.609][v][vo/gpu-next] OSD borders: l=0 t=17 r=0 b=17
+[ 173.609][v][vo/gpu-next] Video borders: l=0 t=17 r=0 b=17
+[2211.762][v][vo/gpu-next] Window size: 1x1 (Borders: l=0 t=0 r=0 b=0)
+[2211.762][v][vo/gpu-next] Video source: 960x540 (1:1)
+[2211.762][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (0, 0) 1x1
+[2211.762][v][vo/gpu-next] Video scale: 0.001042/0.001852
+[2211.762][v][vo/gpu-next] OSD borders: l=0 t=0 r=0 b=0
+[2211.762][v][vo/gpu-next] Video borders: l=0 t=0 r=0 b=0
+[2255.327][v][vo/gpu-next] Window size: 1122x665 (Borders: l=0 t=0 r=0 b=0)
+[2255.327][v][vo/gpu-next] Video source: 960x540 (1:1)
+[2255.327][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (0, 17) 1122x631
+[2255.327][v][vo/gpu-next] Video scale: 1.168750/1.168519
+[2255.327][v][vo/gpu-next] OSD borders: l=0 t=17 r=0 b=17
+[2255.327][v][vo/gpu-next] Video borders: l=0 t=17 r=0 b=17
+[2264.338][v][vo/gpu-next] Window size: 1x1 (Borders: l=0 t=0 r=0 b=0)
+[2264.338][v][vo/gpu-next] Video source: 960x540 (1:1)
+[2264.338][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (0, 0) 1x1
+[2264.338][v][vo/gpu-next] Video scale: 0.001042/0.001852
+[2264.338][v][vo/gpu-next] OSD borders: l=0 t=0 r=0 b=0
+[2264.338][v][vo/gpu-next] Video borders: l=0 t=0 r=0 b=0
+[2267.040][v][vo/gpu-next] Window size: 1122x665 (Borders: l=0 t=0 r=0 b=0)
+[2267.040][v][vo/gpu-next] Video source: 960x540 (1:1)
+[2267.040][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (0, 17) 1122x631
+[2267.040][v][vo/gpu-next] Video scale: 1.168750/1.168519
+[2267.040][v][vo/gpu-next] OSD borders: l=0 t=17 r=0 b=17
+[2267.040][v][vo/gpu-next] Video borders: l=0 t=17 r=0 b=17
+[2269.623][v][vo/gpu-next] Window size: 1x1 (Borders: l=0 t=0 r=0 b=0)
+[2269.623][v][vo/gpu-next] Video source: 960x540 (1:1)
+[2269.623][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (0, 0) 1x1
+[2269.623][v][vo/gpu-next] Video scale: 0.001042/0.001852
+[2269.623][v][vo/gpu-next] OSD borders: l=0 t=0 r=0 b=0
+[2269.623][v][vo/gpu-next] Video borders: l=0 t=0 r=0 b=0
+[2523.685][d][cplayer] Run command: quit, flags=64, args=[code="0"]
+[2523.685][i][cplayer] Exiting... (Quit)
+[2523.686][d][cplayer] Run command: del, flags=64, args=[name="user-data/mpv/console"]
+[2523.686][d][dnd] Destroying client handle...
+[2523.686][d][ipc_0] Destroying client handle...
+[2523.686][d][ytdl_hook] Destroying client handle...
+[2523.686][d][stats] Destroying client handle...
+[2523.686][d][commands] Destroying client handle...
+[2523.686][d][console] Destroying client handle...
+[2523.686][d][positioning] Destroying client handle...
+[2523.686][d][select] Destroying client handle...
+[2523.688][d][SystemMediaTransportControls] Destroying client handle...
+[2523.699][v][vo/gpu-next/win32] uninit
+[2523.741][d][ao/wasapi] Hotplug uninit
+
+===== 应用日志（尾部 200 行）=====
+[2026-11-17 15:58:14.230] [bridge-decide] force=false need=false probe=None
+[2026-11-17 15:58:36.659] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 15:58:36.711] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 15:58:38.726] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 15:58:40.819] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 15:58:42.850] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 15:58:44.932] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 15:58:46.937] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 15:58:49.025] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 15:58:51.033] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 15:58:53.035] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 16:01:07.658] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:05:08.749] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:05:16.747] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 16:05:16.818] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 16:05:18.927] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 16:07:41.940] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:08:53.031] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:09:07.938] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:08.016] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:10.118] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:12.204] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:14.209] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:16.212] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:18.221] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:19.962] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:20.319] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:21.078] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:21.834] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:22.758] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:22.814] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:23.910] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:24.821] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:26.912] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:28.918] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:30.922] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:33.009] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:43:49.687] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:45:30.987] [bridge-decide] force=true need=true probe=None
+[2026-11-17 16:45:30.987] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 16:45:38.075] [bridge-decide] force=true need=true probe=None
+[2026-11-17 16:45:38.076] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 16:46:07.057] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:46:20.024] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:46:47.607] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:47:10.356] [bridge-decide] force=false need=false probe=Some("codec=hevc 3840x2160 pix=yuv420p10le")
+[2026-11-17 16:47:24.621] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:48:23.834] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 16:48:23.875] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 16:50:10.003] [bridge-decide] force=false need=false probe=Some("codec=hevc 3840x2160 pix=yuv420p10le")
+[2026-11-17 16:50:28.621] [bridge-decide] force=false need=false probe=Some("codec=hevc 3840x2160 pix=yuv420p10le")
+[2026-11-17 16:50:41.214] [bridge-decide] force=false need=false probe=None
+[2026-11-18 08:44:02.020] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 33.81 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:02.033] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 31.13 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:02.192] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 31.13 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:04.064] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 34.92 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:06.153] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 36.69 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:08.166] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 33.30 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:10.252] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 34.56 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:12.258] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 35.50 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 09:23:37.744] [bridge-decide] force=false need=false probe=None
+[2026-11-18 10:33:35.202] [bridge-decide] force=false need=false probe=None
+[2026-11-18 10:33:49.215] [bridge-decide] force=false need=false probe=Some("codec=hevc 3840x2160 pix=yuv420p10le")
+[2026-11-18 10:33:55.670] [bridge-decide] force=false need=false probe=None
+
+===== 崩溃记录 =====
+（无崩溃记录）
+===== 结束 =====
