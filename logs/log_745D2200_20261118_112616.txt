@@ -1,0 +1,264 @@
+===== VQA 诊断日志 =====
+生成时间   : 2026-11-18 11:26:16
+应用版本   : 0.2.12 (Tauri/Web UI)
+核心库     : vqa-core TS 解析 / TR101 290 / PCR 双环 PLL
+操作系统   : Microsoft Windows [�汾 10.0.26300.9974]
+主机名     : DESKTOP-HP8EL40 (x86_64)
+设备MAC    : 745D22003E68
+运行时长   : 3 分钟
+
+===== 播放器状态 =====
+{
+  "bridge": null,
+  "bridge_note": "",
+  "bridge_to": null,
+  "err": null,
+  "hint": null,
+  "loop": false,
+  "playing": true,
+  "preparing": false,
+  "probe": {
+    "bit_rate": 0,
+    "codec": "hevc",
+    "fps": "50/1",
+    "h": 2160,
+    "pix_fmt": "yuv420p10le",
+    "w": 3840
+  },
+  "recording": false,
+  "snap": {
+    "a_bitrate": 256000.0,
+    "audio_codec": "mp2",
+    "avsync": 0.0,
+    "container_fps": 50.0,
+    "dec_pixfmt": "yuv420p10",
+    "decoder_drop": 3,
+    "duration_ms": 116952.0,
+    "height": 4320,
+    "hwdec": "no",
+    "idle": false,
+    "mute": false,
+    "paused": false,
+    "render_drop": 0,
+    "seekable": false,
+    "speed": 1.0,
+    "time_ms": 105312.0,
+    "v_bitrate": 111746896.0,
+    "vf_fps": 50.0,
+    "video_codec": "AVS3-P2/IEEE1857.10",
+    "volume": 100.0,
+    "width": 7680
+  }
+}
+
+===== 分析页状态 =====
+模式: 0  错误: 无
+
+===== 分析结果摘要 =====
+（尚未扫描）
+
+===== 事件时间线（最近 50 条）=====
+[+  18.96s] [player] 起播 udp://238.123.43.96:2000
+[+  19.78s] [player] 直放（无需转码）
+[+  46.79s] [player] 起播 udp://238.123.43.87:2000
+[+  48.99s] [player] 直放（无需转码）
+[+  56.90s] [player] 起播 udp://238.123.43.96:2000
+[+  57.68s] [player] 直放（无需转码）
+[+  57.78s] [drops] 丢帧突增 0 → 7（+7，t=4.3s）
+
+===== 播放采样（每 5s 一条，最近 60 条）=====
+[+  57.78s] t=4.3s avsync=+0.0ms 丢帧=0/7 35.44Mbps vf_fps=50.00 硬解=d3d11va 3840x2160
+[+  62.79s] t=4.2s avsync=+0.7ms 丢帧=0/3 119.45Mbps vf_fps=50.00 硬解=no 7680x4320
+[+  67.88s] t=8.0s avsync=+2.0ms 丢帧=0/3 109.02Mbps vf_fps=50.00 硬解=no 7680x4320
+[+  72.89s] t=11.8s avsync=+3.2ms 丢帧=0/3 113.28Mbps vf_fps=50.00 硬解=no 7680x4320
+[+  77.99s] t=15.6s avsync=+4.4ms 丢帧=0/3 110.36Mbps vf_fps=50.00 硬解=no 7680x4320
+[+  83.09s] t=19.4s avsync=+5.7ms 丢帧=0/3 109.38Mbps vf_fps=50.00 硬解=no 7680x4320
+[+  88.19s] t=23.2s avsync=+7.0ms 丢帧=0/3 117.03Mbps vf_fps=50.00 硬解=no 7680x4320
+[+  93.19s] t=26.9s avsync=+8.3ms 丢帧=0/3 116.65Mbps vf_fps=50.00 硬解=no 7680x4320
+[+  98.29s] t=30.8s avsync=+9.6ms 丢帧=0/3 114.31Mbps vf_fps=50.00 硬解=no 7680x4320
+[+ 103.39s] t=34.7s avsync=+10.8ms 丢帧=0/3 113.00Mbps vf_fps=50.00 硬解=no 7680x4320
+[+ 108.49s] t=38.5s avsync=+12.0ms 丢帧=0/3 113.00Mbps vf_fps=50.00 硬解=no 7680x4320
+[+ 113.49s] t=42.4s avsync=+13.2ms 丢帧=0/3 122.09Mbps vf_fps=50.00 硬解=no 7680x4320
+[+ 118.58s] t=46.3s avsync=+14.4ms 丢帧=0/3 140.08Mbps vf_fps=50.00 硬解=no 7680x4320
+[+ 123.69s] t=50.1s avsync=+15.6ms 丢帧=0/3 102.68Mbps vf_fps=50.00 硬解=no 7680x4320
+[+ 128.79s] t=54.1s avsync=+16.8ms 丢帧=0/3 117.00Mbps vf_fps=50.00 硬解=no 7680x4320
+[+ 133.89s] t=57.9s avsync=+18.1ms 丢帧=0/3 119.71Mbps vf_fps=50.00 硬解=no 7680x4320
+[+ 138.99s] t=61.6s avsync=+19.4ms 丢帧=0/3 122.33Mbps vf_fps=50.00 硬解=no 7680x4320
+[+ 144.08s] t=65.5s avsync=+20.7ms 丢帧=0/3 121.49Mbps vf_fps=50.00 硬解=no 7680x4320
+[+ 149.19s] t=69.3s avsync=+21.9ms 丢帧=0/3 104.55Mbps vf_fps=50.00 硬解=no 7680x4320
+[+ 154.29s] t=73.3s avsync=+23.0ms 丢帧=0/3 115.58Mbps vf_fps=50.00 硬解=no 7680x4320
+[+ 159.38s] t=77.3s avsync=+24.2ms 丢帧=0/3 92.23Mbps vf_fps=50.00 硬解=no 7680x4320
+[+ 164.39s] t=81.1s avsync=+25.4ms 丢帧=0/3 120.43Mbps vf_fps=50.00 硬解=no 7680x4320
+[+ 169.39s] t=84.9s avsync=+26.6ms 丢帧=0/3 118.38Mbps vf_fps=50.00 硬解=no 7680x4320
+[+ 174.49s] t=88.9s avsync=+0.0ms 丢帧=0/3 119.90Mbps vf_fps=50.00 硬解=no 7680x4320
+[+ 179.49s] t=92.6s avsync=+0.0ms 丢帧=0/3 107.11Mbps vf_fps=50.00 硬解=no 7680x4320
+[+ 184.59s] t=96.5s avsync=+0.0ms 丢帧=0/3 109.78Mbps vf_fps=50.00 硬解=no 7680x4320
+[+ 189.69s] t=100.3s avsync=+0.0ms 丢帧=0/3 120.18Mbps vf_fps=50.00 硬解=no 7680x4320
+[+ 194.78s] t=104.2s avsync=+0.0ms 丢帧=0/3 109.25Mbps vf_fps=50.00 硬解=no 7680x4320
+
+===== mpv 日志（尾部 50 行）=====
+[ 176.137][v][cplayer] delaying audio start 114.384000 vs. 104.352000, diff=10.032000
+[ 176.166][v][cplayer] delaying audio start 114.384000 vs. 104.372000, diff=10.012000
+[ 176.206][v][cplayer] delaying audio start 114.384000 vs. 104.392000, diff=9.992000
+[ 176.232][v][cplayer] delaying audio start 114.384000 vs. 104.412000, diff=9.972000
+[ 176.246][v][cplayer] delaying audio start 114.384000 vs. 104.432000, diff=9.952000
+[ 176.269][v][cplayer] delaying audio start 114.384000 vs. 104.452000, diff=9.932000
+[ 176.297][v][cplayer] delaying audio start 114.384000 vs. 104.472000, diff=9.912000
+[ 176.325][v][cplayer] delaying audio start 114.384000 vs. 104.492000, diff=9.892000
+[ 176.354][v][cplayer] delaying audio start 114.384000 vs. 104.512000, diff=9.872000
+[ 176.381][v][cplayer] delaying audio start 114.384000 vs. 104.532000, diff=9.852000
+[ 176.418][v][cplayer] delaying audio start 114.384000 vs. 104.552000, diff=9.832000
+[ 176.433][v][cplayer] delaying audio start 114.384000 vs. 104.572000, diff=9.812000
+[ 176.452][v][cplayer] delaying audio start 114.384000 vs. 104.592000, diff=9.792000
+[ 176.491][v][cplayer] delaying audio start 114.384000 vs. 104.612000, diff=9.772000
+[ 176.507][v][cplayer] delaying audio start 114.384000 vs. 104.632000, diff=9.752000
+[ 176.529][v][cplayer] delaying audio start 114.384000 vs. 104.652000, diff=9.732000
+[ 176.572][v][cplayer] delaying audio start 114.384000 vs. 104.672000, diff=9.712000
+[ 176.591][v][cplayer] delaying audio start 114.384000 vs. 104.692000, diff=9.692000
+[ 176.611][v][cplayer] delaying audio start 114.384000 vs. 104.712000, diff=9.672000
+[ 176.653][v][cplayer] delaying audio start 114.384000 vs. 104.732000, diff=9.652000
+[ 176.672][v][cplayer] delaying audio start 114.384000 vs. 104.752000, diff=9.632000
+[ 176.692][v][cplayer] delaying audio start 114.384000 vs. 104.772000, diff=9.612000
+[ 176.724][v][cplayer] delaying audio start 114.384000 vs. 104.792000, diff=9.592000
+[ 176.753][v][cplayer] delaying audio start 114.384000 vs. 104.812000, diff=9.572000
+[ 176.797][v][cplayer] delaying audio start 114.384000 vs. 104.832000, diff=9.552000
+[ 176.816][v][cplayer] delaying audio start 114.384000 vs. 104.852000, diff=9.532000
+[ 176.836][v][cplayer] delaying audio start 114.384000 vs. 104.872000, diff=9.512000
+[ 176.875][v][cplayer] delaying audio start 114.384000 vs. 104.892000, diff=9.492000
+[ 176.902][v][cplayer] delaying audio start 114.384000 vs. 104.912000, diff=9.472000
+[ 176.918][v][cplayer] delaying audio start 114.384000 vs. 104.932000, diff=9.452000
+[ 176.945][v][cplayer] delaying audio start 114.384000 vs. 104.952000, diff=9.432000
+[ 176.984][v][cplayer] delaying audio start 114.384000 vs. 104.972000, diff=9.412000
+[ 176.999][v][cplayer] delaying audio start 114.384000 vs. 104.992000, diff=9.392000
+[ 177.021][v][cplayer] delaying audio start 114.384000 vs. 105.012000, diff=9.372000
+[ 177.048][v][cplayer] delaying audio start 114.384000 vs. 105.032000, diff=9.352000
+[ 177.075][v][cplayer] delaying audio start 114.384000 vs. 105.052000, diff=9.332000
+[ 177.100][v][cplayer] delaying audio start 114.384000 vs. 105.072000, diff=9.312000
+[ 177.126][v][cplayer] delaying audio start 114.384000 vs. 105.092000, diff=9.292000
+[ 177.151][v][cplayer] delaying audio start 114.384000 vs. 105.112000, diff=9.272000
+[ 177.177][v][cplayer] delaying audio start 114.384000 vs. 105.132000, diff=9.252000
+[ 177.204][v][cplayer] delaying audio start 114.384000 vs. 105.152000, diff=9.232000
+[ 177.241][v][cplayer] delaying audio start 114.384000 vs. 105.172000, diff=9.212000
+[ 177.256][v][cplayer] delaying audio start 114.384000 vs. 105.192000, diff=9.192000
+[ 177.279][v][cplayer] delaying audio start 114.384000 vs. 105.212000, diff=9.172000
+[ 177.317][v][cplayer] delaying audio start 114.384000 vs. 105.232000, diff=9.152000
+[ 177.344][v][cplayer] delaying audio start 114.384000 vs. 105.252000, diff=9.132000
+[ 177.370][v][cplayer] delaying audio start 114.384000 vs. 105.272000, diff=9.112000
+[ 177.386][v][cplayer] delaying audio start 114.384000 vs. 105.292000, diff=9.092000
+[ 177.407][v][cplayer] delaying audio start 114.384000 vs. 105.312000, diff=9.072000
+[ 177.446][v][cplayer] delaying audio start 114.384000 vs. 105.332000, diff=9.052000
+
+===== 应用日志（尾部 200 行）=====
+[2026-11-17 15:58:14.230] [bridge-decide] force=false need=false probe=None
+[2026-11-17 15:58:36.659] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 15:58:36.711] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 15:58:38.726] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 15:58:40.819] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 15:58:42.850] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 15:58:44.932] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 15:58:46.937] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 15:58:49.025] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 15:58:51.033] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 15:58:53.035] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 16:01:07.658] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:05:08.749] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:05:16.747] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 16:05:16.818] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 16:05:18.927] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 16:07:41.940] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:08:53.031] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:09:07.938] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:08.016] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:10.118] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:12.204] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:14.209] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:16.212] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:18.221] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:19.962] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:20.319] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:21.078] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:21.834] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:22.758] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:22.814] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:23.910] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:24.821] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:26.912] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:28.918] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:30.922] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:33.009] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:43:49.687] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:45:30.987] [bridge-decide] force=true need=true probe=None
+[2026-11-17 16:45:30.987] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 16:45:38.075] [bridge-decide] force=true need=true probe=None
+[2026-11-17 16:45:38.076] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 16:46:07.057] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:46:20.024] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:46:47.607] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:47:10.356] [bridge-decide] force=false need=false probe=Some("codec=hevc 3840x2160 pix=yuv420p10le")
+[2026-11-17 16:47:24.621] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:48:23.834] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 16:48:23.875] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 16:50:10.003] [bridge-decide] force=false need=false probe=Some("codec=hevc 3840x2160 pix=yuv420p10le")
+[2026-11-17 16:50:28.621] [bridge-decide] force=false need=false probe=Some("codec=hevc 3840x2160 pix=yuv420p10le")
+[2026-11-17 16:50:41.214] [bridge-decide] force=false need=false probe=None
+[2026-11-18 08:44:02.020] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 33.81 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:02.033] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 31.13 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:02.192] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 31.13 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:04.064] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 34.92 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:06.153] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 36.69 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:08.166] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 33.30 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:10.252] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 34.56 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:12.258] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 35.50 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 09:23:37.744] [bridge-decide] force=false need=false probe=None
+[2026-11-18 10:33:35.202] [bridge-decide] force=false need=false probe=None
+[2026-11-18 10:33:49.215] [bridge-decide] force=false need=false probe=Some("codec=hevc 3840x2160 pix=yuv420p10le")
+[2026-11-18 10:33:55.670] [bridge-decide] force=false need=false probe=None
+[2026-11-18 11:23:20.024] [bridge-decide] force=false need=false probe=None
+[2026-11-18 11:23:49.317] [bridge-decide] force=false need=false probe=Some("codec=hevc 3840x2160 pix=yuv420p10le")
+[2026-11-18 11:23:57.942] [bridge-decide] force=false need=false probe=None
+
+===== 崩溃记录 =====
+（无崩溃记录）
+===== 结束 =====
