@@ -1,0 +1,333 @@
+===== VQA 诊断日志 =====
+生成时间   : 2026-11-18 16:50:04
+应用版本   : 0.2.17 (Tauri/Web UI)
+核心库     : vqa-core TS 解析 / TR101 290 / PCR 双环 PLL
+操作系统   : Microsoft Windows [�汾 10.0.26300.9974]
+主机名     : DESKTOP-HP8EL40 (x86_64)
+设备MAC    : 745D22003E68
+运行时长   : 1 分钟
+
+===== 播放器状态 =====
+{
+  "auto_decoder": "default",
+  "bridge": null,
+  "bridge_note": "8K 自动降级：转码输出 1920 宽 / 25fps",
+  "bridge_stderr_last": "[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option\r\n[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error\r\n",
+  "bridge_to": null,
+  "err": "转码桥进程反复退出，已停止播放：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option\r\n[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error",
+  "hint": null,
+  "loop": false,
+  "playing": true,
+  "preparing": false,
+  "probe": null,
+  "recording": false,
+  "snap": {
+    "a_bitrate": 94125.0,
+    "audio_codec": "aac",
+    "avsync": 0.0,
+    "container_fps": 25.0,
+    "dec_pixfmt": "d3d11",
+    "decoder_drop": 0,
+    "duration_ms": 2261.333,
+    "height": 1080,
+    "hwdec": "d3d11va",
+    "idle": true,
+    "mute": false,
+    "paused": false,
+    "render_drop": 0,
+    "seekable": false,
+    "speed": 1.0,
+    "time_ms": 2221.333,
+    "v_bitrate": 100233872.0,
+    "vf_fps": 25.0,
+    "video_codec": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+    "volume": 100.0,
+    "width": 1920
+  }
+}
+
+===== 分析页状态 =====
+模式: 0  错误: 无
+
+===== 分析结果摘要 =====
+（尚未扫描）
+
+===== 事件时间线（最近 50 条）=====
+[+   4.47s] [player] 起播 udp://238.123.43.96:2000
+[+   5.49s] [player] 直放（无需转码）
+[+   7.50s] [player] 首帧有音无画，自动重载一次（audio=mp2）
+[+  14.49s] [drops] 丢帧突增 0 → 192（+192，t=6.5s）
+[+  19.49s] [drops] 丢帧突增 192 → 408（+216，t=11.4s）
+[+  25.20s] [player] 8K 自动降级：转码输出宽 3840 / 25fps，源 udp://238.123.43.96:2000
+[+  25.20s] [drops] 丢帧突增 408 → 606（+198，t=15.9s）
+[+  28.38s] [player] 8K 桥 t=2261ms 无推进，自动重启（宽度 3840）
+[+  29.60s] [player] 8K 自动降级：转码输出宽 3840 / 25fps，源 udp://238.123.43.96:2000
+[+  34.38s] [bridge] 转码桥进程退出，按 1920 宽自动重启（第 2 次）
+[+  35.59s] [player] 8K 自动降级：转码输出宽 1920 / 25fps，源 udp://238.123.43.96:2000
+
+===== 播放采样（每 5s 一条，最近 60 条）=====
+[+   4.47s] t=0.0s avsync=+0.0ms 丢帧=0/0 0.00Mbps vf_fps=0.00 硬解= 0x0
+[+   9.48s] t=0.0s avsync=+0.0ms 丢帧=0/0 0.00Mbps vf_fps=50.00 硬解=no 7680x4320
+[+  14.49s] t=6.5s avsync=+0.0ms 丢帧=189/3 113.09Mbps vf_fps=50.00 硬解=no 7680x4320
+[+  19.49s] t=11.4s avsync=+0.2ms 丢帧=405/3 112.90Mbps vf_fps=50.00 硬解=no 7680x4320
+[+  25.20s] t=15.9s avsync=+0.3ms 丢帧=603/3 120.26Mbps vf_fps=50.00 硬解=no 7680x4320
+[+  30.28s] t=2.5s avsync=+0.0ms 丢帧=0/0 100.23Mbps vf_fps=25.00 硬解=d3d11va 3840x2160
+[+  35.59s] t=2.5s avsync=+0.0ms 丢帧=0/0 100.23Mbps vf_fps=25.00 硬解=d3d11va 3840x2160
+
+===== mpv 日志（尾部 50 行）=====
+[  34.212][v][autorotate] dropping request due to pin disconnect
+[  34.212][v][autorotate] dropping request due to pin disconnect
+[  34.212][v][user_filter_wrapper] dropping request due to pin disconnect
+[  34.212][v][convert] dropping request due to pin disconnect
+[  34.212][v][autoconvert] dropping request due to pin disconnect
+[  34.212][v][autoconvert] dropping request due to pin disconnect
+[  34.212][v][user_filter_wrapper] dropping request due to pin disconnect
+[  34.212][v][nop] dropping request due to pin disconnect
+[  34.212][v][user_filter_wrapper] dropping request due to pin disconnect
+[  34.212][v][vf] dropping request due to pin disconnect
+[  34.212][d][cplayer] Terminating demuxers...
+[  34.212][d][ffmpeg] AVIOContext: Statistics: 1492720 bytes read, 0 seeks
+[  34.257][d][cplayer] Done terminating demuxers.
+[  34.257][v][cplayer] finished playback, success (reason 0)
+[  34.257][v][cplayer] Running hook: ytdl_hook/on_after_end_file
+[  34.257][d][cplayer] Run command: del, flags=64, args=[name="user-data/mpv/ytdl/json-subprocess-result"]
+[  34.257][d][ao/wasapi] Uninit wasapi
+[  34.257][d][ao/wasapi] Thread Reset
+[  34.257][d][ao/wasapi] Thread Pause
+[  34.257][d][ao/wasapi] Thread shutdown
+[  34.315][d][ao/wasapi] Thread uninit done
+[  34.315][d][ao/wasapi] Thread return
+[  34.315][d][ao/wasapi] Uninit wasapi done
+[  34.315][v][vo/gpu-next] reconfig to 960x540 rgba rgb/bt.709/srgb/full/display CL=mpeg1/jpeg
+[  34.315][d][vo/gpu-next] max content size: 2560x1392
+[  34.315][d][vo/gpu-next] monitor size: 2560x1440
+[  34.317][v][vo/gpu-next] Window size: 1122x665 (Borders: l=0 t=0 r=0 b=0)
+[  34.317][v][vo/gpu-next] Video source: 960x540 (1:1)
+[  34.317][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (0, 17) 1122x631
+[  34.317][v][vo/gpu-next] Video scale: 1.168750/1.168519
+[  34.317][v][vo/gpu-next] OSD borders: l=0 t=17 r=0 b=17
+[  34.317][v][vo/gpu-next] Video borders: l=0 t=17 r=0 b=17
+[  34.318][v][vo/gpu-next] Window size: 1122x665 (Borders: l=0 t=0 r=0 b=0)
+[  34.318][v][vo/gpu-next] Video source: 960x540 (1:1)
+[  34.318][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (0, 17) 1122x631
+[  34.318][v][vo/gpu-next] Video scale: 1.168750/1.168519
+[  34.318][v][vo/gpu-next] OSD borders: l=0 t=17 r=0 b=17
+[  34.318][v][vo/gpu-next] Video borders: l=0 t=17 r=0 b=17
+[  35.747][v][vo/gpu-next] Window size: 1122x645 (Borders: l=0 t=0 r=0 b=0)
+[  35.747][v][vo/gpu-next] Video source: 960x540 (1:1)
+[  35.747][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (0, 7) 1122x631
+[  35.747][v][vo/gpu-next] Video scale: 1.168750/1.168519
+[  35.747][v][vo/gpu-next] OSD borders: l=0 t=7 r=0 b=7
+[  35.747][v][vo/gpu-next] Video borders: l=0 t=7 r=0 b=7
+[  40.311][v][vo/gpu-next] Window size: 1x1 (Borders: l=0 t=0 r=0 b=0)
+[  40.312][v][vo/gpu-next] Video source: 960x540 (1:1)
+[  40.312][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (0, 0) 1x1
+[  40.312][v][vo/gpu-next] Video scale: 0.001042/0.001852
+[  40.312][v][vo/gpu-next] OSD borders: l=0 t=0 r=0 b=0
+[  40.312][v][vo/gpu-next] Video borders: l=0 t=0 r=0 b=0
+
+===== 应用日志（尾部 200 行）=====
+[2026-11-17 16:09:28.918] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:30.922] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:09:33.009] [osd] osd-overlay lines=3 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  硬解 d3d11va · 丢帧 0/0
+[2026-11-17 16:43:49.687] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:45:30.987] [bridge-decide] force=true need=true probe=None
+[2026-11-17 16:45:30.987] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 16:45:38.075] [bridge-decide] force=true need=true probe=None
+[2026-11-17 16:45:38.076] [bridge-decide] 起 10-bit chain10 桥…
+[2026-11-17 16:46:07.057] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:46:20.024] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:46:47.607] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:47:10.356] [bridge-decide] force=false need=false probe=Some("codec=hevc 3840x2160 pix=yuv420p10le")
+[2026-11-17 16:47:24.621] [bridge-decide] force=false need=false probe=None
+[2026-11-17 16:48:23.834] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 16:48:23.875] [osd] osd-overlay lines=3 res=7680x4320 -> ok
+  媒体信息 · 238.123.43.96:2000 ⏎ 媒体信息  探测失败（ffprobe 没取到） ⏎ 解码  软解 · 8K · 丢帧 3/0
+[2026-11-17 16:50:10.003] [bridge-decide] force=false need=false probe=Some("codec=hevc 3840x2160 pix=yuv420p10le")
+[2026-11-17 16:50:28.621] [bridge-decide] force=false need=false probe=Some("codec=hevc 3840x2160 pix=yuv420p10le")
+[2026-11-17 16:50:41.214] [bridge-decide] force=false need=false probe=None
+[2026-11-18 08:44:02.020] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 33.81 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:02.033] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 31.13 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:02.192] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 31.13 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:04.064] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 34.92 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:06.153] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 36.69 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:08.166] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 33.30 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:10.252] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 34.56 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 08:44:12.258] [osd] osd-overlay lines=6 res=3840x2160 -> ok
+  媒体信息 · 238.123.43.87:2000 ⏎ 容器  MPEG-TS ⏎ 视频  H.265 Main 10 · 3840×2160 · 50 fps · 35.50 Mbps ⏎ 画质  yuv420p10le ⏎ 音频  AAC LC · 48.0 kHz ⏎ 解码  硬解 d3d11va · 丢帧 8/0
+[2026-11-18 09:23:37.744] [bridge-decide] force=false need=false probe=None
+[2026-11-18 10:33:35.202] [bridge-decide] force=false need=false probe=None
+[2026-11-18 10:33:49.215] [bridge-decide] force=false need=false probe=Some("codec=hevc 3840x2160 pix=yuv420p10le")
+[2026-11-18 10:33:55.670] [bridge-decide] force=false need=false probe=None
+[2026-11-18 11:23:20.024] [bridge-decide] force=false need=false probe=None
+[2026-11-18 11:23:49.317] [bridge-decide] force=false need=false probe=Some("codec=hevc 3840x2160 pix=yuv420p10le")
+[2026-11-18 11:23:57.942] [bridge-decide] force=false need=false probe=None
+[2026-11-18 14:43:09.841] [bridge-decide] force=false need=false probe=None
+[2026-11-18 14:43:32.687] [player] adaptive-scale 请求：scale_w=3840 url=udp://238.123.43.96:2000
+[2026-11-18 14:43:33.010] [bridge] start_scaled scale_w=3840 cmd="D:\\Program Files (x86)\\视听质量检测工作站\\bin\\ffmpeg.exe" "-hide_banner" "-loglevel" "error" "-nostdin" "-i" "udp://238.123.43.96:2000" "-map" "0:v:0" "-vf" "scale=3840:-2"
+[2026-11-18 14:43:41.174] [bridge-decide] force=false need=false probe=None
+[2026-11-18 14:44:03.982] [player] adaptive-scale 请求：scale_w=3840 url=udp://238.123.43.96:2000
+[2026-11-18 14:44:03.982] [bridge] start_scaled scale_w=3840 cmd="D:\\Program Files (x86)\\视听质量检测工作站\\bin\\ffmpeg.exe" "-hide_banner" "-loglevel" "error" "-nostdin" "-i" "udp://238.123.43.96:2000" "-map" "0:v:0" "-vf" "scale=3840:-2"
+[2026-11-18 16:07:25.690] [bridge-decide] force=false need=false probe=None
+[2026-11-18 16:07:42.644] [player] adaptive-scale 请求：scale_w=3840 url=udp://238.123.43.96:2000
+[2026-11-18 16:07:42.912] [bridge] start_scaled scale_w=3840 cmd="D:\\Program Files (x86)\\视听质量检测工作站\\bin\\ffmpeg.exe" "-hide_banner" "-loglevel" "error" "-nostdin" "-i" "udp://238.123.43.96:2000" "-map" "0:v:0" "-vf" "scale=3840:-2,fps=25"
+[2026-11-18 16:07:43.626] [bridge] start_scaled scale_w=3840 cmd="D:\\Program Files (x86)\\视听质量检测工作站\\bin\\ffmpeg.exe" "-hide_banner" "-loglevel" "error" "-nostdin" "-c:v" "libuavs3d" "-i" "udp://238.123.43.96:2000" "-map" "0:v:0" "-vf" "scale=3840:-2,fps=25"
+[2026-11-18 16:07:49.335] [bridge] start_scaled scale_w=3840 cmd="D:\\Program Files (x86)\\视听质量检测工作站\\bin\\ffmpeg.exe" "-hide_banner" "-loglevel" "error" "-nostdin" "-i" "udp://238.123.43.96:2000" "-map" "0:v:0" "-vf" "scale=3840:-2,fps=25"
+[2026-11-18 16:08:09.485] [bridge] start_scaled scale_w=3840 cmd="D:\\Program Files (x86)\\视听质量检测工作站\\bin\\ffmpeg.exe" "-hide_banner" "-loglevel" "error" "-nostdin" "-i" "udp://238.123.43.96:2000" "-map" "0:v:0" "-vf" "scale=3840:-2,fps=25"
+[2026-11-18 16:08:15.038] [bridge] start_scaled scale_w=3840 cmd="D:\\Program Files (x86)\\视听质量检测工作站\\bin\\ffmpeg.exe" "-hide_banner" "-loglevel" "error" "-nostdin" "-i" "udp://238.123.43.96:2000" "-map" "0:v:0" "-vf" "scale=3840:-2,fps=25"
+[2026-11-18 16:08:16.301] [bridge] start_scaled scale_w=3840 cmd="D:\\Program Files (x86)\\视听质量检测工作站\\bin\\ffmpeg.exe" "-hide_banner" "-loglevel" "error" "-nostdin" "-i" "udp://238.123.43.96:2000" "-map" "0:v:0" "-vf" "scale=3840:-2,fps=25"
+[2026-11-18 16:08:22.339] [bridge] start_scaled scale_w=3840 cmd="D:\\Program Files (x86)\\视听质量检测工作站\\bin\\ffmpeg.exe" "-hide_banner" "-loglevel" "error" "-nostdin" "-i" "udp://238.123.43.96:2000" "-map" "0:v:0" "-vf" "scale=3840:-2,fps=25"
+[2026-11-18 16:49:23.496] [bridge-decide] force=false need=false probe=None
+[2026-11-18 16:49:41.744] [player] adaptive-scale 请求：scale_w=3840 url=udp://238.123.43.96:2000
+[2026-11-18 16:49:42.033] [bridge] start_scaled scale_w=3840 cmd="D:\\Program Files (x86)\\视听质量检测工作站\\bin\\ffmpeg.exe" "-hide_banner" "-loglevel" "error" "-nostdin" "-i" "udp://238.123.43.96:2000" "-map" "0:v:0" "-vf" "scale=3840:-2,fps=25"
+[2026-11-18 16:49:46.230] [bridge] 桥进程退出 stderr：[udp @ 000002928910b2c0] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 0000029289109080] Error during demuxing: I/O error
+[2026-11-18 16:49:46.332] [bridge] 桥进程退出 stderr：[udp @ 000002928910b2c0] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 0000029289109080] Error during demuxing: I/O error
+[2026-11-18 16:49:46.432] [bridge] 桥进程退出 stderr：[udp @ 000002928910b2c0] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 0000029289109080] Error during demuxing: I/O error
+[2026-11-18 16:49:46.432] [bridge] 旧桥 stderr 尾部：[udp @ 000002928910b2c0] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 0000029289109080] Error during demuxing: I/O error
+[2026-11-18 16:49:46.433] [bridge] start_scaled scale_w=3840 cmd="D:\\Program Files (x86)\\视听质量检测工作站\\bin\\ffmpeg.exe" "-hide_banner" "-loglevel" "error" "-nostdin" "-i" "udp://238.123.43.96:2000" "-map" "0:v:0" "-vf" "scale=3840:-2,fps=25"
+[2026-11-18 16:49:49.334] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:49.442] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:49.537] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:49.629] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:49.736] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:49.830] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:49.940] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:50.032] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:50.134] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:50.234] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:50.335] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:50.433] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:50.534] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:50.640] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:50.733] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:50.837] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:50.935] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:51.034] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:51.133] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:51.236] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:51.334] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:51.435] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:51.535] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:51.629] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:51.733] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:51.835] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:51.933] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:52.028] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:52.131] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:52.235] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:52.333] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:52.428] [bridge] 桥进程退出 stderr：[udp @ 00000231e9bfbd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 00000231e9cc8900] Error during demuxing: I/O error
+[2026-11-18 16:49:52.429] [bridge] start_scaled scale_w=1920 cmd="D:\\Program Files (x86)\\视听质量检测工作站\\bin\\ffmpeg.exe" "-hide_banner" "-loglevel" "error" "-nostdin" "-i" "udp://238.123.43.96:2000" "-map" "0:v:0" "-vf" "scale=1920:-2,fps=25"
+[2026-11-18 16:49:55.138] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:55.229] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:55.338] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:55.437] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:55.539] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:55.636] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:55.738] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:55.839] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:55.937] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:56.035] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:56.129] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:56.240] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:56.333] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:56.440] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:56.534] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:56.639] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:56.738] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:56.830] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:56.939] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:57.037] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:57.138] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:57.240] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:57.340] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:57.438] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:57.540] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:57.638] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:57.730] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:57.840] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:57.938] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:58.028] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+[2026-11-18 16:49:58.140] [bridge] 桥进程退出 stderr：[udp @ 000001cdc1d7bd00] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[in#0/mpegts @ 000001cdc1d92a40] Error during demuxing: I/O error
+
+===== 崩溃记录 =====
+（无崩溃记录）
+===== 结束 =====
