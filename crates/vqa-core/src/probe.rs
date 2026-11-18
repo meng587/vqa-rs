@@ -181,7 +181,8 @@ pub fn probe(
     if !localaddr.is_empty() && looks_net(url) {
         cmd.args(["-localaddr", localaddr]);
     }
-    cmd.args(["-i", url, "-show_streams", "-show_format", "-of", "json"]);
+    let probe_url = crate::bridge::udp_input_url(url);
+    cmd.args(["-i", probe_url.as_str(), "-show_streams", "-show_format", "-of", "json"]);
     let Some(out) = run_limited(cmd, Duration::from_secs_f64(timeout)) else {
         if let Some(e) = err_out.as_deref_mut() {
             e.push(format!("ffprobe 超时 {timeout}s（等不到流参数——长 GOP/无流？）"));
@@ -226,7 +227,7 @@ fn is_avs_family(codec: &str) -> bool {
 }
 
 /// 强制 libuavs3d 读流头；成功返回 (宽, 高, 像素格式, 源帧率)。
-/// 不输出、不消耗视频帧，ffmpeg 打印完流头即退出，8K 也能在 4 秒内返回。
+/// 不输出、不消耗视频帧，ffmpeg 打印完流头即退出，8K 也能在数秒内返回。
 fn confirm_avs3(url: &str, localaddr: &str) -> Option<(i64, i64, String, String)> {
     let ffmpeg = crate::tools::find_ffmpeg()?;
     let mut cmd = ffmpeg::hidden(&ffmpeg);
@@ -234,11 +235,12 @@ fn confirm_avs3(url: &str, localaddr: &str) -> Option<(i64, i64, String, String)
     if !localaddr.is_empty() && looks_net(url) {
         cmd.args(["-localaddr", localaddr]);
     }
+    let probe_url = crate::bridge::udp_input_url(url);
     cmd.args([
         "-probesize", "8388608",
-        "-analyzeduration", "4000000",
+        "-analyzeduration", "2000000",
         "-c:v", "libuavs3d",
-        "-i", url,
+        "-i", probe_url.as_str(),
         // 必须真解出一帧：AVS2 被强制交给 libuavs3d 时只打一行假流头，
         // frame=0 且立刻退出；AVS3 才能解出 >=1 帧。
         "-t", "0.5",
@@ -300,12 +302,15 @@ pub fn probe_quick(url: &str, timeout: f64, localaddr: &str) -> Option<QuickProb
     if !localaddr.is_empty() && looks_net(url) {
         cmd.args(["-localaddr", localaddr]);
     }
-    // 512KB/0.52s 对 4K 10-bit 不够（只认出 codec、尺寸全空）→ 8MB/4s。
+    // 512KB/0.52s 对 4K 10-bit 不够（只认出 codec、尺寸全空）→ 8MB。
+    // analyzeduration 从 4s 压到 1s：8MB 在 120Mbps 下约 0.53s 就够，
+    // 原来固定等 4s 会把起播拖到 4~5 秒；探测失败时用下面的短超时兜底。
     // start_time 一并取：音频比画面早到时，桥要按这段差值裁音频头（音画同步）。
+    let probe_url = crate::bridge::udp_input_url(url);
     cmd.args([
         "-probesize", "8388608",
-        "-analyzeduration", "4000000",
-        "-i", url,
+        "-analyzeduration", "1000000",
+        "-i", probe_url.as_str(),
         "-show_entries",
         "stream=codec_name,width,height,pix_fmt,bit_rate,avg_frame_rate,start_time:format=bit_rate,start_time",
         "-of", "json",
@@ -415,10 +420,11 @@ pub fn probe_programs(url: &str, timeout: f64, localaddr: &str) -> Vec<ProgInfo>
     if !localaddr.is_empty() && looks_net(url) {
         cmd.args(["-localaddr", localaddr]);
     }
+    let probe_url = crate::bridge::udp_input_url(url);
     cmd.args([
         "-probesize", "4194304",
         "-analyzeduration", "2000000",
-        "-i", url,
+        "-i", probe_url.as_str(),
         "-show_programs",
         "-show_entries", "program=program_id,program_num,pmt_pid:program_stream=codec_type,codec_name",
         "-of", "json",

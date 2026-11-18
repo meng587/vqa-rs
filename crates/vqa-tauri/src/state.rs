@@ -154,7 +154,7 @@ pub struct PlayerState {
     /// 循环播放（mpv `loop-file=inf`）。跨 loadfile 保持：
     /// 每次起播/重播后要重新下发一次（loadfile 会重置部分属性）
     pub loop_file: Mutex<bool>,
-    /// 本次桥选定的 H.264 编码器（h264_nvenc / h264_qsv / h264_amf / libx264）。
+    /// 本次桥选定的 H.264 编码器（h264_nvenc / h264_qsv / h264_amf / h264_mf / libopenh264）。
     /// 在桥启动时记一次，播放器页"桥格式"条据此显示"转到什么编码"。
     pub bridge_enc: Mutex<String>,
     /// 播放采样节流（诊断包每 5s 采一条 avsync/丢帧/码率）

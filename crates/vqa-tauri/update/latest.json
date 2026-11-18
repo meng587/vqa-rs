@@ -1,11 +1,11 @@
 {
-  "version": "0.2.20",
-  "notes": "修正状态栏 mpv 版本显示为 0.42",
-  "pub_date": "2026-11-18T09:44:55Z",
+  "version": "0.2.21",
+  "notes": "修复8K起播探测UDP缓冲/缩短探测等待；新增h264_mf编码器回退；诊断包记录桥编码器与完整命令",
+  "pub_date": "2026-11-18T11:24:44Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWg0WURLbmxEUDBHYnRzSS9kVHVBdENKNUNXYlRjT3NKTkJNM0tmTlRnN21hanpnaEVFeElLOEt2MzdadWRHSDFqSjZmdFN3NHorWDNxV0o2TmRjWndnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0OTk0ODczCWZpbGU6dnFhLXdvcmtiZW5jaC0wLjIuMjAtc2V0dXAuZXhlCXZlcnNpb246MC4yLjIwCnh5aEthWGNsS1FxYnppMEh0UXQ2NUhKeTJEVHRZQUM4SnpIbXZvYTJsSTNtdzNnVUNINTZRUDl1TFFUSHQ1WEc4OTEvYXkwbitUS1RnL0U3Uy9GdkR3PT0K",
-      "url": "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.20/vqa-workbench-0.2.20-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXZ1dnRiY2V3TnBZY1RVU2NxeDZlNk0wZjdwaWFJNGtGczdzZlRvdG1BaTlmNGNYN2hSRS9EbjlVYjB3Z0RZcVl0KzFhTm5EYzl4UjhhazhtbmFydncwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDAxMDg0CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4yMV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjIxCnhHcnptTk9wdUpGZnNmTFE1dHpoYTgyeWFTOUtCeFFCUVF2ZVFtZjZydHcxNE9Zd3ZUMCt3U2lUSzJLeVBGVlNVcm9tTEl0N1RrYXBZUjZVWDRZRERBPT0K",
+      "url": "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.21/vqa-workbench-0.2.21-setup.exe"
     }
   }
 }

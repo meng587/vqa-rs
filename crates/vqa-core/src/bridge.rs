@@ -61,7 +61,7 @@ fn enc_ok(ffmpeg: &Path, name: &str) -> bool {
     let mut cmd = crate::ffmpeg::hidden(ffmpeg);
     cmd.args([
         "-hide_banner", "-v", "error", "-f", "lavfi",
-        "-i", "testsrc2=size=320x240:rate=5", "-t", "0.3",
+        "-i", "testsrc2=size=1280x720:rate=5", "-t", "0.3",
         "-c:v", name, "-f", "null", "-",
     ])
     .stdout(Stdio::null())
@@ -69,14 +69,17 @@ fn enc_ok(ffmpeg: &Path, name: &str) -> bool {
     cmd.status().map(|s| s.success()).unwrap_or(false)
 }
 
-/// 优先硬编（快得多），退回 libx264；结果缓存（探测要起进程）。
+/// 优先硬编（快得多），退回软编；结果缓存（探测要起进程）。
+/// `h264_mf` 是 Windows Media Foundation 编码器：没有 NVENC/QSV/AMF 的机器
+/// 往往还能用它走显卡/系统硬编，比直接退 libopenh264 快（本机 4K 实测 3.99×）。
+/// 随包 FFmpeg 没有 libx264，因此最终兜底必须是 libopenh264。
 pub fn pick_h264_encoder(ffmpeg: &Path) -> String {
     if let Ok(cached) = ENC_CACHE.lock() {
         if let Some(c) = cached.as_ref() {
             return c.clone();
         }
     }
-    let enc = ["h264_nvenc", "h264_qsv", "h264_amf"]
+    let enc = ["h264_nvenc", "h264_qsv", "h264_amf", "h264_mf"]
         .into_iter()
         .find(|n| enc_ok(ffmpeg, n))
         .or_else(|| {
@@ -85,7 +88,7 @@ pub fn pick_h264_encoder(ffmpeg: &Path) -> String {
                 .into_iter()
                 .find(|n| enc_ok(ffmpeg, n))
         })
-        .unwrap_or("libx264")
+        .unwrap_or("libopenh264")
         .to_string();
     if let Ok(mut c) = ENC_CACHE.lock() {
         *c = Some(enc.clone());
@@ -102,6 +105,9 @@ pub fn encoder_args(enc: &str, crf: i32) -> Vec<String> {
         ],
         "h264_qsv" => &["-preset", "veryfast", "-g", "25", "-pix_fmt", "yuv420p"],
         "h264_amf" => &["-quality", "speed", "-g", "25", "-pix_fmt", "yuv420p"],
+        // h264_mf（Media Foundation）不认 -preset/-tune，也不支持 CRF；
+        // 只给 GOP/像素格式，码率用 -b:v 近似（与 libopenh264 同档）。
+        "h264_mf" => &["-g", "25", "-pix_fmt", "yuv420p"],
         // libopenh264 不认 -preset/-tune，只给 GOP 与像素格式
         "libopenh264" => &["-g", "25", "-pix_fmt", "yuv420p"],
         _ => &[
@@ -122,8 +128,8 @@ pub fn encoder_args(enc: &str, crf: i32) -> Vec<String> {
             "-qp_p".into(),
             cq,
         ],
-        // libopenh264 没有 crf，用码率近似：crf 越小给得越高
-        "libopenh264" => {
+        // libopenh264 / h264_mf 没有 crf，用码率近似：crf 越小给得越高
+        "libopenh264" | "h264_mf" => {
             let kbps = match crf {
                 c if c >= 28 => "4000k",
                 c if c >= 24 => "8000k",
@@ -154,7 +160,7 @@ fn push_localaddr(cmd: &mut Command, url: &str, localaddr: &str) {
 /// overrun" 并中止；这不是解码器崩溃，而是输入没来得及读走。
 /// 把 fifo 提高到约 49 MB，并申请更大的系统 socket 缓冲；仍溢出时
 /// 允许丢包继续跑，避免 watchdog 反复杀桥。
-fn udp_input_url(url: &str) -> String {
+pub(crate) fn udp_input_url(url: &str) -> String {
     if !url.to_ascii_lowercase().starts_with("udp://") {
         return url.to_string();
     }
@@ -262,16 +268,22 @@ impl RealtimeBridge {
             if scale_w > 0 {
                 cmd.args(["-vf", &format!("scale={scale_w}:-2,fps=25")]);
             }
-            crate::config::log_line(
-                "bridge",
-                &format!("start_scaled scale_w={scale_w} cmd={cmd:?}"),
-            );
             cmd.args(&enc_args)
                 .args([
                     "-map", "0:a:0?", "-c:a", "aac", "-b:a", "96k",
                     "-f", "mpegts", &dst,
                 ])
                 .stderr(Stdio::piped());
+            // ★ 这里必须等 encoder_args / 音频参数都追加后再打印：
+            //   之前提前打印的 cmd 看不到实际编码器，诊断包无法判断用了
+            //   h264_nvenc 还是 libopenh264，也没法定位 4K 编码失败。
+            crate::config::log_line(
+                "bridge",
+                &format!(
+                    "start_scaled scale_w={scale_w} decoder={} enc={enc} cmd={cmd:?}",
+                    decoder.unwrap_or("default")
+                ),
+            );
             let mut p = cmd.spawn().map_err(|e| format!("起转码失败：{e}"))?;
             // 存活检查（对齐工作站 Bridge._ALIVE_S）：秒退 = 起桥失败，
             // 让调用方回退直放并报出原因，而不是让 mpv 对空 UDP 干等。

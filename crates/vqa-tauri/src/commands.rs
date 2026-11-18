@@ -1173,6 +1173,7 @@ fn enc_label(enc: &str) -> String {
         "h264_nvenc" => "H.264 / NVENC 硬编".into(),
         "h264_qsv" => "H.264 / QSV 硬编".into(),
         "h264_amf" => "H.264 / AMF 硬编".into(),
+        "h264_mf" => "H.264 / MediaFoundation 编码".into(),
         "libx264" => "H.264 / libx264 软编".into(),
         "libopenh264" => "H.264 / OpenH264 软编".into(),
         "" => "H.264".into(),
@@ -1911,6 +1912,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
         "bridge_note": *st.bridge_note.lock().unwrap(),
         "bridge_stderr_last": *st.bridge_stderr_last.lock().unwrap(),
         "auto_decoder": *st.auto_decoder.lock().unwrap(),
+        "bridge_enc": *st.bridge_enc.lock().unwrap(),
         "bridge": st.bridge.lock().unwrap().as_ref().map(|b| {
             serde_json::json!({
                 "mode": b.mode(),
