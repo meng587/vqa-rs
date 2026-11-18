@@ -225,8 +225,10 @@ impl RealtimeBridge {
                 .args(["-map", "0:v:0"]);
             // ★ 8K 性能不足自动降级：先缩放再编码，输出 4K/1080p，mpv
             //   只解降级后的画面；这是"能播放"与"画质"之间的折中。
+            //   8K 50fps 源即使 4K 输出也容易压垮 NVENC 的实时编码，
+            //   同时把桥输出固定为 25fps：监看足够，且能避免"播几秒停几秒"。
             if scale_w > 0 {
-                cmd.args(["-vf", &format!("scale={scale_w}:-2")]);
+                cmd.args(["-vf", &format!("scale={scale_w}:-2,fps=25")]);
             }
             crate::config::log_line(
                 "bridge",
@@ -280,7 +282,7 @@ impl RealtimeBridge {
                 mode: "ffmpeg".into(),
                 tmp_es: None,
                 out_file: None,
-                stderr_buf: std::sync::Arc::new(Mutex::new(String::new())),
+                stderr_buf: err_buf,
             });
         }
 

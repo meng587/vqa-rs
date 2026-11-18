@@ -616,6 +616,13 @@ pub fn needs_bridge(q: &Option<QuickProbe>) -> bool {
         || c.contains("avs2")
         || c.contains("avs3")
         || c.contains("cavs");
+    let is_h264 = c.contains("h264") || c.contains("avc");
+    let big_8k = q.video.width >= 7000 && q.video.height >= 4000;
+    // 8K H.264 没有可用的硬解（NVDEC H.264 上限 4096 宽），直接交给 mpv
+    // 会在 50fps 源上持续丢帧。必须在起播前转成 4K/25fps 桥流。
+    if big_8k && (is_avs || is_h264) {
+        return true;
+    }
     if !is_avs {
         return false;
     }
@@ -644,5 +651,32 @@ mod tests {
         let d = serde_json::json!({});
         let p = parse(&d);
         assert!(p.is_empty());
+    }
+
+    #[test]
+    fn bridge_required_for_8k_h264_but_not_4k_h264() {
+        let mut q = QuickProbe::default();
+        q.video.codec = "h264".into();
+        q.video.width = 7680;
+        q.video.height = 4320;
+        q.video.pix_fmt = "yuv420p".into();
+        assert!(needs_bridge(&Some(q)));
+
+        let mut q4 = QuickProbe::default();
+        q4.video.codec = "h264".into();
+        q4.video.width = 3840;
+        q4.video.height = 2160;
+        q4.video.pix_fmt = "yuv420p".into();
+        assert!(!needs_bridge(&Some(q4)));
+    }
+
+    #[test]
+    fn bridge_not_required_for_8k_hevc() {
+        let mut q = QuickProbe::default();
+        q.video.codec = "hevc".into();
+        q.video.width = 7680;
+        q.video.height = 4320;
+        q.video.pix_fmt = "yuv420p10le".into();
+        assert!(!needs_bridge(&Some(q)));
     }
 }

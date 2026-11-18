@@ -590,7 +590,21 @@ export function initPlayer() {
       ab.srcW = s.width;
       ab.srcH = s.height;
       ab.ladder = abLadder(s.width, s.height);
-      // 首帧已出，12 秒预热宽限后再开始判定
+      // 8K 直放且没有硬件解码：不要再等丢帧统计，第一帧出来就转码。
+      // 软解 8K 在这类机器上不是"偶尔卡"，而是必然持续丢帧；
+      // 先出 4K/25fps 桥流，用户感知是"马上能看"，不是"等十几秒再降级"。
+      if (s.hwdec === "no" && ab.level < ab.ladder.length) {
+        const scale = ab.ladder[ab.level++];
+        ab.graceUntil = Date.now() + 12000;
+        ab.lastDrop = 0;
+        showNote(`8K 无硬解，立即转码 ${scale} 宽…`, false);
+        api.adaptiveScale(scale).catch((e: any) => {
+          ab && (ab.done = true);
+          showNote(`自动降级失败：${String(e)}`, true);
+        });
+        return;
+      }
+      // 8K 硬解源仍给 12 秒预热宽限，让 GPU 先稳定下来。
       ab.graceUntil = Date.now() + 12000;
       ab.lastDrop = s.decoder_drop + s.render_drop;
       return;
@@ -606,7 +620,9 @@ export function initPlayer() {
     ab.lastSampleAt = Date.now();
     ab.samples.push(Math.max(0, total - ab.lastDrop));
     ab.lastDrop = total;
-    if (ab.samples.length < 5) return;
+    // 软解 8K 的丢帧是确定的，不用攒满 5 秒；硬解源仍用 5 秒均值避免误判。
+    const needSamples = s.hwdec === "no" ? 2 : 5;
+    if (ab.samples.length < needSamples) return;
     const avg = ab.samples.reduce((a, b) => a + b, 0) / ab.samples.length;
     const fps = s.vf_fps || s.container_fps || 25;
     const srcFps = s.container_fps || fps;
@@ -628,7 +644,7 @@ export function initPlayer() {
     const scale = ab.ladder[ab.level++];
     ab.graceUntil = Date.now() + 12000;
     ab.lastDrop = 0;
-    showNote(`8K 解码跟不上（5 秒平均丢帧 ${Math.round(avg)}），正在转码 ${scale} 宽…`, false);
+    showNote(`8K 解码跟不上（平均丢帧 ${Math.round(avg)}），正在转码 ${scale} 宽…`, false);
     api.adaptiveScale(scale).catch((e: any) => {
       ab && (ab.done = true);
       showNote(`自动降级失败：${String(e)}`, true);

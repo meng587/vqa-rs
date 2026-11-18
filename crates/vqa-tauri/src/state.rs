@@ -169,6 +169,12 @@ pub struct PlayerState {
     pub prewarm_url: Mutex<String>,
     /// 上一轮采样时的丢帧计数，用于"丢帧突增"事件
     pub last_drop: Mutex<i64>,
+    /// 8K 自动降级锁：同一源再次起播时继续走已选宽度，避免又回到 8K 直放
+    pub auto_scale_url: Mutex<String>,
+    pub auto_scale_w: Mutex<u32>,
+    /// 桥进程异常退出的起始时刻与自动重启次数（直播桥 watchdog）
+    pub bridge_dead_since: Mutex<Option<std::time::Instant>>,
+    pub bridge_auto_restarts: Mutex<u32>,
     /// 抽节目模式的 ffmpeg 子进程（mpv 从 fd://0 读它的输出）
     pub feed: Mutex<Option<std::process::Child>>,
 }
@@ -210,6 +216,10 @@ impl PlayerState {
             prewarm_url: Mutex::new(String::new()),
             last_drop: Mutex::new(0),
             feed: Mutex::new(None),
+            auto_scale_url: Mutex::new(String::new()),
+            auto_scale_w: Mutex::new(0),
+            bridge_dead_since: Mutex::new(None),
+            bridge_auto_restarts: Mutex::new(0),
         }
     }
 

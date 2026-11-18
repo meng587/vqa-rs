@@ -461,6 +461,19 @@ pub fn player_play(
     if cleaned.is_empty() {
         return Err("来源为空".into());
     }
+    // 8K 自动降级的“锁”：同一个源再次起播时，继续用上一次的降级宽度。
+    // 否则用户看到丢帧后重新点“开始”，又会从 8K 直放开始，来回循环。
+    let auto_scale = {
+        let locked_url = st.auto_scale_url.lock().unwrap().clone();
+        if locked_url == cleaned {
+            *st.auto_scale_w.lock().unwrap()
+        } else {
+            *st.auto_scale_url.lock().unwrap() = String::new();
+            *st.auto_scale_w.lock().unwrap() = 0;
+            *st.bridge_auto_restarts.lock().unwrap() = 0;
+            0
+        }
+    };
     // ★ 预热复用：同一个文件已经在后台预热过，就直接接上那座桥——转码早在跑、
     //   缓存也在同步写，用户点播放时要么直接是缓存（0.3~1 秒），要么 mpv 一读
     //   就有数据（不必再等首片 4~7 秒）。换文件则把旧预热丢掉（Drop 会 kill 子进程）。
@@ -539,6 +552,18 @@ pub fn player_play(
     crate::events::ev("player", &format!("起播 {cleaned}"));
     crate::events::clear_samples();
 
+    // ★ 已锁定 8K 降级宽度：直接起降级桥，不再探测/直放。
+    //   这是避免“降级 → 重新起播 → 又直放 8K → 再降级”循环的关键。
+    if auto_scale > 0 {
+        *st.preparing.lock().unwrap() = false;
+        crate::events::ev(
+            "player",
+            &format!("按上次降级宽度 {auto_scale} 直接起桥"),
+        );
+        *st.bridge_auto_restarts.lock().unwrap() = 0;
+        return start_auto_bridge(&st, &cleaned, &nic_ip, auto_scale);
+    }
+
     let probe_url = cleaned.clone();
     std::thread::Builder::new()
         .name("vqa-probe".into())
@@ -564,18 +589,17 @@ pub fn player_play(
 /// 8K 播放性能不足时的自动降级：把当前源转成指定宽度的 H.264 回环流，
 /// 让 mpv 只解降级后的画面。调用方（播放器页）按 5 秒平均丢帧触发，
 /// 阶梯 3840 → 1920 → 1280。
-#[tauri::command]
-pub fn player_adaptive_scale(st: State<PlayerState>, scale_w: u32) -> Result<(), String> {
-    let url = st.playing_url.lock().unwrap().clone();
-    if url.is_empty() {
-        return Err("当前没有在播的源".into());
-    }
-    if scale_w == 0 {
-        return Err("降级宽度无效".into());
-    }
+/// 启动/复用 8K 自动降级桥。调用前 playing_url 必须已经指向源地址，
+/// mpv 必须已启动；本函数只负责桥、状态和 loadfile。
+fn start_auto_bridge(
+    st: &PlayerState,
+    url: &str,
+    nic_ip: &str,
+    scale_w: u32,
+) -> Result<(), String> {
     let ffmpeg = vqa_core::tools::find_ffmpeg().ok_or("需要转码降级但未找到 ffmpeg")?;
-    let nic_ip = st.last_nic_ip.lock().unwrap().clone();
     let q = st.probe_info.lock().unwrap().clone();
+    let probe_missing = q.is_none();
     let audio_lead = q.as_ref().map(|x| x.audio_lead()).unwrap_or(0.0);
     let avs3 = q
         .as_ref()
@@ -584,28 +608,47 @@ pub fn player_adaptive_scale(st: State<PlayerState>, scale_w: u32) -> Result<(),
             c.contains("avs3") || c == "uavs3d"
         })
         .unwrap_or(false);
-    vqa_core::config::log_line(
-        "player",
-        &format!("adaptive-scale 请求：scale_w={scale_w} url={url}"),
-    );
-    let b = vqa_core::bridge::RealtimeBridge::start_scaled(
-        &ffmpeg,
-        std::path::Path::new(""),
-        &url,
-        false,
-        26,
-        &nic_ip,
-        audio_lead,
-        scale_w,
-        if avs3 { Some("libuavs3d") } else { None },
-    )?;
-    let bridge_url = b.url();
-    {
-        let mut guard = st.bridge.lock().unwrap();
-        *guard = Some(Box::new(b));
+    // 探测失败时不能赌一种解码器：8K AVS3 必须 libuavs3d，8K H.264
+    // 又必须默认解码器。先按默认试，秒退后自动回退 libuavs3d。
+    let tries: &[Option<&str>] = if avs3 {
+        &[Some("libuavs3d")]
+    } else if probe_missing {
+        // 先赌默认：真实 8K H.264 的 UDP 源 probe 失败时，默认解码器能起；
+        // 万一是 AVS3，默认会秒退，再回退 libuavs3d。
+        &[None, Some("libuavs3d")]
+    } else {
+        &[None]
+    };
+    let mut bridge = None;
+    let mut last_err = String::new();
+    for dec in tries {
+        match vqa_core::bridge::RealtimeBridge::start_scaled(
+            &ffmpeg,
+            std::path::Path::new(""),
+            url,
+            false,
+            26,
+            nic_ip,
+            audio_lead,
+            scale_w,
+            *dec,
+        ) {
+            Ok(b) => {
+                bridge = Some(b);
+                break;
+            }
+            Err(e) => last_err = e,
+        }
     }
+    let b = bridge.ok_or_else(|| {
+        format!("8K 转码桥起不来：{last_err}")
+    })?;
+    let bridge_url = b.url();
+    let enc = vqa_core::bridge::pick_h264_encoder(&ffmpeg);
+    *st.bridge.lock().unwrap() = Some(Box::new(b));
+    *st.bridge_enc.lock().unwrap() = enc;
     *st.bridge_note.lock().unwrap() =
-        format!("8K 性能不足，自动转码播放（输出 {scale_w} 宽）");
+        format!("8K 自动降级：转码输出 {scale_w} 宽 / 25fps");
     *st.bridge_url.lock().unwrap() = bridge_url.clone();
     *st.bridge_since.lock().unwrap() = Some(std::time::Instant::now());
     *st.bridge_loaded.lock().unwrap() = true;
@@ -615,15 +658,37 @@ pub fn player_adaptive_scale(st: State<PlayerState>, scale_w: u32) -> Result<(),
     *st.preparing.lock().unwrap() = false;
     *st.loaded_at.lock().unwrap() = None;
     *st.video_retry_done.lock().unwrap() = false;
+    *st.auto_scale_url.lock().unwrap() = url.to_string();
+    *st.auto_scale_w.lock().unwrap() = scale_w;
+    *st.bridge_dead_since.lock().unwrap() = None;
+    *st.err.lock().unwrap() = None;
     if let Some(m) = st.mpv.lock().unwrap().as_ref() {
         let _ = m.loadfile(&bridge_url);
     }
-    st.set_hint_for(format!("8K 性能不足，已转入 {scale_w} 宽转码播放"), 30);
+    st.set_hint_for(format!("8K 已转入 {scale_w} 宽 / 25fps 转码播放"), 30);
     crate::events::ev(
         "player",
-        &format!("8K 自动降级：转码输出宽 {scale_w}，源 {url}"),
+        &format!("8K 自动降级：转码输出宽 {scale_w} / 25fps，源 {url}"),
     );
     Ok(())
+}
+
+#[tauri::command]
+pub fn player_adaptive_scale(st: State<PlayerState>, scale_w: u32) -> Result<(), String> {
+    let url = st.playing_url.lock().unwrap().clone();
+    if url.is_empty() {
+        return Err("当前没有在播的源".into());
+    }
+    if scale_w == 0 {
+        return Err("降级宽度无效".into());
+    }
+    let nic_ip = st.last_nic_ip.lock().unwrap().clone();
+    vqa_core::config::log_line(
+        "player",
+        &format!("adaptive-scale 请求：scale_w={scale_w} url={url}"),
+    );
+    *st.bridge_auto_restarts.lock().unwrap() = 0;
+    start_auto_bridge(&st, &url, &nic_ip, scale_w)
 }
 
 
@@ -644,10 +709,20 @@ fn decide_bridge(
             c.contains("avs3") || c == "uavs3d"
         })
         .unwrap_or(false);
+    let h264_8k = q
+        .as_ref()
+        .map(|x| {
+            let c = x.video.codec.to_ascii_lowercase();
+            x.video.width >= 7000
+                && x.video.height >= 4000
+                && (c.contains("h264") || c.contains("avc"))
+        })
+        .unwrap_or(false);
     let avs3_8k = avs3
         && q.as_ref()
             .map(|x| x.video.width >= 7000 && x.video.height >= 4000)
             .unwrap_or(false);
+    let big8k_bridge = avs3_8k || h264_8k;
     // ★ 音画同步修正量：源里音频比画面早到多少秒（桥必须裁掉音频头）
     let audio_lead = q.as_ref().map(|x| x.audio_lead()).unwrap_or(0.0);
     vqa_core::config::log_line(
@@ -719,9 +794,10 @@ fn decide_bridge(
         }
     }
     let davs2 = davs2_path.unwrap_or_else(|| PathBuf::new());
-    // ★ AVS3 8K 起桥先输出 4K：8K 解码 + H.264 8K 编码同时压在一条链上，
-    //   弱机必然黑场；4K 保留细节，也更符合 H.264 NVENC 的 4K 上限。
-    let initial_scale = if avs3_8k { 3840 } else { 0 };
+    // ★ 8K H.264 同样先输出 4K/25fps：H.264 NVDEC 上限 4096 宽，
+    //   RTX 4060 Ti 也无法硬解 7680×4320；8K 软件解码后再交给 mpv 渲染
+    //   会持续丢帧。AVS3 8K 也一样先降到 4K。
+    let initial_scale = if big8k_bridge { 3840 } else { 0 };
     // ★ 本地 AVS 源优先走**并行分片桥**（bridge_par，照搬 Python 版 §31.50）：
     //   单链整链吞吐只有 0.63×实时（"播几秒卡几秒"的根因），并行 4 链叠到
     //   ~1.85×，转码跑在播放前面——秒开、流畅、二次打开走缓存可拖动。
@@ -757,8 +833,10 @@ fn decide_bridge(
         if avs3 { Some("libuavs3d") } else { None },
     ) {
         Ok(b) => {
-            let reason = if initial_scale > 0 {
-                format!("AVS3 8K→{initial_scale} 自动转码桥（{}）", b.mode)
+            let reason = if h264_8k {
+                format!("8K H.264→{initial_scale} / 25fps 自动转码桥（{}）", b.mode)
+            } else if initial_scale > 0 {
+                format!("AVS3 8K→{initial_scale} / 25fps 自动转码桥（{}）", b.mode)
             } else {
                 format!("AVS 源自动转码桥（{}）", b.mode)
             };
@@ -791,6 +869,10 @@ pub fn player_stop(st: State<PlayerState>) {
     *st.live_had_picture.lock().unwrap() = false;
     *st.live_last_time.lock().unwrap() = 0;
     *st.live_stall_since.lock().unwrap() = None;
+    *st.auto_scale_url.lock().unwrap() = String::new();
+    *st.auto_scale_w.lock().unwrap() = 0;
+    *st.bridge_dead_since.lock().unwrap() = None;
+    *st.bridge_auto_restarts.lock().unwrap() = 0;
     if let Some(m) = st.mpv.lock().unwrap().as_ref() {
         let _ = m.stop();
     }
@@ -1341,6 +1423,69 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
         }
     }
 
+    // 2.57) 自动降级桥 watchdog：ffmpeg 桥进程退出后 mpv 会等在 TCP 上，
+    //       界面看起来就是“播一会儿自己退了”。直播源先自动重启一次；
+    //       第二次仍退出就明确报错，不再静默黑屏。
+    {
+        let playing = !st.playing_url.lock().unwrap().is_empty();
+        let url = st.playing_url.lock().unwrap().clone();
+        let low = url.to_ascii_lowercase();
+        let live = low.starts_with("udp://")
+            || low.starts_with("rtp://")
+            || low.starts_with("rtsp://")
+            || low.starts_with("rtmp://")
+            || low.starts_with("rtmps://")
+            || low.starts_with("srt://")
+            || low.starts_with("mms://");
+        let bridge_dead = if playing && live && !*st.preparing.lock().unwrap() {
+            st.bridge
+                .lock()
+                .unwrap()
+                .as_ref()
+                .map(|b| !b.is_file() && b.mode() == "ffmpeg" && b.alive() == 0)
+                .unwrap_or(false)
+        } else {
+            false
+        };
+        if bridge_dead {
+            let since = *st.bridge_dead_since.lock().unwrap();
+            let due = since
+                .map(|t| t.elapsed() >= std::time::Duration::from_secs(3))
+                .unwrap_or(false);
+            if due {
+                let mut scale = *st.auto_scale_w.lock().unwrap();
+                if scale == 0 && st.bridge_note.lock().unwrap().contains("8K") {
+                    scale = 3840;
+                }
+                let restarts = *st.bridge_auto_restarts.lock().unwrap();
+                if scale > 0 && restarts < 1 {
+                    *st.bridge_auto_restarts.lock().unwrap() = restarts + 1;
+                    *st.bridge_dead_since.lock().unwrap() = None;
+                    let nic = st.last_nic_ip.lock().unwrap().clone();
+                    // 先收掉已经死掉的桥，避免两座桥同时占同一个端口/解码器
+                    *st.bridge.lock().unwrap() = None;
+                    crate::events::ev(
+                        "bridge",
+                        &format!("转码桥进程退出，按 {scale} 宽自动重启"),
+                    );
+                    if let Err(e) = start_auto_bridge(&st, &url, &nic, scale) {
+                        *st.err.lock().unwrap() = Some(format!("转码桥重启失败：{e}"));
+                    }
+                } else {
+                    *st.bridge.lock().unwrap() = None;
+                    *st.err.lock().unwrap() = Some(
+                        "转码桥进程反复退出，已停止播放。请检查源或降低输出宽度后重试"
+                            .into(),
+                    );
+                }
+            } else if since.is_none() {
+                *st.bridge_dead_since.lock().unwrap() = Some(std::time::Instant::now());
+            }
+        } else {
+            *st.bridge_dead_since.lock().unwrap() = None;
+        }
+    }
+
     // 2.6) 桥重试窗口耗尽仍无画面 → 给出性能诊断（不是含糊的失败）
     //（本地文件桥不适用：EOF 回 idle 是播完，不是桥没出流）
     {
@@ -1610,8 +1755,12 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
     } else {
         let enc = st.bridge_enc.lock().unwrap().clone();
         // chain10 固定压到 25fps（davs2 软解 4K 10-bit 只有 ~41fps，
-        // 不降帧会"播几秒停几秒"，见 bridge.rs 注释）；分片桥保持源帧率
-        let fps = if bridge_mode_now.contains("chain10") {
+        // 不降帧会"播几秒停几秒"，见 bridge.rs 注释）；8K 自动降级
+        // 单链桥也固定 25fps；分片桥保持源帧率
+        let fps = if bridge_mode_now.contains("chain10")
+            || *st.auto_scale_w.lock().unwrap() > 0
+            || st.bridge_note.lock().unwrap().contains("25fps")
+        {
             "25".to_string()
         } else {
             String::new()
