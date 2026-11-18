@@ -9,11 +9,17 @@
 #![windows_subsystem = "windows"]
 
 mod commands;
+mod alarm_cmds;
+mod burst_cmds;
+mod compliance_cmds;
 mod diag;
 mod events;
 mod mediainfo;
 mod mpv_host;
 mod state;
+mod sync_cmds;
+mod preview;
+mod xcode_cmds;
 
 use tauri::Manager;
 
@@ -126,6 +132,12 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .manage(state::PlayerState::new())
         .manage(state::AnalysisState::new())
+        .manage(state::ComplianceState::new())
+        .manage(state::XcodeState::new())
+        .manage(state::BurstState::new())
+            .manage(state::AvState::new())
+            .manage(state::ConsistState::new())
+            .manage(preview::Preview::new())
         .setup(|app| {
             // 视频子窗：父 = 主窗口 HWND（WebView2 的同父兄弟，后建者 z 序在上）
             if let Some(win) = app.get_webview_window("main") {
@@ -191,6 +203,44 @@ fn main() {
             commands::analysis_result,
             commands::packet_rows,
             commands::export_report_md,
+            // 合规检测
+            compliance_cmds::compliance_check,
+            compliance_cmds::compliance_live_start,
+            compliance_cmds::compliance_live_snapshot,
+            compliance_cmds::compliance_live_stop,
+            compliance_cmds::compliance_export_md,
+            // 直播转码
+            xcode_cmds::xcode_encoders,
+            xcode_cmds::xcode_start,
+            xcode_cmds::xcode_snapshot,
+            xcode_cmds::xcode_stop,
+            // 微突发巡检
+            burst_cmds::burst_start,
+            burst_cmds::burst_snapshot,
+            burst_cmds::burst_stop,
+            sync_cmds::avsync_start,
+            sync_cmds::avsync_progress,
+            sync_cmds::avsync_stop,
+            sync_cmds::consist_start,
+            sync_cmds::consist_progress,
+            sync_cmds::consist_stop,
+            sync_cmds::channels_get,
+            sync_cmds::channels_save,
+            sync_cmds::ui_pref_get,
+            sync_cmds::ui_pref_set,
+            sync_cmds::preview_start,
+            sync_cmds::preview_stop,
+            sync_cmds::preview_frame,
+            // 告警处理 / 证据录像 / 存储设置
+            alarm_cmds::alarm_list,
+            alarm_cmds::alarm_record,
+            alarm_cmds::alarm_update,
+            alarm_cmds::alarm_capture,
+            alarm_cmds::alarm_open,
+            alarm_cmds::alarm_settings_get,
+            alarm_cmds::alarm_settings_set,
+            alarm_cmds::alarm_detect_log,
+            alarm_cmds::alarm_export,
         ])
         .build(tauri::generate_context!())
         .expect("tauri 应用构建失败")

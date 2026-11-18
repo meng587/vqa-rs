@@ -76,16 +76,28 @@ New-Item -ItemType Directory -Force -Path $verDir | Out-Null
 
 $instSrc = Join-Path $root "target\release\bundle\nsis\视听质量检测工作站_${Version}_x64-setup.exe"
 if (-not (Test-Path -LiteralPath $instSrc)) {
-  throw "找不到安装包：$instSrc（先跑 tools\release.ps1）"
+  $instSrc = Join-Path $root "target\release\bundle\nsis\vqa-workbench-$Version-setup.exe"
+}
+if (-not (Test-Path -LiteralPath $instSrc)) {
+  throw "找不到安装包（先跑 tools\release.ps1）"
 }
 $instDst = Join-Path $verDir "vqa-workbench-$Version-setup.exe"
 Copy-Item -LiteralPath $instSrc -Destination $instDst -Force
 
+# 源码包：按 git 文件清单打包工作区（含未跟踪的新文件，尊重 .gitignore），
+# 不能只用 git archive <stash>，那样会漏掉未 git add 的新文件。
 $zip = Join-Path $verDir "vqa-rs_${Version}_source.zip"
+$list = Join-Path $verDir "src_files.txt"
+$files = & git -c core.quotepath=false ls-files --cached --others --exclude-standard
+if (-not $files) { throw "git 文件清单为空" }
+[IO.File]::WriteAllLines($list, [string[]]$files, (New-Object Text.UTF8Encoding $false))
+if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
+& tar.exe -a -c -f $zip -T $list
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $zip)) { throw "源码包生成失败：$zip" }
+Remove-Item -LiteralPath $list -Force
+
 $sha = (git stash create).Trim()
 if (-not $sha) { $sha = (git rev-parse HEAD).Trim() }
-git archive --format=zip -o $zip $sha
-if (-not (Test-Path -LiteralPath $zip)) { throw "源码包生成失败：$zip" }
 
 $head = (git rev-parse HEAD).Trim()
 $h1 = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
@@ -95,7 +107,7 @@ vqa-rs 备份清单
 生成时间：$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 版本：$Version（version 单一来源 crates/vqa-tauri/Cargo.toml）
 Git HEAD：$head
-打包快照：$sha（git stash create，含未提交改动，不含 target/node_modules）
+打包快照：$sha（git stash create；源码 zip 直接取工作区文件清单，含未跟踪新文件，不含 target/node_modules）
 
 文件：
   vqa-rs_${Version}_source.zip        源码快照

@@ -16,13 +16,20 @@
 //! | `player`        | `vkitplayer/src/mpv.rs`          |
 //! | `bridge`        | `vkitplayer/src/bridge.rs` + `media/bridge_ffmpeg.py` |
 
+pub mod avsync;
 pub mod bridge;
 pub mod bridge_par;
+pub mod burst;
+pub mod compliance;
+pub mod consist;
 pub mod config;
 pub mod ffmpeg;
 pub mod live;
+pub mod mdi;
 pub mod netif;
 pub mod player;
 pub mod probe;
 pub mod tools;
 pub mod tsfile;
+pub mod ts_events;
+pub mod xcode;

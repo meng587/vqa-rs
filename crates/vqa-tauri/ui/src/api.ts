@@ -220,7 +220,219 @@ export const api = {
     invoke<AnalysisSettings>("analysis_settings_set", { reportDir }),
   // 媒体信息（ffprobe 全量）
   mediaInfo: (path: string) => invoke<MediaInfo>("media_info", { path }),
+  // 合规检测（依据 广电办发〔2024〕253 号）
+  complianceCheck: (path: string, kind: string) =>
+    invoke<ComplianceResult>("compliance_check", { path, kind }),
+  complianceLiveStart: (url: string, nicIp: string, kind: string) =>
+    invoke<void>("compliance_live_start", { url, nicIp, kind }),
+  complianceLiveSnapshot: (kind: string) =>
+    invoke<ComplianceLive>("compliance_live_snapshot", { kind }),
+  complianceLiveStop: () => invoke<void>("compliance_live_stop"),
+  complianceExport: (name: string, content: string) =>
+    invoke<string | null>("compliance_export_md", { name, content }),
+  // 直播转码
+  xcodeEncoders: () =>
+    invoke<{ auto_label: string; encoders: { id: string; label: string }[] }>("xcode_encoders"),
+  xcodeStart: (cfg: XcodeCfg) => invoke<XcodeStats>("xcode_start", { cfg }),
+  xcodeSnapshot: () => invoke<XcodeStats>("xcode_snapshot"),
+  xcodeStop: () => invoke<XcodeStats>("xcode_stop"),
+  // 微突发巡检
+  burstStart: (url: string, nicIp: string, ratio: number) =>
+    invoke<BurstStats>("burst_start", { url, nicIp, ratio }),
+  burstSnapshot: () => invoke<BurstStats>("burst_snapshot"),
+  burstStop: () => invoke<BurstStats>("burst_stop"),
+  // 音画同步（job = 并发槽位 id）
+  avsyncStart: (cfg: AvSyncCfg, job = "main") => invoke<void>("avsync_start", { cfg, job }),
+  avsyncProgress: (job = "main") => invoke<AvPoll>("avsync_progress", { job }),
+  avsyncStop: (job = "main") => invoke<void>("avsync_stop", { job }),
+  // 一致性比对
+  consistStart: (cfg: ConsistCfg, job = "main") => invoke<void>("consist_start", { cfg, job }),
+  consistProgress: (job = "main") => invoke<ConsistPoll>("consist_progress", { job }),
+  consistStop: (job = "main") => invoke<void>("consist_stop", { job }),
+  // 页面设置（每个功能各存各的键）
+  uiGet: (key: string) => invoke<any>("ui_pref_get", { key }),
+  uiSet: (key: string, value: any) => invoke<void>("ui_pref_set", { key, value }),
+  // 频道列表（两页共用一份，存 shared 配置）
+  channelsGet: () => invoke<Channel[]>("channels_get"),
+  channelsSave: (list: Channel[]) => invoke<void>("channels_save", { list }),
+  // 检测画面预览
+  previewStart: (owner: string, src: string) => invoke<void>("preview_start", { owner, src }),
+  previewStop: (owner: string) => invoke<void>("preview_stop", { owner }),
+  previewFrame: (owner: string) => invoke<string | null>("preview_frame", { owner }),
+  // 告警处理 / 证据录像 / 存储设置
+  alarmList: () => invoke<AlarmRecord[]>("alarm_list"),
+  alarmExport: (content: string) => invoke<string | null>("alarm_export", { content }),
+  alarmDetectLog: (v: {
+    channel: string;
+    pair: string;
+    similarity: number;
+    minSim: number;
+    offsetMs: number;
+    segmentCount: number;
+    verdict: string;
+    source: string;
+    reference: string;
+    fps: number;
+    bad: boolean;
+  }) =>
+    invoke<void>("alarm_detect_log", {
+      channel: v.channel,
+      pair: v.pair,
+      similarity: v.similarity,
+      minSim: v.minSim,
+      offsetMs: v.offsetMs,
+      segmentCount: v.segmentCount,
+      verdict: v.verdict,
+      source: v.source,
+      reference: v.reference,
+      fps: v.fps,
+      bad: v.bad,
+    }),
+  alarmRecord: (input: AlarmInput) => invoke<AlarmRecord>("alarm_record", { input }),
+  alarmUpdate: (id: string, status: string, conclusion: string, assignee: string, note: string) =>
+    invoke<AlarmRecord>("alarm_update", { id, status, conclusion, assignee, note }),
+  alarmCapture: (recordId: string, source: string, seconds: number, startS: number | null) =>
+    invoke<void>("alarm_capture", { recordId, source, seconds, startS }),
+  alarmOpen: (path: string) => invoke<void>("alarm_open", { path }),
+  alarmSettings: () => invoke<AlarmSettings>("alarm_settings_get"),
+  setAlarmSettings: (v: {
+    logDir: string;
+    clipDir: string;
+    retainDays: number;
+    maxGb: number;
+    autoClean: boolean;
+  }) =>
+    invoke<AlarmSettings>("alarm_settings_set", {
+      logDir: v.logDir,
+      clipDir: v.clipDir,
+      retainDays: v.retainDays,
+      maxGb: v.maxGb,
+      autoClean: v.autoClean,
+    }),
 };
+
+export interface Channel {
+  name: string;
+  url: string;
+  enabled: boolean;
+}
+
+export interface AvSyncCfg {
+  source: string;
+  secs: number;
+  search_ms: number;
+  fps: number;
+}
+
+export interface LagPeak {
+  offset_ms: number;
+  corr: number;
+}
+
+export interface AvSyncResult {
+  ok: boolean;
+  source: string;
+  secs: number;
+  fps: number;
+  offset_ms: number;
+  confidence: number;
+  peaks: LagPeak[];
+  video_frames: number;
+  audio_windows: number;
+  verdict: string;
+  series_video: number[];
+  series_audio: number[];
+  err: string | null;
+}
+
+export interface AvPoll {
+  running: boolean;
+  pct: number;
+  result: AvSyncResult | null;
+  err: string | null;
+}
+
+export interface ConsistCfg {
+  reference: string;
+  target: string;
+  fps: number;
+  secs: number;
+  max_lag_s: number;
+  thr: number;
+  logo: [number, number, number, number] | null;
+}
+
+export interface BadSeg {
+  from_s: number;
+  to_s: number;
+  sim: number;
+}
+
+export interface ConsistResult {
+  ok: boolean;
+  reference: string;
+  target: string;
+  fps: number;
+  frames_ref: number;
+  frames_tgt: number;
+  best_offset_ms: number;
+  mean_sim: number;
+  min_sim: number;
+  bad_count: number;
+  bad_segments: BadSeg[];
+  series_sim: number[];
+  verdict: string;
+  note: string;
+  err: string | null;
+}
+
+export interface ConsistPoll {
+  running: boolean;
+  pct: number;
+  result: ConsistResult | null;
+  err: string | null;
+}
+
+export interface XcodeCfg {
+  input: string;
+  output: string;
+  encoder: string;
+  vbr_kbps: number;
+  audio: string;
+  realtime: boolean;
+  height?: number | null;
+  fps?: number | null;
+}
+
+export interface XcodeStats {
+  running: boolean;
+  frame: number;
+  fps: number;
+  kbps: number;
+  speed: number;
+  drop: number;
+  out_time: string;
+  secs: number;
+  cmd: string;
+  err: string | null;
+  log: string[];
+}
+
+export interface BurstStats {
+  running: boolean;
+  secs: number;
+  packets: number;
+  bytes: number;
+  mbps_avg: number;
+  mbps_peak: number;
+  ms_peak_bytes: number;
+  peak_ratio: number;
+  burst_cnt: number;
+  bytes_per_ms_avg: number;
+  series: number[];
+  url: string;
+  err: string | null;
+}
 
 /** 媒体信息面板数据（后端 mediainfo::probe 的摘要 + 原始 JSON） */
 export interface MediaInfo {
@@ -270,4 +482,124 @@ export interface MediaInfo {
   }[];
   others: { index: number; type: string; codec: string | null; language: string | null }[];
   raw: unknown;
+}
+
+/** 合规检测：一条判定项 */
+export interface CItem {
+  key: string;
+  name: string;
+  standard: string;
+  actual: string;
+  verdict: "pass" | "fail" | "unknown";
+  note: string;
+}
+
+export interface CSummary {
+  total: number;
+  pass: number;
+  fail: number;
+  unknown: number;
+  ok: boolean;
+}
+
+/** 收流统计（IPTV 表 2 的网络四项都从这里出） */
+export interface CNet {
+  bitrate_mbps: number;
+  jitter_ms: number;
+  loss_ratio: number;
+  df_bad_pct: number;
+  mlr_good_pct: number;
+  rtp: boolean;
+  packets: number;
+}
+
+/** 检测依据条目（253 号文"三、检测依据"原文） */
+export interface CBasis {
+  code: string;
+  name: string;
+}
+
+export interface ComplianceResult {
+  mode: string;
+  source: string;
+  kind: string;
+  items: CItem[];
+  summary: CSummary;
+  basis: CBasis[];
+}
+
+export interface ComplianceLive extends ComplianceResult {
+  secs: number;
+  alive: boolean;
+  stats: CNet;
+  probe_ready: boolean;
+  probe_state: string;
+  err: string | null;
+}
+
+// ── 告警处理 ──
+export interface AlarmHistory {
+  time: string;
+  action: string;
+  who: string;
+}
+
+export interface AlarmRecord {
+  id: string;
+  channel: string;
+  pair: string;
+  group_id: string;
+  kind: string;
+  severity: "high" | "mid" | "low" | string;
+  status: "pending" | "doing" | "done" | "false" | string;
+  similarity: number;
+  min_sim: number;
+  offset_ms: number;
+  segment_count: number;
+  first_time: string;
+  last_time: string;
+  source: string;
+  reference: string;
+  detail: string;
+  fps: number;
+  series_sim: number[];
+  bad_segments: BadSeg[];
+  clip_path: string;
+  clip_secs: number;
+  clip_size: number;
+  clip_state: "none" | "recording" | "ready" | "failed" | string;
+  assignee: string;
+  conclusion: string;
+  note: string;
+  history: AlarmHistory[];
+}
+
+export interface AlarmInput {
+  channel: string;
+  pair: string;
+  group_id?: string;
+  kind?: string;
+  severity?: string;
+  similarity: number;
+  min_sim: number;
+  offset_ms: number;
+  segment_count: number;
+  source?: string;
+  reference?: string;
+  detail?: string;
+  fps?: number;
+  series_sim?: number[];
+  bad_segments?: BadSeg[];
+}
+
+export interface AlarmSettings {
+  log_dir: string;
+  clip_dir: string;
+  retain_days: number;
+  max_gb: number;
+  auto_clean: boolean;
+  log_size: number;
+  clip_size: number;
+  default_log_dir: string;
+  default_clip_dir: string;
 }

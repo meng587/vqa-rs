@@ -14,7 +14,7 @@
 mod crc;
 mod pcr;
 mod scanner;
-mod sections;
+pub mod sections;
 mod tr290;
 
 pub use pcr::{compute_pcr_jitter, PcrSample};

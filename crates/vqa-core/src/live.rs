@@ -14,6 +14,8 @@ use std::time::{Duration, Instant};
 use super::tsfile::{Scanner, TrOverrides};
 
 const RING_MAX: usize = 300;
+/// 开头保留的裸 TS 样本上限（约 10 秒高清量级，够 ffprobe 出节目参数）
+const DUMP_MAX: usize = 6 * 1024 * 1024;
 
 /// 解析 `udp://@239.1.1.1:5000` / `udp://:5000` / `rtp://@host:port`。
 pub fn parse_udp_url(url: &str) -> anyhow::Result<(String, u16, String)> {
@@ -99,11 +101,14 @@ pub fn strip_rtp(data: &[u8]) -> &[u8] {
 }
 
 /// 共享的实时分析核心（UI 线程按秒锁读）。
-pub struct LiveCore {
-    pub scanner: Scanner,
+pub struct LiveCore {    pub scanner: Scanner,
+    /// 传输层统计（抖动/丢包/MDI-DF/MLR），合规检测取这里
+    pub mdi: crate::mdi::MdiState,
     /// 最近原始包环形缓冲（TS 包视图）
     pub ring: std::collections::VecDeque<Vec<u8>>,
     pub bytes: u64,
+    /// 开头一段裸 TS 样本（给 ffprobe 探节目参数用，取满即停）
+    pub dump: Vec<u8>,
     /// 未凑满 188 的尾巴
     tail: Vec<u8>,
 }
@@ -135,8 +140,10 @@ impl LiveSession {
         let scanner = Scanner::new(res, overrides);
         let core = Arc::new(Mutex::new(LiveCore {
             scanner,
+            mdi: crate::mdi::MdiState::new(),
             ring: std::collections::VecDeque::with_capacity(RING_MAX + 8),
             bytes: 0,
+            dump: Vec::new(),
             tail: Vec::new(),
         }));
 
@@ -159,6 +166,10 @@ impl LiveSession {
                     };
                     if data.is_empty() {
                         continue;
+                    }
+                    // 传输层统计先吃原始包（RTP 头还在，序号才能算丢包）
+                    if let Ok(mut c) = th_core.lock() {
+                        c.mdi.feed(data, Instant::now());
                     }
                     buf.clear();
                     // RTP 处理
@@ -186,6 +197,11 @@ impl LiveSession {
                     }
                     let usable = n_pkts * 188;
                     let take: Vec<u8> = c.tail.drain(..usable).collect();
+                    if c.dump.len() < DUMP_MAX {
+                        let cap = DUMP_MAX - c.dump.len();
+                        let n = cap.min(take.len());
+                        c.dump.extend_from_slice(&take[..n]);
+                    }
                     let t_arr = t0.elapsed().as_secs_f64();
                     for chunk in take.chunks(188) {
                         let off = c.bytes as f64;
@@ -217,6 +233,19 @@ impl LiveSession {
 
     pub fn is_dead(&self) -> bool {
         self.dead.load(Ordering::Relaxed)
+    }
+
+    /// 判决用的裸 TS 样本：攒够 1.5MB 就整体交出（只交一次）
+    pub fn take_dump(&self, min_bytes: usize) -> Option<Vec<u8>> {
+        self.with_core(|c| {
+            if c.dump.len() >= min_bytes {
+                let d = std::mem::take(&mut c.dump);
+                Some(d)
+            } else {
+                None
+            }
+        })
+        .flatten()
     }
 
     pub fn stop(self) {

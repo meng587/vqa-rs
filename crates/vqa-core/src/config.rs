@@ -154,8 +154,10 @@ pub fn shared_get_or<T: serde::de::DeserializeOwned>(key: &str, default: T) -> T
         .unwrap_or(default)
 }
 
-/// 写共享配置键（读-改-写；并发安全靠调用方，UI 内单线程写）。
+/// 写共享配置键（读-改-写）。多个页面/命令可能同时写，串行化避免互相覆盖掉键。
 pub fn shared_set(key: &str, value: serde_json::Value) -> Result<()> {
+    static SHARED_WRITE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _guard = SHARED_WRITE.lock().unwrap_or_else(|e| e.into_inner());
     let p = shared_file();
     fs::create_dir_all(p.parent().context("shared path has no parent")?)?;
     let mut root: serde_json::Value = match fs::read_to_string(&p) {

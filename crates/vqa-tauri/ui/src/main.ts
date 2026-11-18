@@ -4,6 +4,12 @@
 import { icon } from "./icons";
 import { initPlayer } from "./player";
 import { initAnalysis } from "./analysis";
+import { initCompliance } from "./compliance";
+import { initXcode } from "./xcode";
+import { initBurst } from "./burst";
+import { initAvSync, leaveAvSync } from "./avsync";
+import { initConsist, leaveConsist, enterConsist } from "./consist";
+import { initAlarm, setAlarmViewActive } from "./alarm";
 import { initSettings } from "./settings";
 import { initMediaInfo } from "./mediainfo";
 import { api } from "./api";
@@ -20,9 +26,37 @@ document.querySelectorAll<HTMLElement>("[data-ic]").forEach((el) => {
 
 // ---- 侧栏路由 ----
 const pages = document.querySelectorAll<HTMLElement>(".pg");
-export type Page = "player" | "analysis" | "about";
+export type Page = "player" | "analysis" | "compliance" | "transcode" | "burst" | "avsync" | "consist" | "about";
+type ConsistView = "compare" | "alarm";
+
+/** 一致性页内部子视图：比对工作台 / 告警处理。 */
+function showConsistView(view: ConsistView) {
+  const cmp = document.getElementById("cg-view-compare");
+  const alm = document.getElementById("cg-view-alarm");
+  if (cmp) cmp.hidden = view !== "compare";
+  if (alm) alm.hidden = view !== "alarm";
+  document.querySelectorAll<HTMLElement>("[data-cgview]").forEach((b) => {
+    b.classList.toggle("is-on", b.dataset.cgview === view);
+  });
+  document.getElementById("cg-acts-compare")?.toggleAttribute("hidden", view !== "compare");
+  document.getElementById("cg-acts-alarm")?.toggleAttribute("hidden", view !== "alarm");
+  if (view === "alarm") {
+    leaveConsist();
+    setAlarmViewActive(true);
+  } else {
+    setAlarmViewActive(false);
+    enterConsist();
+  }
+}
 
 function goto(page: Page) {
+  const prev = document.body.dataset.page;
+  // 离开这两个页时停掉预览 ffmpeg，避免后台一直占用一路解码
+  if (prev === "avsync") leaveAvSync();
+  if (prev === "consist") {
+    setAlarmViewActive(false);
+    leaveConsist();
+  }
   document.querySelectorAll<HTMLElement>("#nav .mn").forEach((b) => {
     b.classList.toggle("is-on", b.getAttribute("data-goto") === page);
   });
@@ -31,17 +65,32 @@ function goto(page: Page) {
   });
   // 状态栏按页切换：播放器页显示指标与桥说明，其它页只显示页名
   document.body.dataset.page = page;
+  if (page === "consist") showConsistView("compare");
   const sbTitle = document.getElementById("sb-title");
   if (sbTitle) {
     sbTitle.textContent =
-      page === "player" ? "播放器" : page === "analysis" ? "视频分析" : "关于";
+      page === "player"
+        ? "播放器"
+        : page === "analysis"
+          ? "视频分析"
+          : page === "compliance"
+            ? "合规检测"
+            : page === "transcode"
+              ? "直播转码"
+              : page === "burst"
+                ? "微突发巡检"
+                : page === "avsync"
+                  ? "音画同步"
+                  : page === "consist"
+                    ? "一致性比对"
+                    : "关于";
   }
   (window as any).__currentPage = page;
   window.dispatchEvent(new CustomEvent("page-changed", { detail: page }));
 }
 
 /** nav 行状态灯：idle=熄 / running=绿闪 / error=红。 */
-export function setNavLamp(page: "player" | "analysis", state: "idle" | "running" | "error") {
+export function setNavLamp(page: "player" | "analysis" | "compliance" | "transcode" | "burst" | "avsync" | "consist", state: "idle" | "running" | "error") {
   const lamp = document.getElementById(`lamp-${page}`);
   if (!lamp) return;
   lamp.className = `lamp${state === "running" ? " run" : state === "error" ? " err" : ""}`;
@@ -55,6 +104,10 @@ export function setEngineLamp(ok: boolean) {
 
 document.querySelectorAll<HTMLElement>("#nav .mn[data-goto]").forEach((btn) => {
   btn.addEventListener("click", () => goto(btn.getAttribute("data-goto") as Page));
+});
+
+document.querySelectorAll<HTMLElement>("[data-cgview]").forEach((btn) => {
+  btn.addEventListener("click", () => showConsistView(btn.dataset.cgview as ConsistView));
 });
 
 // ---- 倍速菜单 ----
@@ -289,6 +342,12 @@ document.getElementById("dg-upload")?.addEventListener("click", async () => {
 // ---- 页面初始化 ----
 initPlayer();
 initAnalysis();
+initCompliance();
+initXcode();
+initBurst();
+initAvSync();
+initConsist();
+initAlarm();
 initSettings();
 initMediaInfo();
 // 空态里的「选择 TS 文件」复用顶栏的浏览动作

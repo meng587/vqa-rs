@@ -236,3 +236,189 @@ impl AnalysisState {
         }
     }
 }
+
+/// 合规检测链路（与播放器/视频分析互不影响：自己一路收流、自己一份结果）。
+pub struct ComplianceState {
+    /// 0 = 待机, 2 = 收流中（表 2 的网络项要收流才判）
+    pub mode: Mutex<u8>,
+    pub live: Mutex<Option<LiveSession>>,
+    pub err: Mutex<Option<String>>,
+    /// 节目技术质量项（ffprobe 判定结果；收流模式下由后台探测线程填）
+    pub items: std::sync::Arc<Mutex<Option<Vec<vqa_core::compliance::Item>>>>,
+    /// 后台探测状态：pending / ok / err:原因（页面据此显示"探测中/探测失败"）
+    pub probe_state: std::sync::Arc<Mutex<String>>,
+    /// 上一次检测的来源与类型
+    pub source: Mutex<(String, String)>,
+}
+
+impl ComplianceState {
+    pub fn new() -> Self {
+        Self {
+            mode: Mutex::new(0),
+            live: Mutex::new(None),
+            err: Mutex::new(None),
+            items: std::sync::Arc::new(Mutex::new(None)),
+            probe_state: std::sync::Arc::new(Mutex::new(String::new())),
+            source: Mutex::new((String::new(), "IPTV".into())),
+        }
+    }
+}
+
+impl Default for ComplianceState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// 直播转码页的会话（同一时刻只跑一路）
+pub struct XcodeState {
+    pub sess: Mutex<Option<vqa_core::xcode::XcodeSession>>,
+    pub err: Mutex<Option<String>>,
+}
+
+impl XcodeState {
+    pub fn new() -> Self {
+        Self { sess: Mutex::new(None), err: Mutex::new(None) }
+    }
+}
+
+impl Default for XcodeState {
+    fn default() -> Self { Self::new() }
+}
+
+/// 微突发巡检页的会话
+pub struct BurstState {
+    pub sess: Mutex<Option<vqa_core::burst::BurstSession>>,
+    pub err: Mutex<Option<String>>,
+}
+
+impl BurstState {
+    pub fn new() -> Self {
+        Self { sess: Mutex::new(None), err: Mutex::new(None) }
+    }
+}
+
+impl Default for BurstState {
+    fn default() -> Self { Self::new() }
+}
+// ═════════ 音画同步 / 一致性比对（一次性分析任务，进度 + 结果托管） ═════════
+
+/// 一路分析任务。前端按页分配任务 id 并复用，支持同一页多路并行。
+pub struct AvJob {
+    pub pct: std::sync::Arc<std::sync::atomic::AtomicU8>,
+    pub cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    pub running: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    pub rx: Mutex<Option<std::sync::mpsc::Receiver<vqa_core::avsync::AvSyncResult>>>,
+    pub last: Mutex<Option<vqa_core::avsync::AvSyncResult>>,
+    pub err: std::sync::Arc<Mutex<Option<String>>>,
+}
+
+impl AvJob {
+    fn new() -> Self {
+        Self {
+            pct: std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0)),
+            cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            running: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            rx: Mutex::new(None),
+            last: Mutex::new(None),
+            err: std::sync::Arc::new(Mutex::new(None)),
+        }
+    }
+}
+
+pub struct AvState {
+    pub jobs: Mutex<std::collections::HashMap<String, std::sync::Arc<AvJob>>>,
+    /// 开始任务时串行化「查占用 + 置 running」，避免并发点击冲破 MAX_PARALLEL
+    pub gate: Mutex<()>,
+}
+
+impl AvState {
+    pub fn new() -> Self {
+        Self {
+            jobs: Mutex::new(std::collections::HashMap::new()),
+            gate: Mutex::new(()),
+        }
+    }
+
+    /// 取任务槽（没有就建一个）。任务 id 由前端复用，槽位数量有限。
+    pub fn job(&self, id: &str) -> std::sync::Arc<AvJob> {
+        let mut g = self.jobs.lock().unwrap();
+        g.entry(id.to_string())
+            .or_insert_with(|| std::sync::Arc::new(AvJob::new()))
+            .clone()
+    }
+
+    pub fn running_count(&self) -> usize {
+        self.jobs
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|j| j.running.load(std::sync::atomic::Ordering::Relaxed))
+            .count()
+    }
+}
+
+impl Default for AvState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub struct ConsistJob {
+    pub pct: std::sync::Arc<std::sync::atomic::AtomicU8>,
+    pub cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    pub running: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    pub rx: Mutex<Option<std::sync::mpsc::Receiver<vqa_core::consist::ConsistResult>>>,
+    pub last: Mutex<Option<vqa_core::consist::ConsistResult>>,
+    pub err: std::sync::Arc<Mutex<Option<String>>>,
+}
+
+impl ConsistJob {
+    fn new() -> Self {
+        Self {
+            pct: std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0)),
+            cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            running: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            rx: Mutex::new(None),
+            last: Mutex::new(None),
+            err: std::sync::Arc::new(Mutex::new(None)),
+        }
+    }
+}
+
+pub struct ConsistState {
+    pub jobs: Mutex<std::collections::HashMap<String, std::sync::Arc<ConsistJob>>>,
+    /// 同 AvState：起任务时串行化占用检查
+    pub gate: Mutex<()>,
+}
+
+impl ConsistState {
+    pub fn new() -> Self {
+        Self {
+            jobs: Mutex::new(std::collections::HashMap::new()),
+            gate: Mutex::new(()),
+        }
+    }
+
+    pub fn job(&self, id: &str) -> std::sync::Arc<ConsistJob> {
+        let mut g = self.jobs.lock().unwrap();
+        g.entry(id.to_string())
+            .or_insert_with(|| std::sync::Arc::new(ConsistJob::new()))
+            .clone()
+    }
+
+    pub fn running_count(&self) -> usize {
+        self.jobs
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|j| j.running.load(std::sync::atomic::Ordering::Relaxed))
+            .count()
+    }
+}
+
+impl Default for ConsistState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
