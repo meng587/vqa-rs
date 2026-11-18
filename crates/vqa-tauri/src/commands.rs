@@ -416,6 +416,32 @@ pub fn player_prewarm(
     Ok(())
 }
 
+/// 8K 直播直接 loadfile 时给 lavf 更大的探测窗口。
+/// 默认 0.6s / 2MB 对 8K 高码率太短，首开可能只认出音频轨 → 有声无画；
+/// 只对网络源生效，本地文件仍走秒开路径。
+fn direct_load_opts(url: &str, q: Option<&probe::QuickProbe>) -> Option<&'static str> {
+    if vqa_core::bridge::is_local(url) {
+        return None;
+    }
+    let is_8k = q
+        .map(|x| x.video.width >= 7000 && x.video.height >= 4000)
+        .unwrap_or(false);
+    if is_8k {
+        return Some("demuxer-lavf-analyzeduration=1.5,demuxer-lavf-probesize=8388608");
+    }
+    // 探测没拿到宽高（0x0）时，不能按“普通源”用 0.6s/2MB：
+    // 高码率直播往往只有音频头先到，视频参数还没解析出来，正是
+    // “有声音没画面”的成因。给一段更大的窗口，让首帧能跟上。
+    let unknown_size = q
+        .map(|x| x.video.width <= 0 || x.video.height <= 0)
+        .unwrap_or(true);
+    if unknown_size {
+        Some("demuxer-lavf-analyzeduration=1.2,demuxer-lavf-probesize=6291456")
+    } else {
+        None
+    }
+}
+
 #[tauri::command]
 pub fn player_play(
     st: State<'_, PlayerState>,
@@ -472,6 +498,8 @@ pub fn player_play(
     *st.preparing.lock().unwrap() = true;
     *st.err.lock().unwrap() = None;
     *st.playing_url.lock().unwrap() = cleaned.clone();
+    *st.loaded_at.lock().unwrap() = None;
+    *st.video_retry_done.lock().unwrap() = false;
 
     let (tx, rx) = std::sync::mpsc::channel();
     *st.probe_rx.lock().unwrap() = Some(rx);
@@ -647,6 +675,8 @@ pub fn player_stop(st: State<PlayerState>) {
     *st.bridge_url.lock().unwrap() = String::new();
     *st.bridge_since.lock().unwrap() = None;
     *st.preparing.lock().unwrap() = false;
+    *st.loaded_at.lock().unwrap() = None;
+    *st.video_retry_done.lock().unwrap() = false;
     if let Some(m) = st.mpv.lock().unwrap().as_ref() {
         let _ = m.stop();
     }
@@ -976,7 +1006,11 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                         if let Some(m) = &mpv_arc {
                             let url = st.playing_url.lock().unwrap().clone();
                             if !url.is_empty() {
-                                let _ = m.loadfile(&url);
+                                let q = st.probe_info.lock().unwrap().clone();
+                                let opts = direct_load_opts(&url, q.as_ref());
+                                let _ = m.loadfile_with_opts(&url, opts);
+                                *st.loaded_at.lock().unwrap() = Some(std::time::Instant::now());
+                                *st.video_retry_done.lock().unwrap() = false;
                                 st.set_hint("已加载");
                                 crate::events::ev("player", "直放（无需转码）");
                             }
@@ -1043,7 +1077,12 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                                 let url = st.playing_url.lock().unwrap().clone();
                                 if !url.is_empty() {
                                     // 回退直放
-                                    let _ = m.loadfile(&url);
+                                    let q = st.probe_info.lock().unwrap().clone();
+                                    let opts = direct_load_opts(&url, q.as_ref());
+                                    let _ = m.loadfile_with_opts(&url, opts);
+                                    *st.loaded_at.lock().unwrap() =
+                                        Some(std::time::Instant::now());
+                                    *st.video_retry_done.lock().unwrap() = false;
                                 }
                             }
                         }
@@ -1263,6 +1302,40 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
 
     // 4) 组装
     let snap = mpv_arc.as_ref().map(|m| m.snapshot());
+
+    // 4.2) 有音无画首帧看门狗：8K 直播首开偶尔只认到音频轨，音频已经出声、
+    //      video-params 宽高仍为 0。这里等 2 秒自动重载一次（等价于用户把手
+    //      动切高清再切回 8K），不用用户自己发现再操作。
+    if let (Some(s), Some(m)) = (snap.as_ref(), mpv_arc.as_ref()) {
+        let bridge_on = !st.bridge_note.lock().unwrap().is_empty();
+        let playing = !st.playing_url.lock().unwrap().is_empty();
+        if playing && !s.idle && !bridge_on && s.width == 0 && !s.audio_codec.is_empty() {
+            let retried = *st.video_retry_done.lock().unwrap();
+            let due = st
+                .loaded_at
+                .lock()
+                .unwrap()
+                .map(|t| t.elapsed() >= std::time::Duration::from_secs(2))
+                .unwrap_or(false);
+            if !retried && due {
+                let url = st.playing_url.lock().unwrap().clone();
+                if !url.is_empty() && !vqa_core::bridge::is_local(&url) {
+                    let q = st.probe_info.lock().unwrap().clone();
+                    let opts = direct_load_opts(&url, q.as_ref());
+                    let _ = m.loadfile_with_opts(&url, opts);
+                    *st.video_retry_done.lock().unwrap() = true;
+                    *st.loaded_at.lock().unwrap() = Some(std::time::Instant::now());
+                    crate::events::ev(
+                        "player",
+                        &format!("首帧有音无画，自动重载一次（audio={}）", s.audio_codec),
+                    );
+                    st.set_hint_for("正在重新获取视频轨…", 30);
+                }
+            }
+        } else if s.width > 0 {
+            *st.loaded_at.lock().unwrap() = None;
+        }
+    }
 
     // 4.5) 诊断采样：每 5s 一条（avsync / 丢帧 / 码率 / 帧率），丢帧突增单独记事件
     if let Some(s) = snap.as_ref() {

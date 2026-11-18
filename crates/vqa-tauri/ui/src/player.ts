@@ -396,6 +396,8 @@ export function initPlayer() {
       await api.play(u, nic.value, flags.forceBridge);
       running = true;
       setActUi(true);
+      // 先按当前视频区把子窗摆到可见位置，再让后端去起 mpv/探测
+      placeChild();
     } catch (e: any) {
       showNote(String(e), true);
     }
@@ -517,7 +519,11 @@ export function initPlayer() {
     const dpr = window.devicePixelRatio || 1;
     // 只在播放器页可见（切到其他页时视频子窗必须移出屏幕，否则盖在内容上）
     const onPage = (window as any).__currentPage === "player";
-    const visible = onPage && !!snapCache && !snapCache.idle && !!stateCache?.playing;
+    // ★ 点击播放后立即显示视频子窗，不能等第一帧快照回来才显示：
+    //   首次起播时 snapCache 还是空的，若子窗仍在屏幕外，mpv 会在一个
+    //   不可见的宿主窗里创建 8K 视频输出，部分机器会只出声音不出画。
+    //   running 在 go() 里点下播放就置 true，停止/播完才回落。
+    const visible = onPage && running;
     api
       .placeVideo(
         Math.round(r.left * dpr),

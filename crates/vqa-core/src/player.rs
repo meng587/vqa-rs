@@ -394,6 +394,12 @@ impl Mpv {
         Ok(())
     }
     pub fn loadfile(&self, url: &str) -> Result<(), String> {
+        self.loadfile_with_opts(url, None)
+    }
+
+    /// `lavf_opts` 为 Some 时覆盖默认的 TS 探测窗口（8K 直播首开用更大的
+    /// probesize，避免只认出音频轨就开播，出现"有声音没画面"）。
+    pub fn loadfile_with_opts(&self, url: &str, lavf_opts: Option<&str>) -> Result<(), String> {
         // ★ 必须异步：mpv 的同步 loadfile 会一直阻塞到 udp 探测完成
         //   （实测 6 秒），而这条命令是在 player_snapshot 里发的——同步就
         //   等于把整个播放诊断循环（含桥重连判断）卡死 6 秒。
@@ -404,16 +410,18 @@ impl Mpv {
         //   `Opening udp` 11.967s → `on_preloaded` 17.266s（5.3 秒），
         //   首帧因此晚了整整 5 秒。TS 结构固定、而且我们从关键帧开始发，
         //   0.6 秒 / 2MB 足够认出来。
-        if url.starts_with("udp://") || url.starts_with("tcp://") {
-            return self.command_async(json!([
-                "loadfile",
-                url,
-                "replace",
-                -1,
-                "demuxer-lavf-analyzeduration=0.6,demuxer-lavf-probesize=2097152"
-            ]));
+        //   8K 源码率高，调用方会显式传更大的窗口（见 loadfile_with_opts）。
+        let opts = if let Some(o) = lavf_opts {
+            Some(o.to_string())
+        } else if url.starts_with("udp://") || url.starts_with("tcp://") {
+            Some("demuxer-lavf-analyzeduration=0.6,demuxer-lavf-probesize=2097152".into())
+        } else {
+            None
+        };
+        match opts {
+            Some(o) => self.command_async(json!(["loadfile", url, "replace", -1, o])),
+            None => self.command_async(json!(["loadfile", url, "replace"])),
         }
-        self.command_async(json!(["loadfile", url, "replace"]))
     }
     pub fn stop(&self) -> Result<(), String> {
         self.command(json!(["stop"])).map(|_| ())

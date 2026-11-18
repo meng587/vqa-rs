@@ -152,14 +152,16 @@ impl VideoChild {
     pub fn place(&mut self, x: i32, y: i32, w: i32, h: i32, visible: bool) {
         use windows::Win32::Foundation::HWND;
         use windows::Win32::UI::WindowsAndMessaging::{
-            SetWindowPos, HWND_TOP, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
+            SetWindowPos, HWND_TOP, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
         };
         unsafe {
             let cur = [x, y, w, h, visible as i32];
             let hwnd = HWND(self.hwnd as *mut core::ffi::c_void);
             if self.last != Some(cur) {
                 let (px, py) = if visible { (x, y) } else { (-20000, -20000) };
-                let _ = SetWindowPos(hwnd, HWND_TOP, px, py, w.max(1), h.max(1), SWP_NOZORDER);
+                // ★ 必须真正提顶：之前这里带了 SWP_NOZORDER，HWND_TOP 被忽略，
+                //   WebView2 异步初始化后会把子窗盖住，表现为有声音没画面。
+                let _ = SetWindowPos(hwnd, HWND_TOP, px, py, w.max(1), h.max(1), SWP_NOACTIVATE);
                 self.last = Some(cur);
             } else if visible {
                 // 对抗 WebView2 的 z 序竞争：每轮幂等提顶（廉价、不激活）

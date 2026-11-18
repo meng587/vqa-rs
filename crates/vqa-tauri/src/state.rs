@@ -121,6 +121,11 @@ pub struct PlayerState {
     pub bridge_retry_left: Mutex<u32>,
     pub bridge_last_retry: Mutex<Option<std::time::Instant>>,
     pub bridge_url: Mutex<String>,
+    /// 直放 loadfile 的时刻：用于"有音无画"首帧看门狗（8K 直播首开偶尔
+    /// 只认出音频轨，2 秒后自动重载一次，避免用户再切高清再切回来）。
+    pub loaded_at: Mutex<Option<std::time::Instant>>,
+    /// 本次播放是否已经做过一次"无视频轨"重载（只重载一次，防止死循环）
+    pub video_retry_done: Mutex<bool>,
     /// 桥就绪时刻（2.6 性能诊断的计时起点；起播瞬间 mpv 短暂 idle 不算失败）
     pub bridge_since: Mutex<Option<std::time::Instant>>,
     /// 桥流是否已经喂给 mpv（预转模式下要等全片转完才 loadfile——
@@ -171,6 +176,8 @@ impl PlayerState {
             bridge_retry_left: Mutex::new(0),
             bridge_last_retry: Mutex::new(None),
             bridge_url: Mutex::new(String::new()),
+            loaded_at: Mutex::new(None),
+            video_retry_done: Mutex::new(false),
             bridge_since: Mutex::new(None),
             bridge_loaded: Mutex::new(false),
             bridge_ready_at: Mutex::new(None),
