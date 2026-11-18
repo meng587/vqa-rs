@@ -149,6 +149,34 @@ fn push_localaddr(cmd: &mut Command, url: &str, localaddr: &str) {
     }
 }
 
+/// 8K 直播 UDP 的默认接收缓冲只有 28672 个 188 字节包（约 5.4 MB）。
+/// 120 Mbps 下不到 0.4 秒就会填满，ffmpeg 直接报 "Circular buffer
+/// overrun" 并中止；这不是解码器崩溃，而是输入没来得及读走。
+/// 把 fifo 提高到约 49 MB，并申请更大的系统 socket 缓冲；仍溢出时
+/// 允许丢包继续跑，避免 watchdog 反复杀桥。
+fn udp_input_url(url: &str) -> String {
+    if !url.to_ascii_lowercase().starts_with("udp://") {
+        return url.to_string();
+    }
+    let mut out = url.to_string();
+    let sep = if out.contains('?') { '&' } else { '?' };
+    let mut opts: Vec<&str> = Vec::new();
+    if !out.contains("fifo_size=") {
+        opts.push("fifo_size=262144");
+    }
+    if !out.contains("overrun_nonfatal=") {
+        opts.push("overrun_nonfatal=1");
+    }
+    if !out.contains("rcvbuf=") {
+        opts.push("rcvbuf=33554432");
+    }
+    if !opts.is_empty() {
+        out.push(sep);
+        out.push_str(&opts.join("&"));
+    }
+    out
+}
+
 // ------------------------------------------------------------ 实时转码桥
 /// "解 AVS → 转 H.264 → 本地回环 UDP" 的实时管道（直播语义，不可拖动）。
 /// mpv 读 `udp://@127.0.0.1:<port>`。
@@ -215,13 +243,17 @@ impl RealtimeBridge {
                 cmd.arg("-re"); // 本地文件按原速读，否则 mpv 端会快进
             }
             push_localaddr(&mut cmd, url, localaddr); // ★ 只对网络源生效（netif 判定）
+            if !local {
+                // 8K 120 Mbps 源把 ffmpeg 输入线程队列也放大，降低突发丢包。
+                cmd.args(["-thread_queue_size", "4096"]);
+            }
             // ★ AVS3 必须强制 libuavs3d：ffmpeg 的裸流探测会把 AVS3 当 AVS2，
             //   默认解码器直接报 “Decoder (codec avs2) not found”。
             if let Some(dec) = decoder {
                 cmd.args(["-c:v", dec]);
             }
             cmd.arg("-i")
-                .arg(url)
+                .arg(udp_input_url(url))
                 .args(["-map", "0:v:0"]);
             // ★ 8K 性能不足自动降级：先缩放再编码，输出 4K/1080p，mpv
             //   只解降级后的画面；这是"能播放"与"画质"之间的折中。
@@ -309,8 +341,9 @@ impl RealtimeBridge {
             let mut cmd0 = crate::ffmpeg::hidden(ffmpeg);
             cmd0.args(["-hide_banner", "-loglevel", "error", "-nostdin"]);
             push_localaddr(&mut cmd0, url, localaddr);
+            cmd0.args(["-thread_queue_size", "4096"]);
             cmd0.arg("-i")
-                .arg(url)
+                .arg(udp_input_url(url))
                 .args(["-map", "0:v:0", "-c", "copy", "-f", "avs2"])
                 .arg(&es)
                 .stderr(Stdio::null());
@@ -331,8 +364,9 @@ impl RealtimeBridge {
         // 裸流文件，davs2 直读（见上），不走 cmd1。
         if !local {
             push_localaddr(&mut cmd1, url, localaddr);
+            cmd1.args(["-thread_queue_size", "4096"]);
             cmd1.arg("-i")
-                .arg(url)
+                .arg(udp_input_url(url))
                 .args(["-map", "0:v:0", "-c", "copy", "-f", "avs2", "-"])
                 .stdout(Stdio::piped())
                 .stderr(Stdio::null());
@@ -630,5 +664,28 @@ mod tests {
         assert!(is_local(r"D:\nonexistent-check.ts") == Path::new(r"D:\nonexistent-check.ts").exists());
         assert!(!is_local("udp://@239.1.1.1:5000"));
         assert!(!is_local("http://x/y.ts"));
+    }
+
+    #[test]
+    fn udp_gets_buffer_options() {
+        let u = udp_input_url("udp://238.123.43.96:2000");
+        assert!(u.contains("fifo_size=262144"), "{u}");
+        assert!(u.contains("overrun_nonfatal=1"), "{u}");
+        assert!(u.contains("rcvbuf=33554432"), "{u}");
+    }
+
+    #[test]
+    fn udp_query_uses_ampersand_and_keeps_existing() {
+        let u = udp_input_url("udp://@239.1.1.1:5000?localaddr=192.168.1.2");
+        assert!(u.contains("?localaddr=192.168.1.2&"), "{u}");
+        assert!(u.contains("fifo_size="), "{u}");
+        let u2 = udp_input_url("udp://239.1.1.1:5000?fifo_size=65536");
+        assert_eq!(u2.matches("fifo_size=").count(), 1, "{u2}");
+    }
+
+    #[test]
+    fn non_udp_unchanged() {
+        assert_eq!(udp_input_url("http://x/y.ts"), "http://x/y.ts");
+        assert_eq!(udp_input_url(r"D:\a.ts"), r"D:\a.ts");
     }
 }

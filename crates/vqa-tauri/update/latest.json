@@ -1,11 +1,11 @@
 {
-  "version": "0.2.18",
-  "notes": "在线更新增加下载进度：显示已下载/总大小、百分比、速度、剩余时间与无数据等待提示；检查更新增加超时",
-  "pub_date": "2026-11-18T08:48:12Z",
+  "version": "0.2.19",
+  "notes": "修复 8K 直播转码桥 UDP 接收缓冲溢出：提高 fifo_size 到 262144 包、申请 32MB socket 缓冲，并允许溢出后继续接收，避免 120Mbps 8K 源把桥反复顶退出",
+  "pub_date": "2026-11-18T09:04:57Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW5VUG9vL0lMWnNjckF0MGlDSkdTeXk0VUVOOStJMXlRSE02RzZoaWxFeGQwclpCUUJRZjJ6S25uZnJpcnk3SG5haUY0YVkwMlhPbndkbUp3dEdHTFEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0OTkxNjkyCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4xOF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjE4CmF3ZUZ5N3FFdE4wNHNhMHJuUm9YZHFGb2pXRWVLcFVtWm9taGRxWG9ER3lJdXlBNjVTTWN0a0JJMzlrdmlrRFd5S0tmYUNqOFVsY2RuNEVVRWZETkFnPT0K",
-      "url": "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.18/vqa-workbench-0.2.18-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXFuY3p3TExFSFE4OHdxaFBwTkJZSWNSeFp1VURQOTUwMGtaL0g5QWlJYWhSWERFb08rVWoreFovWGNEK09FTExLcnlZYjBxend3RHE2ekpHUVZ4ZWdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0OTkyNjgxCWZpbGU6dnFhLXdvcmtiZW5jaC0wLjIuMTktc2V0dXAuZXhlCXZlcnNpb246MC4yLjE5ClAwTWdUT0FoZVRjSTFjNXFBNnlYa1puTTNHbGJzY3pvQTR1Z2s4cmhUNXhsc2pjSVp6eEk5L3lsUUI3dFJPbXhLL2s3RU96eHd4ZnozMXVsNUNUZ0JBPT0K",
+      "url": "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.19/vqa-workbench-0.2.19-setup.exe"
     }
   }
 }
