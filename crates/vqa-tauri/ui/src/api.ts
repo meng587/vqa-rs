@@ -239,6 +239,7 @@ export const api = {
   xcodeEncoders: () =>
     invoke<{ auto_label: string; encoders: { id: string; label: string }[] }>("xcode_encoders"),
   xcodeStart: (cfg: XcodeCfg) => invoke<XcodeStats>("xcode_start", { cfg }),
+  xcodePreview: (cfg: XcodeCfg) => invoke<XcodePreview>("xcode_preview", { cfg }),
   xcodeSnapshot: () => invoke<XcodeStats>("xcode_snapshot"),
   xcodeStop: () => invoke<XcodeStats>("xcode_stop"),
   // 微突发巡检
@@ -407,10 +408,18 @@ export interface XcodeCfg {
   realtime: boolean;
   height?: number | null;
   fps?: number | null;
+  nic_ip?: string | null;
+  gop?: number | null;
+  audio_kbps?: number | null;
+  container?: string | null;
+  pkt_size?: number | null;
+  ttl?: number | null;
 }
 
 export interface XcodeStats {
   running: boolean;
+  stage: string;
+  encoder: string;
   frame: number;
   fps: number;
   kbps: number;
@@ -421,6 +430,11 @@ export interface XcodeStats {
   cmd: string;
   err: string | null;
   log: string[];
+}
+
+export interface XcodePreview {
+  cmd: string;
+  encoder: string;
 }
 
 export interface BurstStats {

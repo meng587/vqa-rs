@@ -1,6 +1,7 @@
-//! 直播转码页：起 ffmpeg 常态转码 → 每秒轮询统计（帧数 / fps / 输出码率 / 速度 / 丢帧）。
+//! 直播转码页：设置子页（输入 / 转码 / 输出）→ 按实际配置启动 ffmpeg →
+//! 阶段条与统计轮询 → 正常结束 / 失败 / 手动停止。
 
-import { api } from "./api";
+import { api, type XcodeCfg, type XcodeStats } from "./api";
 import { icon } from "./icons";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
@@ -11,82 +12,269 @@ const encEl = () => $<HTMLSelectElement>("x-enc");
 const brEl = () => $<HTMLInputElement>("x-br");
 const audioEl = () => $<HTMLSelectElement>("x-audio");
 const hEl = () => $<HTMLSelectElement>("x-h");
+const fpsEl = () => $<HTMLInputElement>("x-fps");
+const gopEl = () => $<HTMLInputElement>("x-gop");
+const audioBrEl = () => $<HTMLInputElement>("x-audio-br");
+const nicEl = () => $<HTMLSelectElement>("x-nic");
+const containerEl = () => $<HTMLSelectElement>("x-container");
+const pktEl = () => $<HTMLInputElement>("x-pkt");
+const ttlEl = () => $<HTMLInputElement>("x-ttl");
 const reEl = () => $<HTMLInputElement>("x-re");
 const actEl = () => $<HTMLButtonElement>("x-act");
+const applyEl = () => $<HTMLButtonElement>("x-apply");
 const stopEl = () => $<HTMLButtonElement>("x-stop");
 const dotEl = () => $<HTMLElement>("x-dot");
 const stEl = () => $<HTMLElement>("x-status-text");
-const sumEl = () => $<HTMLElement>("x-sum");
+const stageEl = () => $<HTMLElement>("x-stage");
+const titleEl = () => $<HTMLElement>("x-run-title");
+const sumEl = () => $<HTMLElement>("x-summary");
+const statChipsEl = () => $<HTMLElement>("x-sum");
+const flowEl = () => $<HTMLElement>("x-flow");
 const kpiEl = () => $<HTMLElement>("x-kpi");
 const logEl = () => $<HTMLElement>("x-log");
+const cmdMainEl = () => $<HTMLElement>("x-cmd-main");
+const cmdActualEl = () => $<HTMLElement>("x-enc-actual");
+const monitorEl = () => $<HTMLElement>("x-monitor");
+const setupEl = () => $<HTMLElement>("x-setup");
+const previewEl = () => $<HTMLElement>("x-cmd-preview");
+const previewEncEl = () => $<HTMLElement>("x-preview-enc");
+const setupMsgEl = () => $<HTMLElement>("x-setup-msg");
 
 let timer: number | null = null;
 let lastCmd = "";
+let encLabel = "自动";
+const encoderLabels = new Map<string, string>([["auto", "自动"]]);
 
-function setState(kind: "idle" | "running" | "error", text: string) {
+const esc = (s: string) =>
+  s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
+
+const short = (s: string, n = 46) => {
+  const t = s.trim();
+  return t.length > n ? `${t.slice(0, n - 1)}…` : t;
+};
+
+const numOrNull = (v: string): number | null => {
+  const t = v.trim();
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+};
+
+function makeCfg(): XcodeCfg {
+  const height = Number(hEl()?.value || 0);
+  const fps = numOrNull(fpsEl()?.value || "");
+  return {
+    input: (inEl()?.value || "").trim(),
+    output: (outEl()?.value || "").trim(),
+    encoder: encEl()?.value || "auto",
+    vbr_kbps: Math.max(200, Math.round(Number(brEl()?.value || 8000) || 8000)),
+    audio: audioEl()?.value || "copy",
+    realtime: !!reEl()?.checked,
+    height: height > 0 ? height : null,
+    fps: fps && fps > 0 ? fps : null,
+    nic_ip: (nicEl()?.value || "").trim() || null,
+    gop: numOrNull(gopEl()?.value || "") ?? 25,
+    audio_kbps: numOrNull(audioBrEl()?.value || "") ?? 128,
+    container: containerEl()?.value || "auto",
+    pkt_size: numOrNull(pktEl()?.value || "") ?? 1316,
+    ttl: numOrNull(ttlEl()?.value || "") ?? 0,
+  };
+}
+
+function setState(kind: "idle" | "running" | "error", text: string, stage?: string) {
   const dot = dotEl();
   if (dot) dot.className = `dot${kind === "running" ? " run" : kind === "error" ? " err" : ""}`;
   const st = stEl();
   if (st) st.textContent = text;
   const lamp = document.getElementById("lamp-transcode");
   if (lamp) lamp.className = `lamp${kind === "running" ? " run" : kind === "error" ? " err" : ""}`;
+  const stageEl2 = stageEl();
+  if (stageEl2) {
+    stageEl2.textContent = stage || (kind === "running" ? "运行中" : kind === "error" ? "失败" : "待机");
+    stageEl2.className = `x-stage${kind === "running" ? " run" : kind === "error" ? " err" : stage === "已完成" ? " done" : ""}`;
+  }
   const act = actEl();
   if (act) act.disabled = kind === "running";
+  const apply = applyEl();
+  if (apply) apply.disabled = kind === "running";
   const stop = stopEl();
   if (stop) stop.hidden = kind !== "running";
 }
 
-function kpiCard(label: string, value: string) {
-  return `<div class="kpi"><span class="kpi-l">${label}</span><b class="kpi-v">${value}</b></div>`;
+function kpiCard(label: string, value: string, hint = "") {
+  return `<div class="kpi"><span class="kpi-l">${label}</span><b class="kpi-v">${value}</b>${hint ? `<span class="kpi-h">${hint}</span>` : ""}</div>`;
 }
 
-function renderKpi(s: {
-  frame: number;
-  fps: number;
-  kbps: number;
-  speed: number;
-  drop: number;
-  secs: number;
-  out_time: string;
-}) {
+function renderKpi(s: Pick<XcodeStats, "frame" | "fps" | "kbps" | "speed" | "drop" | "secs" | "out_time">) {
   const el = kpiEl();
   if (!el) return;
+  const fps = s.fps > 0 ? s.fps : s.secs > 0 && s.frame > 0 ? s.frame / s.secs : 0;
   el.innerHTML =
     kpiCard("已编帧数", s.frame.toLocaleString()) +
-    kpiCard("编码帧率", `${(s.fps > 0 ? s.fps : s.secs > 0 && s.frame > 0 ? s.frame / s.secs : 0).toFixed(1)} fps`) +
+    kpiCard("编码帧率", `${fps.toFixed(1)} fps`) +
     kpiCard("输出码率", `${(s.kbps / 1000).toFixed(2)} Mbps`) +
     kpiCard("转码速度", `${s.speed.toFixed(2)}×`) +
     kpiCard("丢帧", String(s.drop)) +
-    kpiCard("已运行", `${Math.round(s.secs)} s`);
+    kpiCard("已运行", `${Math.round(s.secs)} s`, s.out_time ? `输出时间 ${s.out_time}` : "");
+}
+
+function summarizeCfg(cfg: XcodeCfg) {
+  const bits = [
+    ["来源", cfg.input ? short(cfg.input, 38) : "未配置"],
+    ["输出", cfg.output ? short(cfg.output, 38) : "未配置"],
+    ["编码", `${encoderLabels.get(cfg.encoder) || cfg.encoder} · ${cfg.vbr_kbps} kbps`],
+    ["画面", `${cfg.height ? `${cfg.height}p` : "原分辨率"} · ${cfg.fps ? `${cfg.fps}fps` : "源帧率"}`],
+    ["音频", cfg.audio === "copy" ? "直通" : cfg.audio === "aac" ? `AAC ${cfg.audio_kbps || 128}k` : "无音频"],
+  ];
+  const sum = sumEl();
+  if (sum) {
+    sum.innerHTML = bits
+      .map(([k, v]) => `<span class="x-chip"><span>${esc(k)}</span><b title="${esc(v)}">${esc(v)}</b></span>`)
+      .join("");
+  }
+  const title = titleEl();
+  if (title) title.textContent = cfg.input ? short(cfg.input, 34) : "尚未配置";
+}
+
+function renderFlow(s?: XcodeStats, cfg?: XcodeCfg) {
+  const el = flowEl();
+  if (!el) return;
+  const c = cfg || makeCfg();
+  const running = !!s?.running;
+  const failed = !!s?.err || s?.stage === "失败";
+  const ended = !!s && !s.running && (s.frame > 0 || s.kbps > 0 || ["已完成", "已停止", "失败", "已结束"].includes(s.stage));
+  const hasStarted = running || ended;
+  const inputDone = hasStarted || (s?.frame || 0) > 0;
+  const encDone = !!s && ((s.frame || 0) > 0 || (s.fps || 0) > 0 || (!running && !!s.cmd && ended));
+  const outDone = !!s && ((s.kbps || 0) > 0 || (!running && ended));
+  const outActive = running && !outDone;
+  const encActive = running && !encDone;
+  const resultText = failed
+    ? (s?.err || "转码失败")
+    : running
+      ? `运行 ${Math.round(s?.secs || 0)} s`
+      : ended
+        ? (s?.stage === "已停止" ? "已手动停止" : `结束 ${Math.round(s?.secs || 0)} s`)
+        : "等待开始";
+  const steps = [
+    {
+      cls: failed ? "err" : inputDone ? "done" : c.input ? "ready" : "",
+      title: "输入读取",
+      desc: c.input ? short(c.input, 30) : "未配置来源",
+    },
+    {
+      cls: failed ? "err" : encDone ? "done" : encActive ? "on" : hasStarted ? "on" : "",
+      title: "编码转码",
+      desc: `${encoderLabels.get(c.encoder) || c.encoder} · ${c.vbr_kbps}k · ${c.height ? `${c.height}p` : "原分辨率"}`,
+    },
+    {
+      cls: failed ? "err" : outDone ? "done" : outActive ? "on" : hasStarted ? "on" : "",
+      title: "封装输出",
+      desc: c.output ? `${c.container === "auto" ? "自动封装" : String(c.container || "auto").toUpperCase()} · ${short(c.output, 26)}` : "未配置输出",
+    },
+    {
+      cls: failed ? "err" : ended ? "done" : running ? "on" : "",
+      title: "运行结果",
+      desc: resultText,
+    },
+  ];
+  el.innerHTML = steps
+    .map(
+      (x) =>
+        `<div class="x-flow-step ${x.cls}"><div class="x-fh"><i></i><b>${esc(x.title)}</b></div><p title="${esc(x.desc)}">${esc(x.desc)}</p></div>`,
+    )
+    .join("");
+}
+
+function renderStatChips(s: XcodeStats) {
+  const sum = statChipsEl();
+  if (!sum) return;
+  const chips: string[] = [];
+  if (s.running) chips.push(`输出 ${(s.kbps / 1000).toFixed(2)} Mbps`);
+  if (s.stage) chips.push(s.stage);
+  if (s.encoder) chips.push(`编码器 ${encoderLabels.get(s.encoder) || s.encoder}`);
+  sum.innerHTML = chips.map((x) => `<span class="chip on">${esc(x)}</span>`).join("");
+}
+
+function setPreview(text: string, enc?: string) {
+  const pre = previewEl();
+  if (pre) pre.textContent = text;
+  const pe = previewEncEl();
+  if (pe) pe.textContent = enc ? `实际编码器：${encoderLabels.get(enc) || enc}` : "未解析";
+}
+
+function setSetupMsg(text?: string) {
+  const el = setupMsgEl();
+  if (!el) return;
+  el.hidden = !text;
+  el.textContent = text || "";
+}
+
+function showSetup() {
+  const m = monitorEl();
+  const s = setupEl();
+  if (m) m.hidden = true;
+  if (s) s.hidden = false;
+  syncAudioUi();
+  summarizeCfg(makeCfg());
+}
+
+function showMonitor() {
+  const m = monitorEl();
+  const s = setupEl();
+  if (m) m.hidden = false;
+  if (s) s.hidden = true;
+}
+function syncAudioUi() {
+  const a = audioEl()?.value || "copy";
+  const br = audioBrEl();
+  if (br) {
+    br.disabled = a !== "aac";
+    br.style.opacity = a === "aac" ? "1" : ".45";
+  }
+}
+
+function validate(cfg: XcodeCfg): string | null {
+  if (!cfg.input) return "请先在设置页填写来源地址或本地文件";
+  if (!cfg.output) return "请先在设置页填写输出地址或文件";
+  const liveOut = /^(udp|rtp):\/\//i.test(cfg.output);
+  if (liveOut && String(cfg.container).toLowerCase() === "mp4") {
+    return "组播输出不能使用 MP4 封装，请选择 MPEG-TS 或自动";
+  }
+  return null;
 }
 
 async function poll() {
   try {
     const s = await api.xcodeSnapshot();
-    const cmdChanged = s.cmd && s.cmd !== lastCmd;
-    if (cmdChanged) {
+    if (s.cmd && s.cmd !== lastCmd) {
       lastCmd = s.cmd;
-      const log = logEl();
-      if (log) log.textContent = s.cmd;
+      const cmd = cmdMainEl();
+      if (cmd) cmd.textContent = s.cmd;
+      const act = cmdActualEl();
+      if (act) act.textContent = s.encoder ? `· ${encoderLabels.get(s.encoder) || s.encoder}` : "";
     }
     if (s.running) {
-      setState("running", `转码中 · ${s.out_time || "启动中"}`);
-      const sum = sumEl();
-      if (sum) {
-        sum.innerHTML = `<span class="chip on">编码 ${(s.kbps / 1000).toFixed(2)} Mbps</span>`;
+      setState("running", `转码中 · ${s.out_time || "等待首帧"}`, s.stage || "运行中");
+      renderKpi(s);
+      renderStatChips(s);
+      renderFlow(s);
+    } else if (s.stage === "已完成" || s.stage === "已停止" || s.stage === "失败" || s.err || s.frame > 0 || s.kbps > 0) {
+      if (s.stage === "失败" || s.err) {
+        setState("error", s.err || "转码失败", "失败");
+      } else if (s.stage === "已停止") {
+        setState("idle", "已停止", "已停止");
+      } else {
+        setState("idle", "转码完成", "已完成");
       }
       renderKpi(s);
-    } else if (s.frame > 0 || s.kbps > 0) {
-      setState("idle", s.err ? `已结束：${s.err}` : "转码结束");
-      renderKpi(s);
-      timerStop();
-    } else if (s.err) {
-      setState("error", s.err);
+      renderStatChips(s);
+      renderFlow(s);
       timerStop();
     }
     const log = logEl();
     if (log && s.log && s.log.length) {
-      const tail = s.log.slice(-24).join("\n");
+      const tail = s.log.slice(-30).join("\n");
       if (!log.textContent!.startsWith(tail)) log.textContent = tail;
     }
   } catch {
@@ -106,33 +294,49 @@ function timerStop() {
   }
 }
 
-async function start() {
-  const input = (inEl()?.value || "").trim();
-  const output = (outEl()?.value || "").trim();
-  if (!input || !output) {
-    setState("error", "来源和输出都要填");
-    return;
+async function start(fromSetup = false): Promise<boolean> {
+  const cfg = makeCfg();
+  const err = validate(cfg);
+  if (err) {
+    setState("error", err);
+    if (fromSetup) {
+      setSetupMsg(err);
+      setPreview(err);
+    } else {
+      showSetup();
+      setSetupMsg(err);
+      setPreview(err);
+    }
+    return false;
   }
-  const br = Number(brEl()?.value || 8000) || 8000;
-  const h = Number(hEl()?.value || 0);
-  setState("running", "启动中…");
+  setSetupMsg();
+  setState("running", "启动中…", "启动中");
+  renderFlow(undefined, cfg);
   try {
-    await api.xcodeStart({
-      input,
-      output,
-      encoder: encEl()?.value || "auto",
-      vbr_kbps: Math.max(200, Math.round(br)),
-      audio: audioEl()?.value || "copy",
-      realtime: !!reEl()?.checked,
-      height: h > 0 ? h : null,
-      fps: null,
-    });
+    const snap = await api.xcodeStart(cfg);
+    showMonitor();
+    lastCmd = snap.cmd || "";
+    const cmd = cmdMainEl();
+    if (cmd && snap.cmd) cmd.textContent = snap.cmd;
+    const enc = cmdActualEl();
+    if (enc && snap.encoder) enc.textContent = `· ${encoderLabels.get(snap.encoder) || snap.encoder}`;
     const log = logEl();
     if (log) log.textContent = "已启动，等待 ffmpeg 输出统计…";
+    setState("running", `转码中 · ${snap.stage || "启动中"}`, "运行中");
+    renderKpi(snap);
+    renderStatChips(snap);
+    renderFlow(snap, cfg);
     timerStart();
+    poll();
+    return true;
   } catch (e: any) {
-    setState("error", String(e));
+    const msg = String(e?.message || e || "启动失败");
+    setState("error", msg);
+    showSetup();
+    setSetupMsg(msg);
+    setPreview(`启动失败：${msg}`);
     timerStop();
+    return false;
   }
 }
 
@@ -140,10 +344,69 @@ async function stop() {
   try {
     const s = await api.xcodeStop();
     timerStop();
-    setState("idle", "已停止");
+    setState("idle", "已停止", "已停止");
     renderKpi(s);
+    renderStatChips(s);
+    renderFlow(s);
+    const log = logEl();
+    if (log) log.textContent = "已手动停止。";
   } catch (e: any) {
     setState("error", `停止失败：${e}`);
+  }
+}
+
+async function previewCommand() {
+  const cfg = makeCfg();
+  const err = validate(cfg);
+  if (err) {
+    setPreview(err);
+    return;
+  }
+  const btn = $<HTMLButtonElement>("x-preview");
+  if (btn) btn.disabled = true;
+  setPreview("正在解析实际编码器并生成命令…");
+  try {
+    const r = await api.xcodePreview(cfg);
+    setPreview(r.cmd, r.encoder);
+  } catch (e: any) {
+    setPreview(`预览失败：${String(e?.message || e)}`);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function bindFieldUpdates() {
+  const ids = [
+    "x-in",
+    "x-out",
+    "x-enc",
+    "x-br",
+    "x-audio",
+    "x-h",
+    "x-fps",
+    "x-gop",
+    "x-audio-br",
+    "x-nic",
+    "x-container",
+    "x-pkt",
+    "x-ttl",
+    "x-re",
+  ];
+  for (const id of ids) {
+    const el = $(id);
+    if (!el) continue;
+    el.addEventListener("input", () => {
+      summarizeCfg(makeCfg());
+      syncAudioUi();
+      setSetupMsg();
+      setPreview("配置已修改，点击「预览命令」查看实际执行参数。");
+    });
+    el.addEventListener("change", () => {
+      summarizeCfg(makeCfg());
+      syncAudioUi();
+      setSetupMsg();
+      setPreview("配置已修改，点击「预览命令」查看实际执行参数。");
+    });
   }
 }
 
@@ -158,20 +421,53 @@ export function initXcode() {
         if (!outEl()?.value) {
           outEl()!.value = p.replace(/\.(ts|mp4|mkv|mov)$/i, "") + "-out.ts";
         }
+        summarizeCfg(makeCfg());
+        setPreview("配置已修改，点击「预览命令」查看实际执行参数。");
       }
     });
   }
-  actEl()?.addEventListener("click", start);
+
+  actEl()?.addEventListener("click", () => start(false));
+  applyEl()?.addEventListener("click", async () => {
+    await start(true);
+  });
   stopEl()?.addEventListener("click", stop);
+  $<HTMLButtonElement>("x-set")?.addEventListener("click", showSetup);
+  $<HTMLButtonElement>("x-back")?.addEventListener("click", showMonitor);
+  $<HTMLButtonElement>("x-preview")?.addEventListener("click", previewCommand);
+
+  bindFieldUpdates();
+  syncAudioUi();
 
   api.xcodeEncoders().then((r) => {
     const sel = encEl();
     if (!sel) return;
     sel.innerHTML =
-      `<option value="auto">${r.auto_label}</option>` +
-      r.encoders.map((e) => `<option value="${e.id}">${e.label}</option>`).join("");
+      `<option value="auto">${esc(r.auto_label)}</option>` +
+      r.encoders.map((e) => `<option value="${esc(e.id)}">${esc(e.label)}</option>`).join("");
+    encoderLabels.clear();
+    encoderLabels.set("auto", "自动");
+    for (const e of r.encoders) encoderLabels.set(e.id, e.label);
+    summarizeCfg(makeCfg());
   });
 
+  api
+    .listNics()
+    .then((nics) => {
+      const sel = nicEl();
+      if (!sel) return;
+      const up = nics.filter((n) => n.up);
+      sel.innerHTML =
+        `<option value="">自动路由</option>` +
+        up.map((n) => `<option value="${esc(n.ip)}">${esc(`${n.ip} · ${n.name}`)}</option>`).join("");
+    })
+    .catch(() => {
+      /* 网卡列表失败不阻断转码 */
+    });
+
   renderKpi({ frame: 0, fps: 0, kbps: 0, speed: 0, drop: 0, secs: 0, out_time: "" });
-  setState("idle", "待机");
+  renderFlow();
+  summarizeCfg(makeCfg());
+  setState("idle", "待机", "待机");
+  showMonitor();
 }

@@ -1,11 +1,11 @@
 {
-  "version": "0.2.21",
-  "notes": "修复8K起播探测UDP缓冲/缩短探测等待；新增h264_mf编码器回退；诊断包记录桥编码器与完整命令",
-  "pub_date": "2026-11-18T11:24:44Z",
+  "version": "0.2.22",
+  "notes": "直播转码改为独立设置子页：输入/转码/输出三组实际参数，支持网卡、GOP、音频码率、封装、UDP包长/TTL；新增实际命令预览与输入→转码→输出→结果阶段流程",
+  "pub_date": "2026-11-18T12:35:56Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXZ1dnRiY2V3TnBZY1RVU2NxeDZlNk0wZjdwaWFJNGtGczdzZlRvdG1BaTlmNGNYN2hSRS9EbjlVYjB3Z0RZcVl0KzFhTm5EYzl4UjhhazhtbmFydncwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDAxMDg0CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4yMV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjIxCnhHcnptTk9wdUpGZnNmTFE1dHpoYTgyeWFTOUtCeFFCUVF2ZVFtZjZydHcxNE9Zd3ZUMCt3U2lUSzJLeVBGVlNVcm9tTEl0N1RrYXBZUjZVWDRZRERBPT0K",
-      "url": "https://gitee.com/meng587/video-analysis-toolkit-rs/releases/download/v0.2.21/vqa-workbench-0.2.21-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXZEQ2VkZ1Y3dnlsZjhwNk1PZ3dCYVVLQWt4UFRPVG1HL3NJY3Ztd0ZBdkFRWnZJa1JxTlJnaTBPRThFWXg5L2twYVVMM2xESWxETkRuTjNzclZCdkFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDA1MzU2CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4yMl94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjIyClpwVlBnaTlVR0hhaVlobnFlUFFZRHNYelJtTWZGMFFWbkNSVkUrRkVoNTZxVTZVOVRFT2RXWXJZeW54UzZqLzJsOWxzNU1lZVVpV2ZPc2h3MmhBWEF3PT0K",
+      "url": "https://gitee.com/meng587/video-analysis-toolkit-rs/releases/download/v0.2.22/vqa-workbench-0.2.22-setup.exe"
     }
   }
 }

@@ -199,56 +199,158 @@
 
     <!-- ══════════ 直播转码页 ══════════ -->
     <section class="pg" data-page="transcode" hidden>
-      <div class="srcbar">
-        <span class="lbl">来源</span>
-        <div class="srcbox">
-          <input class="src" id="x-in" placeholder="本地文件 / udp://@239.x.x.x:port / rtsp://…" spellcheck="false" />
-          <button class="iconbtn ghost histbtn" id="x-browse" title="浏览本地文件…" data-ic="folder"></button>
+      <div id="x-monitor">
+        <div class="x-topbar">
+          <div class="x-brandline">
+            <span class="x-eyebrow">LIVE TRANSCODE</span>
+            <b id="x-run-title">尚未配置</b>
+            <span class="x-stage" id="x-stage">待机</span>
+          </div>
+          <div class="x-top-actions">
+            <button class="iconbtn ghost" id="x-set" title="转码设置" data-ic="settings"></button>
+            <button class="gradbtn" id="x-act"><span data-ic="radiotower"></span>开始转码</button>
+            <button class="iconbtn ghost" id="x-stop" title="停止转码" data-ic="square" hidden></button>
+          </div>
         </div>
-        <span class="lbl">输出</span>
-        <div class="srcbox">
-          <input class="src" id="x-out" placeholder="udp://239.x.x.x:port 或 D:\out.ts" spellcheck="false" />
+
+        <div class="x-config-sum" id="x-summary"></div>
+
+        <div class="x-flow" id="x-flow"></div>
+
+        <div class="statusline" id="x-status">
+          <span class="dot" id="x-dot"></span>
+          <span class="txt" id="x-status-text">待机</span>
+          <span class="chips" id="x-sum"></span>
         </div>
-        <div class="vsep"></div>
-        <button class="gradbtn" id="x-act"><span data-ic="radiotower"></span>开始转码</button>
-        <button class="iconbtn ghost" id="x-stop" title="停止转码" data-ic="square" hidden></button>
+
+        <div class="kpiwrap" id="x-kpi"></div>
+
+        <details class="x-cmdbox" id="x-cmdbox">
+          <summary>实际执行命令 <span id="x-enc-actual"></span></summary>
+          <pre id="x-cmd-main">尚未启动。</pre>
+        </details>
+
+        <pre class="logbox" id="x-log">等待开始…</pre>
+
+        <div class="kfoot" id="x-foot">
+          <span class="kfoot-note">组播输出按设置补 <code>pkt_size</code> / <code>ttl</code> 并封装；写本机文件时按设置或扩展名封装。网卡选择只作用于组播输入。</span>
+          <span class="kfoot-basis">点右上角「转码设置」可按输入 / 转码 / 输出三组参数配置，并预览实际执行的 ffmpeg 命令。</span>
+        </div>
       </div>
 
-      <div class="cfgbar">
-        <span class="lbl">编码器</span>
-        <select class="nic" id="x-enc"></select>
-        <span class="lbl">视频码率</span>
-        <input class="num" id="x-br" value="8000" title="目标码率 kbps" />
-        <span class="unit">kbps</span>
-        <span class="lbl">音频</span>
-        <select class="nic" id="x-audio">
-          <option value="copy">直通（copy）</option>
-          <option value="aac">转 AAC 128k</option>
-          <option value="none">不要音频</option>
-        </select>
-        <span class="lbl">缩放</span>
-        <select class="nic" id="x-h">
-          <option value="0">保持原分辨率</option>
-          <option value="2160">2160p</option>
-          <option value="1080">1080p</option>
-          <option value="720">720p</option>
-        </select>
-        <label class="chk"><input type="checkbox" id="x-re" checked /> 本地文件按实时速率读</label>
-      </div>
+      <div class="x-setup" id="x-setup" hidden>
+        <div class="x-setup-head">
+          <button class="docback" id="x-back"><span data-ic="chevronleft"></span>返回监控</button>
+          <div class="x-setup-title">
+            <b>直播转码设置</b>
+            <small>按实际参数执行：输入 → 转码 → 输出</small>
+          </div>
+          <div class="x-setup-actions">
+            <button class="gradbtn ghostline" id="x-preview">预览命令</button>
+            <button class="gradbtn" id="x-apply"><span data-ic="radiotower"></span>保存并开始</button>
+          </div>
+        </div>
 
-      <div class="statusline" id="x-status">
-        <span class="dot" id="x-dot"></span>
-        <span class="txt" id="x-status-text">待机</span>
-        <span class="chips" id="x-sum"></span>
-      </div>
+        <div class="x-setup-msg" id="x-setup-msg" hidden></div>
 
-      <div class="kpiwrap" id="x-kpi"></div>
+        <div class="x-setup-grid">
+          <section class="x-card">
+            <header><span class="x-stepno">01</span><div><b>输入参数</b><small>来源、网卡与读取方式</small></div></header>
+            <div class="x-field">
+              <label for="x-in">来源地址 / 本地文件</label>
+              <div class="x-inputrow">
+                <input class="x-inp mono" id="x-in" placeholder="udp://@239.x.x.x:port 或本地文件" spellcheck="false" />
+                <button class="iconbtn ghost" id="x-browse" title="浏览本地文件…" data-ic="folder"></button>
+              </div>
+              <p class="x-hint">支持 UDP / RTP / HTTP / RTSP / SRT / 本地文件。</p>
+            </div>
+            <div class="x-field">
+              <label for="x-nic">组播输入网卡</label>
+              <select class="x-sel" id="x-nic"><option value="">自动路由</option></select>
+              <p class="x-hint">选错网卡会收不到组播流；单播 / 文件可保持自动。</p>
+            </div>
+            <label class="x-check"><input type="checkbox" id="x-re" checked /> 本地文件按实时速率读取</label>
+          </section>
 
-      <pre class="logbox" id="x-log">等待开始…</pre>
+          <section class="x-card">
+            <header><span class="x-stepno">02</span><div><b>转码参数</b><small>编码、码率、分辨率与音频</small></div></header>
+            <div class="x-field">
+              <label for="x-enc">视频编码器</label>
+              <select class="x-sel" id="x-enc"></select>
+            </div>
+            <div class="x-grid2">
+              <div class="x-field">
+                <label for="x-br">视频码率</label>
+                <div class="x-unitrow"><input class="x-inp mono" id="x-br" value="8000" /><span>kbps</span></div>
+              </div>
+              <div class="x-field">
+                <label for="x-h">输出分辨率</label>
+                <select class="x-sel" id="x-h">
+                  <option value="0">保持原分辨率</option>
+                  <option value="2160">2160p</option>
+                  <option value="1080">1080p</option>
+                  <option value="720">720p</option>
+                </select>
+              </div>
+            </div>
+            <div class="x-grid2">
+              <div class="x-field">
+                <label for="x-fps">输出帧率</label>
+                <div class="x-unitrow"><input class="x-inp mono" id="x-fps" placeholder="源帧率" /><span>fps</span></div>
+              </div>
+              <div class="x-field">
+                <label for="x-gop">GOP</label>
+                <div class="x-unitrow"><input class="x-inp mono" id="x-gop" value="25" /><span>帧</span></div>
+              </div>
+            </div>
+            <div class="x-grid2">
+              <div class="x-field">
+                <label for="x-audio">音频</label>
+                <select class="x-sel" id="x-audio">
+                  <option value="copy">直通</option>
+                  <option value="aac">转 AAC</option>
+                  <option value="none">无音频</option>
+                </select>
+              </div>
+              <div class="x-field">
+                <label for="x-audio-br">音频码率</label>
+                <div class="x-unitrow"><input class="x-inp mono" id="x-audio-br" value="128" /><span>kbps</span></div>
+              </div>
+            </div>
+          </section>
 
-      <div class="kfoot" id="x-foot">
-        <span class="kfoot-note">输出到组播会自动加 <code>pkt_size=1316</code>、封 MPEG-TS；输出写在本机路径时按扩展名封装（.ts → MPEG-TS，其它按 ffmpeg 默认）。</span>
-        <span class="kfoot-basis">本机无 libx264 时用 libopenh264 软编，NVIDIA 机器可选 h264_nvenc / hevc_nvenc。</span>
+          <section class="x-card">
+            <header><span class="x-stepno">03</span><div><b>输出参数</b><small>目标地址、封装与组播参数</small></div></header>
+            <div class="x-field">
+              <label for="x-out">输出地址 / 文件</label>
+              <input class="x-inp mono" id="x-out" placeholder="udp://239.x.x.x:port 或 D:\out.ts" spellcheck="false" />
+              <p class="x-hint">组播建议写完整地址，如 udp://239.1.1.1:5000。</p>
+            </div>
+            <div class="x-field">
+              <label for="x-container">封装格式</label>
+              <select class="x-sel" id="x-container">
+                <option value="auto">自动（按地址推导）</option>
+                <option value="mpegts">MPEG-TS</option>
+                <option value="mp4">MP4（仅文件）</option>
+              </select>
+            </div>
+            <div class="x-grid2">
+              <div class="x-field">
+                <label for="x-pkt">UDP 包大小</label>
+                <div class="x-unitrow"><input class="x-inp mono" id="x-pkt" value="1316" /><span>B</span></div>
+              </div>
+              <div class="x-field">
+                <label for="x-ttl">组播 TTL</label>
+                <div class="x-unitrow"><input class="x-inp mono" id="x-ttl" value="0" /><span>0=默认</span></div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="x-preview">
+          <div class="x-preview-h"><b>实际执行命令</b><span id="x-preview-enc">未解析</span></div>
+          <pre id="x-cmd-preview">配置后点击「预览命令」，这里会显示本次真正执行的 ffmpeg 命令。</pre>
+        </div>
       </div>
     </section>
 

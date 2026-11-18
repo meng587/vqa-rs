@@ -212,6 +212,7 @@ fn main() {
             compliance_cmds::compliance_export_md,
             // 直播转码
             xcode_cmds::xcode_encoders,
+            xcode_cmds::xcode_preview,
             xcode_cmds::xcode_start,
             xcode_cmds::xcode_snapshot,
             xcode_cmds::xcode_stop,

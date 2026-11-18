@@ -35,6 +35,7 @@ pub async fn xcode_encoders() -> Result<serde_json::Value, String> {
                         "hevc_nvenc" => "hevc_nvenc（NVIDIA 硬编 H.265）".to_string(),
                         "h264_qsv" => "h264_qsv（Intel 硬编）".to_string(),
                         "h264_amf" => "h264_amf（AMD 硬编）".to_string(),
+                        "h264_mf" => "h264_mf（Media Foundation 硬编）".to_string(),
                         "libx265" => "libx265（软编 H.265）".to_string(),
                         _ => name.clone(),
                     };
@@ -52,11 +53,19 @@ pub async fn xcode_encoders() -> Result<serde_json::Value, String> {
     }))
 }
 
+/// 按当前页面配置生成实际会执行的 ffmpeg 命令（不启动进程）。
 #[tauri::command]
-pub async fn xcode_start(
-    st: State<'_, XcodeState>,
-    cfg: XcodeCfg,
-) -> Result<XcodeStats, String> {
+pub async fn xcode_preview(cfg: XcodeCfg) -> Result<serde_json::Value, String> {
+    let (cmd, encoder) =
+        tauri::async_runtime::spawn_blocking(move || vqa_core::xcode::preview(&cfg))
+            .await
+            .map_err(|e| format!("线程异常：{e}"))?
+            .map_err(|e| format!("{e}"))?;
+    Ok(serde_json::json!({ "cmd": cmd, "encoder": encoder }))
+}
+
+#[tauri::command]
+pub async fn xcode_start(st: State<'_, XcodeState>, cfg: XcodeCfg) -> Result<XcodeStats, String> {
     if cfg.input.trim().is_empty() {
         return Err("来源为空".into());
     }
@@ -69,10 +78,11 @@ pub async fn xcode_start(
             return Err("已有一路转码在跑，请先停止".into());
         }
     }
-    let sess = tauri::async_runtime::spawn_blocking(move || vqa_core::xcode::XcodeSession::start(&cfg))
-        .await
-        .map_err(|e| format!("线程异常：{e}"))?
-        .map_err(|e| format!("{e}"))?;
+    let sess =
+        tauri::async_runtime::spawn_blocking(move || vqa_core::xcode::XcodeSession::start(&cfg))
+            .await
+            .map_err(|e| format!("线程异常：{e}"))?
+            .map_err(|e| format!("{e}"))?;
     let snap = sess.snapshot();
     *st.sess.lock().unwrap() = Some(sess);
     *st.err.lock().unwrap() = None;
