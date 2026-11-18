@@ -251,46 +251,158 @@ api.appPaths().then((p) => {
 const upStatus = document.getElementById("up-status") as HTMLElement;
 const upBtn = document.getElementById("up-check") as HTMLButtonElement;
 const upInstall = document.getElementById("up-install") as HTMLButtonElement;
+const upBar = document.getElementById("up-bar") as HTMLElement;
+const upFill = document.getElementById("up-fill") as HTMLElement;
+const upMeta = document.getElementById("up-meta") as HTMLElement;
+const upHint = document.getElementById("up-hint") as HTMLElement;
+
+function upMb(n: number): string {
+  return (n / 1048576).toFixed(1);
+}
+function upDur(sec: number): string {
+  if (!Number.isFinite(sec) || sec <= 0) return "—";
+  sec = Math.round(sec);
+  if (sec < 60) return `${sec} 秒`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  if (m < 60) return `${m} 分 ${s} 秒`;
+  const h = Math.floor(m / 60);
+  return `${h} 小时 ${m % 60} 分`;
+}
+function upClear(): void {
+  upBar.hidden = true;
+  upMeta.hidden = true;
+  upBar.classList.remove("is-indeterminate");
+  upMeta.classList.remove("is-slow");
+  upFill.style.width = "0%";
+}
 
 if (import.meta.env.MODE !== "dev") {
   upBtn.addEventListener("click", async () => {
     upBtn.disabled = true;
-    upStatus.textContent = "正在检查…";
+    upInstall.hidden = true;
+    upClear();
+    upStatus.textContent = "正在检查更新…（网络较慢时请稍候）";
     try {
       const { check } = await import("@tauri-apps/plugin-updater");
-      const upd = await check();
+      // 检查请求也加超时：Gitee 偶尔连不上时，不能让界面永远停在
+      // “正在检查”，至少明确告诉用户是网络问题。
+      const upd = await Promise.race([
+        check({ timeout: 20000 }),
+        new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error("检查超时（20 秒），请检查网络后重试")), 22000),
+        ),
+      ]);
       if (!upd) {
         upStatus.textContent = "当前已是最新版本 ✓";
+        upHint.textContent = "没有发现新版本。";
         upBtn.disabled = false;
         return;
       }
       upStatus.innerHTML = `发现新版本 <b style="color:var(--acc)">${upd.version}</b>`;
+      upHint.textContent = upd.body
+        ? `${upd.version} 更新说明：${upd.body}`
+        : `检测到 ${upd.version}，可以下载安装。`;
       upInstall.hidden = false;
+      upInstall.disabled = false;
       upInstall.onclick = async () => {
         upInstall.disabled = true;
-        upStatus.textContent = "下载中…（完成后自动重启安装）";
+        upBtn.disabled = true;
+        upBar.hidden = false;
+        upMeta.hidden = false;
+        upBar.classList.remove("is-indeterminate");
+        upStatus.textContent = `正在下载 ${upd.version}…`;
+        upMeta.textContent = "正在连接下载服务器…";
+        upFill.style.width = "0%";
+
+        let totalBytes = 0;
+        let receivedBytes = 0;
+        let startedAt = performance.now();
+        let lastChunkAt = startedAt;
+        let lastPaint = 0;
+        let finished = false;
+        let ticker = 0;
+
+        const paint = (force = false) => {
+          const now = performance.now();
+          if (!force && now - lastPaint < 150) return;
+          lastPaint = now;
+          const elapsed = Math.max(0.1, (now - startedAt) / 1000);
+          const ratio = totalBytes > 0
+            ? Math.min(1, receivedBytes / totalBytes)
+            : 0;
+          const percent = totalBytes > 0 ? `${(ratio * 100).toFixed(1)}%` : "";
+          const speed = receivedBytes > 0 ? receivedBytes / elapsed : 0;
+          const remain = totalBytes > 0 && speed > 0
+            ? (totalBytes - receivedBytes) / speed
+            : 0;
+          // 还没有拿到总长度时不画固定比例，改成来回走的进度条，
+          // 让用户明确知道程序在下载而不是卡死。
+          upBar.classList.toggle("is-indeterminate", totalBytes <= 0 && !finished);
+          upFill.style.width = finished
+            ? "100%"
+            : totalBytes > 0
+              ? `${(ratio * 100).toFixed(1)}%`
+              : "35%";
+          const left = totalBytes > 0
+            ? `已接收 ${upMb(receivedBytes)} / ${upMb(totalBytes)} MB（${percent}）`
+            : `已接收 ${upMb(receivedBytes)} MB`;
+          let right = speed > 0 ? `${upMb(speed)} MB/s` : "等待数据…";
+          if (remain > 0) right += ` · 剩余约 ${upDur(remain)}`;
+          const silence = (now - lastChunkAt) / 1000;
+          if (!finished && silence >= 8) {
+            right = `网络已 ${upDur(silence)} 无新数据，仍在等待…`;
+            upMeta.classList.add("is-slow");
+          } else {
+            upMeta.classList.remove("is-slow");
+          }
+          upMeta.innerHTML =
+            `<span>${left}</span><span class="upmeta-right">${right}</span>`;
+        };
+
+        ticker = window.setInterval(() => paint(true), 1000);
+
         try {
-          let last = 0;
           await upd.downloadAndInstall((ev) => {
-            if (ev.event === "Started" && ev.data.contentLength) {
-              last = ev.data.contentLength;
-              upStatus.textContent = `下载中… 0 / ${(last / 1048576).toFixed(1)} MB`;
-            } else if (ev.event === "Progress" && ev.data.chunkLength) {
-              // 简化：不做逐块累计 UI，避免频繁 DOM 更新
+            if (ev.event === "Started") {
+              totalBytes = Number(ev.data.contentLength) || 0;
+              receivedBytes = 0;
+              startedAt = lastChunkAt = performance.now();
+              upStatus.textContent = totalBytes > 0
+                ? `正在下载 ${upd.version} · 共 ${upMb(totalBytes)} MB`
+                : `正在下载 ${upd.version}…`;
+              paint(true);
+            } else if (ev.event === "Progress") {
+              receivedBytes += Number(ev.data.chunkLength) || 0;
+              lastChunkAt = performance.now();
+              upStatus.textContent = `正在下载 ${upd.version}…`;
+              paint(false);
             } else if (ev.event === "Finished") {
-              upStatus.textContent = `下载完成（${(last / 1048576).toFixed(1)} MB），正在重启安装…`;
+              finished = true;
+              if (totalBytes > 0) receivedBytes = totalBytes;
+              paint(true);
+              upStatus.textContent = "下载完成，正在校验并安装…（程序随后会自动重启）";
+              upMeta.textContent = `已下载 ${upMb(receivedBytes)} MB · 正在安装`;
             }
-          });
+          }, { timeout: 15 * 60 * 1000 });
+          window.clearInterval(ticker);
+          upStatus.textContent = "安装程序已启动，程序正在重启…";
           const { relaunch } = await import("@tauri-apps/plugin-process");
           await relaunch();
         } catch (e: any) {
+          window.clearInterval(ticker);
+          upBar.classList.remove("is-indeterminate");
+          upMeta.classList.remove("is-slow");
           upStatus.textContent = `更新失败：${e}`;
+          upMeta.textContent = `已接收 ${upMb(receivedBytes)} MB，可重新点击「下载并安装」重试`;
           upInstall.disabled = false;
+          upBtn.disabled = false;
         }
       };
       upBtn.disabled = false;
     } catch (e: any) {
       upStatus.textContent = `检查失败：${e}`;
+      upHint.textContent = "请确认网络可以访问 gitee.com，然后重试。";
       upBtn.disabled = false;
     }
   });

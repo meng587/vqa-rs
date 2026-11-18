@@ -644,6 +644,33 @@ body[data-page="analysis"] #p-chips, body[data-page="about"] #p-chips { display:
 .oicon svg { width: 13px; height: 13px; }
 .oicon:hover { background: var(--acc-soft-h); color: var(--text); }
 .ohint { font-size: 11.5px; color: var(--mut); line-height: 1.8; margin-top: 8px; }
+/* 在线更新下载进度：大文件从 Gitee 下载时，必须让用户看到字节、比例、
+   速度与剩余时间，避免“点了没反应”。 */
+.upbar {
+  height: 8px; margin: 10px 0 0; border-radius: 999px;
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.05);
+  overflow: hidden;
+}
+.upbar-fill {
+  width: 0%; height: 100%;
+  background: linear-gradient(90deg, var(--acc-l), #a855f7);
+  border-radius: inherit;
+  transition: width .18s linear;
+}
+.upbar.is-indeterminate .upbar-fill {
+  width: 35% !important;
+  animation: up-slide 1.1s ease-in-out infinite;
+}
+@keyframes up-slide {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(320%); }
+}
+.upmeta {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px;
+  font: 11.5px/1.65 var(--mono); color: var(--mut); margin-top: 6px;
+}
+.upmeta .upmeta-right { color: #c9cfdb; }
+.upmeta.is-slow { color: var(--warn); }
 .olink { font-size: 11.5px; color: var(--acc); margin-top: 6px; cursor: pointer; display: inline-block; }
 .obtns { display: flex; gap: 10px; }
 .md-export { height: 32px; border-radius: 10px; }

@@ -1,11 +1,11 @@
 {
-  "version": "0.2.17",
-  "notes": "修复 8K 直播桥反复退出：保存桥 stderr、重启复用已知解码器、4K 失败自动降 1920/1280；补诊断字段",
-  "pub_date": "2026-11-18T08:30:15Z",
+  "version": "0.2.18",
+  "notes": "在线更新增加下载进度：显示已下载/总大小、百分比、速度、剩余时间与无数据等待提示；检查更新增加超时",
+  "pub_date": "2026-11-18T08:48:12Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXJXaUxBMEl5aWwreHNkK0xRYUo4YnNhR0lOd3lNNVBPQ2IvdkxVMlFubDhrak5LZ3UzOUQ0anp5a3BzSnBlTnUrQS9XZXhTVVpiMEYrbHBNZlRQSEFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0OTkwNjE1CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4xN194NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjE3CjNoZ1p6U0NRYlozM09zSWcrYWJvWGVmQ3FxZGZ6YzBlN1k5VHNMZ3hkRERMblN4WmI5bUNxRHhiZDEzWmVvYVVGZjljN2diNWthd2lodEFUS29BUUF3PT0K",
-      "url": "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.17/vqa-workbench-0.2.17-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW5VUG9vL0lMWnNjckF0MGlDSkdTeXk0VUVOOStJMXlRSE02RzZoaWxFeGQwclpCUUJRZjJ6S25uZnJpcnk3SG5haUY0YVkwMlhPbndkbUp3dEdHTFEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0OTkxNjkyCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4xOF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjE4CmF3ZUZ5N3FFdE4wNHNhMHJuUm9YZHFGb2pXRWVLcFVtWm9taGRxWG9ER3lJdXlBNjVTTWN0a0JJMzlrdmlrRFd5S0tmYUNqOFVsY2RuNEVVRWZETkFnPT0K",
+      "url": "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.18/vqa-workbench-0.2.18-setup.exe"
     }
   }
 }
