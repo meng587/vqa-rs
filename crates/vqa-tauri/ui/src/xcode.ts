@@ -46,6 +46,9 @@ let timer: number | null = null;
 let lastCmd = "";
 let encLabel = "自动";
 let currentPage: SetupPage = "in";
+let passApplied = false;
+let prevEncBeforePass = "auto";
+let prevAudioBeforePass = "copy";
 const encoderLabels = new Map<string, string>([["auto", "自动"], ["copy", "透传（不重编码）"]]);
 const pageLabels: Record<SetupPage, string> = {
   in: "输入参数",
@@ -260,10 +263,40 @@ function showMonitor() {
   if (s) s.hidden = true;
 }
 
+function ensureCopyOption(on: boolean) {
+  const sel = encEl();
+  if (!sel) return;
+  const has = Array.from(sel.options).some((o) => o.value === "copy");
+  if (on && !has) {
+    const o = document.createElement("option");
+    o.value = "copy";
+    o.textContent = "透传（不重编码）";
+    sel.appendChild(o);
+  } else if (!on && has) {
+    const o = Array.from(sel.options).find((x) => x.value === "copy");
+    o?.remove();
+  }
+}
+
 function syncPassUi() {
   const pass = !!passEl()?.checked;
   const note = $<HTMLElement>("x-pass-note");
   if (note) note.hidden = !pass;
+  if (pass) {
+    if (!passApplied) {
+      prevEncBeforePass = encEl()?.value || "auto";
+      prevAudioBeforePass = audioEl()?.value || "copy";
+      passApplied = true;
+    }
+    ensureCopyOption(true);
+    if (encEl()) encEl()!.value = "copy";
+    if (audioEl()) audioEl()!.value = "copy";
+  } else if (passApplied) {
+    ensureCopyOption(false);
+    if (encEl()) encEl()!.value = prevEncBeforePass;
+    if (audioEl()) audioEl()!.value = prevAudioBeforePass;
+    passApplied = false;
+  }
   for (const el of [encEl(), brEl(), hEl(), fpsEl(), gopEl(), audioEl(), audioBrEl()]) {
     if (!el) continue;
     el.disabled = pass;
@@ -517,6 +550,8 @@ export function initXcode() {
     encoderLabels.set("auto", "自动");
     encoderLabels.set("copy", "透传（不重编码）");
     for (const e of r.encoders) encoderLabels.set(e.id, e.label);
+    syncPassUi();
+    syncAudioUi();
     summarizeCfg(makeCfg());
   });
 
