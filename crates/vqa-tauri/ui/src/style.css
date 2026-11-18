@@ -883,7 +883,35 @@ body[data-page="analysis"] #p-chips, body[data-page="about"] #p-chips { display:
   box-shadow: none;
 }
 .gradbtn.ghostline:hover { color: var(--text); border-color: var(--acc); }
-.x-setup-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.x-setup-tabs {
+  flex: none; display: flex; gap: 4px; padding: 0 0 1px;
+  border-bottom: 1px solid var(--border);
+  max-width: 900px; width: 100%; margin: 0 auto;
+}
+.x-tab {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 36px; padding: 0 14px; border: 1px solid transparent; border-bottom: 0;
+  border-radius: 10px 10px 0 0; background: transparent; color: var(--faint);
+  font: 600 11.5px var(--sans); cursor: pointer;
+}
+.x-tab span { font: 700 9.5px var(--mono); color: var(--faint); }
+.x-tab:hover { color: var(--text); }
+.x-tab.on { color: var(--text); background: var(--panel); border-color: var(--border); }
+.x-tab.on span { color: var(--acc); }
+.x-pages { flex: 1; min-height: 0; overflow: auto; padding: 12px 0 2px; }
+.x-page { max-width: 900px; width: 100%; margin: 0 auto; }
+.x-page[hidden] { display: none; }
+.x-page-nav {
+  flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  max-width: 900px; width: 100%; margin: 0 auto; padding: 8px 0 2px;
+}
+.x-page-label { color: var(--faint); font: 11px var(--mono); }
+.x-modebar {
+  display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap;
+  margin: -2px 0 14px; padding: 9px 10px;
+  border: 1px solid var(--border); border-radius: 9px; background: rgba(255,255,255,.018);
+}
+.x-modebar .x-hint { flex: 1 1 260px; margin: 0; }
 .x-card {
   min-width: 0; padding: 15px 16px 13px; border: 1px solid var(--border); border-radius: 14px;
   background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.012));

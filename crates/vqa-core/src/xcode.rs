@@ -101,62 +101,66 @@ pub fn build_args(cfg: &XcodeCfg, enc: &str) -> Vec<String> {
     }
     a.extend(["-i".into(), cfg.input.clone()]);
     a.extend(["-map".into(), "0:v:0".into()]);
-    a.extend(["-c:v".into(), enc.to_string()]);
-    let kbps = cfg.vbr_kbps.max(200);
-    a.extend([
-        "-b:v".into(),
-        format!("{kbps}k"),
-        "-maxrate".into(),
-        format!("{kbps}k"),
-        "-bufsize".into(),
-        format!("{}k", kbps * 2),
-    ]);
-    let gop = cfg.gop.unwrap_or(25).clamp(1, 300);
-    // 各编码器只给自身支持的实时参数；不能把 nvenc/qsv 的 preset 套给
-    // Media Foundation / AMF / openh264，否则会直接报 Unknown option。
-    match enc {
-        "libopenh264" | "h264_mf" => a.extend(["-g".into(), gop.to_string()]),
-        "h264_amf" => a.extend([
-            "-quality".into(),
-            "speed".into(),
-            "-g".into(),
-            gop.to_string(),
-        ]),
-        "h264_nvenc" | "hevc_nvenc" => a.extend([
-            "-preset".into(),
-            "p1".into(),
-            "-tune".into(),
-            "ll".into(),
-            "-rc".into(),
-            "cbr".into(),
-            "-g".into(),
-            gop.to_string(),
-        ]),
-        "h264_qsv" => a.extend([
-            "-preset".into(),
-            "veryfast".into(),
-            "-g".into(),
-            gop.to_string(),
-        ]),
-        _ => a.extend([
-            "-preset".into(),
-            "veryfast".into(),
-            "-tune".into(),
-            "zerolatency".into(),
-            "-g".into(),
-            gop.to_string(),
-        ]),
-    }
-    if let Some(h) = cfg.height {
-        a.extend(["-vf".into(), format!("scale=-2:{}", h.max(120))]);
-    }
-    if let Some(f) = cfg.fps {
-        if f > 0.0 {
-            a.extend(["-r".into(), format!("{f}")]);
+    if enc == "copy" {
+        // 透传：不解码、不重编码，原样搬运视频码流，码率/GOP/分辨率/帧率都不生效。
+        a.extend(["-c:v".into(), "copy".into()]);
+    } else {
+        let kbps = cfg.vbr_kbps.max(200);
+        a.extend([
+            "-b:v".into(),
+            format!("{kbps}k"),
+            "-maxrate".into(),
+            format!("{kbps}k"),
+            "-bufsize".into(),
+            format!("{}k", kbps * 2),
+        ]);
+        let gop = cfg.gop.unwrap_or(25).clamp(1, 300);
+        // 各编码器只给自身支持的实时参数；不能把 nvenc/qsv 的 preset 套给
+        // Media Foundation / AMF / openh264，否则会直接报 Unknown option。
+        match enc {
+            "libopenh264" | "h264_mf" => a.extend(["-g".into(), gop.to_string()]),
+            "h264_amf" => a.extend([
+                "-quality".into(),
+                "speed".into(),
+                "-g".into(),
+                gop.to_string(),
+            ]),
+            "h264_nvenc" | "hevc_nvenc" => a.extend([
+                "-preset".into(),
+                "p1".into(),
+                "-tune".into(),
+                "ll".into(),
+                "-rc".into(),
+                "cbr".into(),
+                "-g".into(),
+                gop.to_string(),
+            ]),
+            "h264_qsv" => a.extend([
+                "-preset".into(),
+                "veryfast".into(),
+                "-g".into(),
+                gop.to_string(),
+            ]),
+            _ => a.extend([
+                "-preset".into(),
+                "veryfast".into(),
+                "-tune".into(),
+                "zerolatency".into(),
+                "-g".into(),
+                gop.to_string(),
+            ]),
         }
-    }
-    if !enc.starts_with("hevc") {
-        a.extend(["-pix_fmt".into(), "yuv420p".into()]);
+        if let Some(h) = cfg.height {
+            a.extend(["-vf".into(), format!("scale=-2:{}", h.max(120))]);
+        }
+        if let Some(f) = cfg.fps {
+            if f > 0.0 {
+                a.extend(["-r".into(), format!("{f}")]);
+            }
+        }
+        if !enc.starts_with("hevc") {
+            a.extend(["-pix_fmt".into(), "yuv420p".into()]);
+        }
     }
     match cfg.audio.as_str() {
         "copy" => a.extend(["-map".into(), "0:a:0?".into(), "-c:a".into(), "copy".into()]),
@@ -284,6 +288,9 @@ fn validate_cfg(cfg: &XcodeCfg) -> anyhow::Result<()> {
         .to_ascii_lowercase();
     if (out.starts_with("udp://") || out.starts_with("rtp://")) && container == "mp4" {
         return Err(anyhow::anyhow!("组播输出不能使用 mp4 封装，请选 MPEG-TS"));
+    }
+    if cfg.encoder == "copy" && cfg.audio == "aac" {
+        return Err(anyhow::anyhow!("透传模式下音频只能直通或无音频"));
     }
     Ok(())
 }
@@ -518,6 +525,24 @@ mod tests {
         let a = build_args(&cfg(), "h264_amf");
         assert!(!a.iter().any(|x| x == "-preset"));
         assert!(a.windows(2).any(|w| w[0] == "-quality" && w[1] == "speed"));
+    }
+
+    #[test]
+    fn passthrough_does_not_reencode_video() {
+        let mut c = cfg();
+        c.encoder = "copy".into();
+        c.audio = "copy".into();
+        let a = build_args(&c, "copy");
+        assert!(a.windows(2).any(|w| w[0] == "-c:v" && w[1] == "copy"));
+        assert!(!a.iter().any(|x| x == "-b:v"));
+        assert!(!a.iter().any(|x| x == "-preset"));
+        assert!(!a.iter().any(|x| x == "-vf"));
+        assert!(!a.iter().any(|x| x == "-r"));
+        assert!(!a.iter().any(|x| x == "-g"));
+        assert!(a.windows(2).any(|w| w[0] == "-c:a" && w[1] == "copy"));
+
+        c.audio = "aac".into();
+        assert!(validate_cfg(&c).is_err());
     }
 
     #[test]

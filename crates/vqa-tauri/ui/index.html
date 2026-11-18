@@ -253,8 +253,14 @@
 
         <div class="x-setup-msg" id="x-setup-msg" hidden></div>
 
-        <div class="x-setup-grid">
-          <section class="x-card">
+        <div class="x-setup-tabs" id="x-tabs">
+          <button class="x-tab on" data-xpage="in"><span>01</span>输入参数</button>
+          <button class="x-tab" data-xpage="code"><span>02</span>转码参数</button>
+          <button class="x-tab" data-xpage="out"><span>03</span>输出参数</button>
+        </div>
+
+        <div class="x-pages">
+          <section class="x-card x-page on" data-xpage="in" id="x-page-in">
             <header><span class="x-stepno">01</span><div><b>输入参数</b><small>来源、网卡与读取方式</small></div></header>
             <div class="x-field">
               <label for="x-in">来源地址 / 本地文件</label>
@@ -272,8 +278,12 @@
             <label class="x-check"><input type="checkbox" id="x-re" checked /> 本地文件按实时速率读取</label>
           </section>
 
-          <section class="x-card">
+          <section class="x-card x-page" data-xpage="code" id="x-page-code" hidden>
             <header><span class="x-stepno">02</span><div><b>转码参数</b><small>编码、码率、分辨率与音频</small></div></header>
+            <div class="x-modebar">
+              <label class="x-check"><input type="checkbox" id="x-pass" /> 透传模式（不重编码）</label>
+              <span class="x-hint" id="x-pass-note" hidden>视频、音频原样搬运；码率、GOP、分辨率、帧率不生效。适合原流编码和封装已符合目标要求，或需要保留 8K / AVS3 等特殊码流。</span>
+            </div>
             <div class="x-field">
               <label for="x-enc">视频编码器</label>
               <select class="x-sel" id="x-enc"></select>
@@ -319,7 +329,7 @@
             </div>
           </section>
 
-          <section class="x-card">
+          <section class="x-card x-page" data-xpage="out" id="x-page-out" hidden>
             <header><span class="x-stepno">03</span><div><b>输出参数</b><small>目标地址、封装与组播参数</small></div></header>
             <div class="x-field">
               <label for="x-out">输出地址 / 文件</label>
@@ -345,6 +355,12 @@
               </div>
             </div>
           </section>
+        </div>
+
+        <div class="x-page-nav">
+          <button class="gradbtn ghostline" id="x-prev">上一步</button>
+          <span class="x-page-label" id="x-page-label">输入参数 · 1 / 3</span>
+          <button class="gradbtn" id="x-next">下一步</button>
         </div>
 
         <div class="x-preview">

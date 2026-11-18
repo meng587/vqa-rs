@@ -20,6 +20,7 @@ const containerEl = () => $<HTMLSelectElement>("x-container");
 const pktEl = () => $<HTMLInputElement>("x-pkt");
 const ttlEl = () => $<HTMLInputElement>("x-ttl");
 const reEl = () => $<HTMLInputElement>("x-re");
+const passEl = () => $<HTMLInputElement>("x-pass");
 const actEl = () => $<HTMLButtonElement>("x-act");
 const applyEl = () => $<HTMLButtonElement>("x-apply");
 const stopEl = () => $<HTMLButtonElement>("x-stop");
@@ -40,10 +41,18 @@ const previewEl = () => $<HTMLElement>("x-cmd-preview");
 const previewEncEl = () => $<HTMLElement>("x-preview-enc");
 const setupMsgEl = () => $<HTMLElement>("x-setup-msg");
 
+type SetupPage = "in" | "code" | "out";
 let timer: number | null = null;
 let lastCmd = "";
 let encLabel = "自动";
-const encoderLabels = new Map<string, string>([["auto", "自动"]]);
+let currentPage: SetupPage = "in";
+const encoderLabels = new Map<string, string>([["auto", "自动"], ["copy", "透传（不重编码）"]]);
+const pageLabels: Record<SetupPage, string> = {
+  in: "输入参数",
+  code: "转码参数",
+  out: "输出参数",
+};
+const pageOrder: SetupPage[] = ["in", "code", "out"];
 
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
@@ -63,12 +72,13 @@ const numOrNull = (v: string): number | null => {
 function makeCfg(): XcodeCfg {
   const height = Number(hEl()?.value || 0);
   const fps = numOrNull(fpsEl()?.value || "");
+  const pass = !!passEl()?.checked;
   return {
     input: (inEl()?.value || "").trim(),
     output: (outEl()?.value || "").trim(),
-    encoder: encEl()?.value || "auto",
+    encoder: pass ? "copy" : encEl()?.value || "auto",
     vbr_kbps: Math.max(200, Math.round(Number(brEl()?.value || 8000) || 8000)),
-    audio: audioEl()?.value || "copy",
+    audio: pass ? "copy" : audioEl()?.value || "copy",
     realtime: !!reEl()?.checked,
     height: height > 0 ? height : null,
     fps: fps && fps > 0 ? fps : null,
@@ -119,11 +129,12 @@ function renderKpi(s: Pick<XcodeStats, "frame" | "fps" | "kbps" | "speed" | "dro
 }
 
 function summarizeCfg(cfg: XcodeCfg) {
+  const passthrough = cfg.encoder === "copy";
   const bits = [
     ["来源", cfg.input ? short(cfg.input, 38) : "未配置"],
     ["输出", cfg.output ? short(cfg.output, 38) : "未配置"],
-    ["编码", `${encoderLabels.get(cfg.encoder) || cfg.encoder} · ${cfg.vbr_kbps} kbps`],
-    ["画面", `${cfg.height ? `${cfg.height}p` : "原分辨率"} · ${cfg.fps ? `${cfg.fps}fps` : "源帧率"}`],
+    ["编码", passthrough ? "透传 · 原编码" : `${encoderLabels.get(cfg.encoder) || cfg.encoder} · ${cfg.vbr_kbps} kbps`],
+    ["画面", passthrough ? "原分辨率 · 原帧率" : `${cfg.height ? `${cfg.height}p` : "原分辨率"} · ${cfg.fps ? `${cfg.fps}fps` : "源帧率"}`],
     ["音频", cfg.audio === "copy" ? "直通" : cfg.audio === "aac" ? `AAC ${cfg.audio_kbps || 128}k` : "无音频"],
   ];
   const sum = sumEl();
@@ -165,7 +176,10 @@ function renderFlow(s?: XcodeStats, cfg?: XcodeCfg) {
     {
       cls: failed ? "err" : encDone ? "done" : encActive ? "on" : hasStarted ? "on" : "",
       title: "编码转码",
-      desc: `${encoderLabels.get(c.encoder) || c.encoder} · ${c.vbr_kbps}k · ${c.height ? `${c.height}p` : "原分辨率"}`,
+      desc:
+        c.encoder === "copy"
+          ? "透传 · 不重编码"
+          : `${encoderLabels.get(c.encoder) || c.encoder} · ${c.vbr_kbps}k · ${c.height ? `${c.height}p` : "原分辨率"}`,
     },
     {
       cls: failed ? "err" : outDone ? "done" : outActive ? "on" : hasStarted ? "on" : "",
@@ -210,13 +224,33 @@ function setSetupMsg(text?: string) {
   el.textContent = text || "";
 }
 
-function showSetup() {
+function showPage(page: SetupPage) {
+  currentPage = page;
+  document.querySelectorAll<HTMLElement>(".x-page[data-xpage]").forEach((el) => {
+    const active = el.dataset.xpage === page;
+    el.hidden = !active;
+    el.classList.toggle("on", active);
+  });
+  document.querySelectorAll<HTMLElement>(".x-tab[data-xpage]").forEach((el) => {
+    el.classList.toggle("on", el.dataset.xpage === page);
+  });
+  const label = $<HTMLElement>("x-page-label");
+  if (label) label.textContent = `${pageLabels[page]} · ${pageOrder.indexOf(page) + 1} / ${pageOrder.length}`;
+  const prev = $<HTMLButtonElement>("x-prev");
+  const next = $<HTMLButtonElement>("x-next");
+  if (prev) prev.disabled = pageOrder.indexOf(page) === 0;
+  if (next) next.hidden = pageOrder.indexOf(page) === pageOrder.length - 1;
+  summarizeCfg(makeCfg());
+}
+
+function showSetup(page: SetupPage = "in") {
   const m = monitorEl();
   const s = setupEl();
   if (m) m.hidden = true;
   if (s) s.hidden = false;
+  showPage(page);
+  syncPassUi();
   syncAudioUi();
-  summarizeCfg(makeCfg());
 }
 
 function showMonitor() {
@@ -225,23 +259,47 @@ function showMonitor() {
   if (m) m.hidden = false;
   if (s) s.hidden = true;
 }
+
+function syncPassUi() {
+  const pass = !!passEl()?.checked;
+  const note = $<HTMLElement>("x-pass-note");
+  if (note) note.hidden = !pass;
+  for (const el of [encEl(), brEl(), hEl(), fpsEl(), gopEl(), audioEl(), audioBrEl()]) {
+    if (!el) continue;
+    el.disabled = pass;
+    el.style.opacity = pass ? ".45" : "1";
+  }
+}
+
 function syncAudioUi() {
-  const a = audioEl()?.value || "copy";
+  const pass = !!passEl()?.checked;
+  const a = pass ? "copy" : audioEl()?.value || "copy";
+  if (pass && audioEl()) audioEl()!.value = "copy";
   const br = audioBrEl();
   if (br) {
-    br.disabled = a !== "aac";
-    br.style.opacity = a === "aac" ? "1" : ".45";
+    br.disabled = pass || a !== "aac";
+    br.style.opacity = pass || a !== "aac" ? ".45" : "1";
   }
 }
 
 function validate(cfg: XcodeCfg): string | null {
-  if (!cfg.input) return "请先在设置页填写来源地址或本地文件";
-  if (!cfg.output) return "请先在设置页填写输出地址或文件";
+  if (!cfg.input) return "请先在「输入参数」填写来源地址或本地文件";
+  if (!cfg.output) return "请先在「输出参数」填写输出地址或文件";
   const liveOut = /^(udp|rtp):\/\//i.test(cfg.output);
   if (liveOut && String(cfg.container).toLowerCase() === "mp4") {
-    return "组播输出不能使用 MP4 封装，请选择 MPEG-TS 或自动";
+    return "组播输出不能使用 MP4 封装，请在「输出参数」选择 MPEG-TS 或自动";
+  }
+  if (cfg.encoder === "copy" && cfg.audio === "aac") {
+    return "透传模式下音频只能直通或无音频，请在「转码参数」调整";
   }
   return null;
+}
+
+function issuePage(cfg: XcodeCfg): SetupPage {
+  if (!cfg.input) return "in";
+  if (!cfg.output) return "out";
+  if (/^(udp|rtp):\/\//i.test(cfg.output) && String(cfg.container).toLowerCase() === "mp4") return "out";
+  return "code";
 }
 
 async function poll() {
@@ -294,19 +352,14 @@ function timerStop() {
   }
 }
 
-async function start(fromSetup = false): Promise<boolean> {
+async function start(): Promise<boolean> {
   const cfg = makeCfg();
   const err = validate(cfg);
   if (err) {
     setState("error", err);
-    if (fromSetup) {
-      setSetupMsg(err);
-      setPreview(err);
-    } else {
-      showSetup();
-      setSetupMsg(err);
-      setPreview(err);
-    }
+    showSetup(issuePage(cfg));
+    setSetupMsg(err);
+    setPreview(err);
     return false;
   }
   setSetupMsg();
@@ -332,7 +385,7 @@ async function start(fromSetup = false): Promise<boolean> {
   } catch (e: any) {
     const msg = String(e?.message || e || "启动失败");
     setState("error", msg);
-    showSetup();
+    showSetup(issuePage(cfg));
     setSetupMsg(msg);
     setPreview(`启动失败：${msg}`);
     timerStop();
@@ -359,6 +412,7 @@ async function previewCommand() {
   const cfg = makeCfg();
   const err = validate(cfg);
   if (err) {
+    showSetup(issuePage(cfg));
     setPreview(err);
     return;
   }
@@ -391,22 +445,20 @@ function bindFieldUpdates() {
     "x-pkt",
     "x-ttl",
     "x-re",
+    "x-pass",
   ];
   for (const id of ids) {
     const el = $(id);
     if (!el) continue;
-    el.addEventListener("input", () => {
+    const changed = () => {
+      syncPassUi();
       summarizeCfg(makeCfg());
       syncAudioUi();
       setSetupMsg();
       setPreview("配置已修改，点击「预览命令」查看实际执行参数。");
-    });
-    el.addEventListener("change", () => {
-      summarizeCfg(makeCfg());
-      syncAudioUi();
-      setSetupMsg();
-      setPreview("配置已修改，点击「预览命令」查看实际执行参数。");
-    });
+    };
+    el.addEventListener("input", changed);
+    el.addEventListener("change", changed);
   }
 }
 
@@ -427,16 +479,32 @@ export function initXcode() {
     });
   }
 
-  actEl()?.addEventListener("click", () => start(false));
+  actEl()?.addEventListener("click", () => start());
   applyEl()?.addEventListener("click", async () => {
-    await start(true);
+    await start();
   });
   stopEl()?.addEventListener("click", stop);
-  $<HTMLButtonElement>("x-set")?.addEventListener("click", showSetup);
+  $<HTMLButtonElement>("x-set")?.addEventListener("click", () => showSetup());
   $<HTMLButtonElement>("x-back")?.addEventListener("click", showMonitor);
   $<HTMLButtonElement>("x-preview")?.addEventListener("click", previewCommand);
 
+  document.querySelectorAll<HTMLButtonElement>(".x-tab[data-xpage]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const page = el.dataset.xpage;
+      if (page === "in" || page === "code" || page === "out") showPage(page);
+    });
+  });
+  $<HTMLButtonElement>("x-prev")?.addEventListener("click", () => {
+    const i = pageOrder.indexOf(currentPage);
+    if (i > 0) showPage(pageOrder[i - 1]);
+  });
+  $<HTMLButtonElement>("x-next")?.addEventListener("click", () => {
+    const i = pageOrder.indexOf(currentPage);
+    if (i < pageOrder.length - 1) showPage(pageOrder[i + 1]);
+  });
+
   bindFieldUpdates();
+  syncPassUi();
   syncAudioUi();
 
   api.xcodeEncoders().then((r) => {
@@ -447,6 +515,7 @@ export function initXcode() {
       r.encoders.map((e) => `<option value="${esc(e.id)}">${esc(e.label)}</option>`).join("");
     encoderLabels.clear();
     encoderLabels.set("auto", "自动");
+    encoderLabels.set("copy", "透传（不重编码）");
     for (const e of r.encoders) encoderLabels.set(e.id, e.label);
     summarizeCfg(makeCfg());
   });
