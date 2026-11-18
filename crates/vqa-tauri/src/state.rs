@@ -126,6 +126,21 @@ pub struct PlayerState {
     pub loaded_at: Mutex<Option<std::time::Instant>>,
     /// 本次播放是否已经做过一次"无视频轨"重载（只重载一次，防止死循环）
     pub video_retry_done: Mutex<bool>,
+    /// 本次播放选择的网卡 IP（8K 自适应转码时桥要按同一出口入组）
+    pub last_nic_ip: Mutex<String>,
+    /// 直播流最后推进到的播放时间（毫秒），用于识别"画面停在最后一帧、
+    /// mpv 又不回 idle"的断流（--keep-open 或 HTTP 半开连接时常见）
+    pub live_last_time: Mutex<i64>,
+    /// 直播播放时间连续不推进的起始时刻
+    pub live_stall_since: Mutex<Option<std::time::Instant>>,
+    /// 直播直放意外回 idle 的起始时刻（mpv 断流后子窗只剩黑场；
+    /// 界面只看到黑场；静置 3 秒自动重连，最多 3 次）
+    pub live_idle_since: Mutex<Option<std::time::Instant>>,
+    /// 直播流自动重连剩余次数（每次新起播重置为 3）
+    pub live_retry_left: Mutex<u32>,
+    /// 本次直播是否已经出过画面（出过画再回 idle 才算"断流"，
+    /// 起播阶段还没认出视频轨时交给"有音无画"看门狗）
+    pub live_had_picture: Mutex<bool>,
     /// 桥就绪时刻（2.6 性能诊断的计时起点；起播瞬间 mpv 短暂 idle 不算失败）
     pub bridge_since: Mutex<Option<std::time::Instant>>,
     /// 桥流是否已经喂给 mpv（预转模式下要等全片转完才 loadfile——
@@ -178,6 +193,12 @@ impl PlayerState {
             bridge_url: Mutex::new(String::new()),
             loaded_at: Mutex::new(None),
             video_retry_done: Mutex::new(false),
+            last_nic_ip: Mutex::new(String::new()),
+            live_idle_since: Mutex::new(None),
+            live_retry_left: Mutex::new(0),
+            live_had_picture: Mutex::new(false),
+            live_last_time: Mutex::new(0),
+            live_stall_since: Mutex::new(None),
             bridge_since: Mutex::new(None),
             bridge_loaded: Mutex::new(false),
             bridge_ready_at: Mutex::new(None),

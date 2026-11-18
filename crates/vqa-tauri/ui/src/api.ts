@@ -43,6 +43,9 @@ export interface BridgeTo {
   enc_label: string;
   pix: string;
   fps: string;
+  /** 桥输出实际宽高（8K 自动降级时用于显示 3840×2160） */
+  w: number;
+  h: number;
   audio: string;
   container: string;
 }
@@ -162,6 +165,8 @@ export const api = {
   // 播放器
   play: (url: string, nicIp: string, forceBridge: boolean) =>
     invoke<void>("player_play", { url, nicIp, forceBridge }),
+  adaptiveScale: (scaleW: number) =>
+    invoke<void>("player_adaptive_scale", { scaleW }),
   /** ★ 开播前预热：文件一选定/拖入就在后台转码攒缓存，点播放直接读缓存秒开 */
   prewarm: (url: string, nicIp: string, forceBridge: boolean) =>
     invoke<void>("player_prewarm", { url, nicIp, forceBridge }),

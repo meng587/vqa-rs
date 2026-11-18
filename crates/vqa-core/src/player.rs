@@ -186,8 +186,14 @@ impl Mpv {
             "--demuxer-max-bytes=384MiB".into(),
             "--demuxer-readahead-secs=30".into(),
             // ★ 软解跟不上流帧率时（如 4K 50fps AVS2 转码流，davs2 实测
-            //   ~41fps）丢帧跟上，避免周期性停顿——质量检测以看内容为主
-            "--framedrop=decoder".into(),
+            //   ~41fps）丢帧跟上，避免周期性停顿——质量检测以看内容为主。
+            //   8K 长播实测：只丢解码帧时，视频 VO 队列仍会被慢解码拖空，
+            //   表现为画面越来越滞后、最后黑场；带上 vo 丢帧后，晚到的帧
+            //   在渲染端直接丢弃，音画始终跟住音频时钟。
+            "--framedrop=decoder+vo".into(),
+            // ★ 显式以音频为主时钟（mpv 默认 audio，但用户/旧配置可能带
+            //   display-resample）。质检场景优先保证声音连续，画面追音频。
+            "--video-sync=audio".into(),
             "--terminal=no".into(),
         ];
         // ★ 自带日志落 scratch（诊断包会取末尾 50 行）——底层解码/渲染错误

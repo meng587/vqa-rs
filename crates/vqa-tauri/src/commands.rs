@@ -498,8 +498,14 @@ pub fn player_play(
     *st.preparing.lock().unwrap() = true;
     *st.err.lock().unwrap() = None;
     *st.playing_url.lock().unwrap() = cleaned.clone();
+    *st.last_nic_ip.lock().unwrap() = nic_ip.clone();
     *st.loaded_at.lock().unwrap() = None;
     *st.video_retry_done.lock().unwrap() = false;
+    *st.live_idle_since.lock().unwrap() = None;
+    *st.live_retry_left.lock().unwrap() = 3;
+    *st.live_had_picture.lock().unwrap() = false;
+    *st.live_last_time.lock().unwrap() = 0;
+    *st.live_stall_since.lock().unwrap() = None;
 
     let (tx, rx) = std::sync::mpsc::channel();
     *st.probe_rx.lock().unwrap() = Some(rx);
@@ -549,7 +555,64 @@ pub fn player_play(
     Ok(())
 }
 
-/// 桥接决策 + 起桥（照搬 egui 版 play 管线的决策段）。
+/// 8K 播放性能不足时的自动降级：把当前源转成指定宽度的 H.264 回环流，
+/// 让 mpv 只解降级后的画面。调用方（播放器页）按 5 秒平均丢帧触发，
+/// 阶梯 3840 → 1920 → 1280。
+#[tauri::command]
+pub fn player_adaptive_scale(st: State<PlayerState>, scale_w: u32) -> Result<(), String> {
+    let url = st.playing_url.lock().unwrap().clone();
+    if url.is_empty() {
+        return Err("当前没有在播的源".into());
+    }
+    if scale_w == 0 {
+        return Err("降级宽度无效".into());
+    }
+    let ffmpeg = vqa_core::tools::find_ffmpeg().ok_or("需要转码降级但未找到 ffmpeg")?;
+    let nic_ip = st.last_nic_ip.lock().unwrap().clone();
+    let q = st.probe_info.lock().unwrap().clone();
+    let audio_lead = q.as_ref().map(|x| x.audio_lead()).unwrap_or(0.0);
+    vqa_core::config::log_line(
+        "player",
+        &format!("adaptive-scale 请求：scale_w={scale_w} url={url}"),
+    );
+    let b = vqa_core::bridge::RealtimeBridge::start_scaled(
+        &ffmpeg,
+        std::path::Path::new(""),
+        &url,
+        false,
+        26,
+        &nic_ip,
+        audio_lead,
+        scale_w,
+    )?;
+    let bridge_url = b.url();
+    {
+        let mut guard = st.bridge.lock().unwrap();
+        *guard = Some(Box::new(b));
+    }
+    *st.bridge_note.lock().unwrap() =
+        format!("8K 性能不足，自动转码播放（输出 {scale_w} 宽）");
+    *st.bridge_url.lock().unwrap() = bridge_url.clone();
+    *st.bridge_since.lock().unwrap() = Some(std::time::Instant::now());
+    *st.bridge_loaded.lock().unwrap() = true;
+    *st.bridge_ready_at.lock().unwrap() = Some(std::time::Instant::now());
+    *st.bridge_had_picture.lock().unwrap() = false;
+    *st.bridge_retry_left.lock().unwrap() = 0;
+    *st.preparing.lock().unwrap() = false;
+    *st.loaded_at.lock().unwrap() = None;
+    *st.video_retry_done.lock().unwrap() = false;
+    if let Some(m) = st.mpv.lock().unwrap().as_ref() {
+        let _ = m.loadfile(&bridge_url);
+    }
+    st.set_hint_for(format!("8K 性能不足，已转入 {scale_w} 宽转码播放"), 30);
+    crate::events::ev(
+        "player",
+        &format!("8K 自动降级：转码输出宽 {scale_w}，源 {url}"),
+    );
+    Ok(())
+}
+
+
 fn decide_bridge(
     q: &Option<probe::QuickProbe>,
     force: bool,
@@ -669,6 +732,7 @@ fn decide_bridge(
 pub fn player_stop(st: State<PlayerState>) {
     kill_feed(&st);
     *st.playing_url.lock().unwrap() = String::new();
+    *st.last_nic_ip.lock().unwrap() = String::new();
     *st.bridge.lock().unwrap() = None;
     *st.bridge_enc.lock().unwrap() = String::new();
     *st.bridge_note.lock().unwrap() = String::new();
@@ -677,6 +741,11 @@ pub fn player_stop(st: State<PlayerState>) {
     *st.preparing.lock().unwrap() = false;
     *st.loaded_at.lock().unwrap() = None;
     *st.video_retry_done.lock().unwrap() = false;
+    *st.live_idle_since.lock().unwrap() = None;
+    *st.live_retry_left.lock().unwrap() = 0;
+    *st.live_had_picture.lock().unwrap() = false;
+    *st.live_last_time.lock().unwrap() = 0;
+    *st.live_stall_since.lock().unwrap() = None;
     if let Some(m) = st.mpv.lock().unwrap().as_ref() {
         let _ = m.stop();
     }
@@ -746,6 +815,15 @@ pub fn player_osd(st: State<PlayerState>, lines: Vec<String>, res_x: u32, res_y:
     }
     let rx = res_x.max(320);
     let ry = res_y.max(180);
+    // ★ 8K 视频上直接把 ASS 画到 7680×4320：一张 OSD 纹理约 130MB，
+    //   每 2 秒重建一次，长时间播放会把显存/渲染线程拖垮，表现为画面
+    //   逐帧落后、最后黑场。这里统一压到 1080p 坐标空间，mpv 再按视频
+    //   尺寸缩放显示，字号/边距按比例计算，观感不变但开销降 16 倍。
+    let scale = (1920.0 / rx as f64)
+        .min(1080.0 / ry as f64)
+        .min(1.0);
+    let rx = ((rx as f64 * scale).round() as u32).max(320);
+    let ry = ((ry as f64 * scale).round() as u32).max(180);
     // 底板：mpv 的 OSD 用「背景框」样式，半透明黑，文字白色
     for (k, v) in [
         ("osd-border-style", serde_json::json!("background-box")),
@@ -1337,6 +1415,101 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
         }
     }
 
+    // 4.3) 直播断流看门狗：8K 直播偶发丢包/源端瞬断时 mpv 会回 idle，
+    //      视频子窗随即变黑，但界面还停在"播放中"。出过画面后再回 idle
+    //      且持续 3 秒，自动重载一次；最多 3 次，避免源端长时间无数据时
+    //      无限重连。文件播放正常 EOF 不走这条（时长 > 0）。
+    if let (Some(s), Some(m)) = (snap.as_ref(), mpv_arc.as_ref()) {
+        let bridge_on = !st.bridge_note.lock().unwrap().is_empty();
+        let playing = !st.playing_url.lock().unwrap().is_empty();
+        let url = st.playing_url.lock().unwrap().clone();
+        let low = url.to_ascii_lowercase();
+        let liveish = low.starts_with("udp://")
+            || low.starts_with("rtp://")
+            || low.starts_with("rtsp://")
+            || low.starts_with("rtmp://")
+            || low.starts_with("rtmps://")
+            || low.starts_with("srt://")
+            || low.starts_with("mms://")
+            || (!vqa_core::bridge::is_local(&url) && s.duration_ms <= 0.0);
+        if !s.idle && s.width > 0 {
+            *st.live_had_picture.lock().unwrap() = true;
+        }
+        let had_picture = *st.live_had_picture.lock().unwrap();
+        // 4.3a) 半开连接/keep-open 场景：mpv 不回 idle，但播放时间停在
+        //        最后一帧不再推进。连续 3 秒无推进就按断流处理。
+        if playing
+            && !bridge_on
+            && liveish
+            && had_picture
+            && !s.idle
+            && !s.paused
+            && !*st.preparing.lock().unwrap()
+        {
+            let t = s.time_ms.round() as i64;
+            let mut last = st.live_last_time.lock().unwrap();
+            let mut stall = st.live_stall_since.lock().unwrap();
+            if t > *last {
+                *last = t;
+                *stall = None;
+            } else if t > 0 {
+                let start = stall.get_or_insert_with(std::time::Instant::now);
+                if start.elapsed() >= std::time::Duration::from_secs(3)
+                    && *st.live_retry_left.lock().unwrap() > 0
+                {
+                    *st.live_retry_left.lock().unwrap() -= 1;
+                    *stall = None;
+                    let q = st.probe_info.lock().unwrap().clone();
+                    let opts = direct_load_opts(&url, q.as_ref());
+                    let _ = m.loadfile_with_opts(&url, opts);
+                    *st.loaded_at.lock().unwrap() = Some(std::time::Instant::now());
+                    *st.video_retry_done.lock().unwrap() = false;
+                    st.set_hint_for("直播画面停止推进，正在自动重连…", 8);
+                    crate::events::ev(
+                        "player",
+                        &format!(
+                            "直播 t={t}ms 停止推进，自动重连（剩余 {} 次）",
+                            *st.live_retry_left.lock().unwrap()
+                        ),
+                    );
+                }
+            } else {
+                *stall = None;
+            }
+        }
+        if playing
+            && !bridge_on
+            && liveish
+            && had_picture
+            && s.idle
+            && !*st.preparing.lock().unwrap()
+        {
+            let mut since = st.live_idle_since.lock().unwrap();
+            let start = since.get_or_insert_with(std::time::Instant::now);
+            if start.elapsed() >= std::time::Duration::from_secs(3)
+                && *st.live_retry_left.lock().unwrap() > 0
+            {
+                *st.live_retry_left.lock().unwrap() -= 1;
+                *since = None;
+                let q = st.probe_info.lock().unwrap().clone();
+                let opts = direct_load_opts(&url, q.as_ref());
+                let _ = m.loadfile_with_opts(&url, opts);
+                *st.loaded_at.lock().unwrap() = Some(std::time::Instant::now());
+                *st.video_retry_done.lock().unwrap() = false;
+                st.set_hint_for("直播流中断，正在自动重连…", 8);
+                crate::events::ev(
+                    "player",
+                    &format!(
+                        "直播回 idle，自动重连（剩余 {} 次）",
+                        *st.live_retry_left.lock().unwrap()
+                    ),
+                );
+            }
+        } else if !s.idle {
+            *st.live_idle_since.lock().unwrap() = None;
+        }
+    }
+
     // 4.5) 诊断采样：每 5s 一条（avsync / 丢帧 / 码率 / 帧率），丢帧突增单独记事件
     if let Some(s) = snap.as_ref() {
         let playing_now = !st.playing_url.lock().unwrap().is_empty();
@@ -1404,6 +1577,8 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
             "enc_label": enc_label(&enc),
             "pix": "yuv420p",
             "fps": fps,
+            "w": snap.as_ref().map(|s| s.width).unwrap_or(0),
+            "h": snap.as_ref().map(|s| s.height).unwrap_or(0),
             "audio": "AAC 96k",
             "container": "MPEG-TS",
         })

@@ -177,6 +177,23 @@ impl RealtimeBridge {
         localaddr: &str,
         audio_lead: f64,
     ) -> Result<RealtimeBridge, String> {
+        Self::start_scaled(
+            ffmpeg, davs2, url, chain10, crf, localaddr, audio_lead, 0,
+        )
+    }
+
+    /// 同 [`RealtimeBridge::start`]，但可指定输出宽度（0 = 保持源分辨率）。
+    /// 8K 软解跟不上时，播放器按丢帧阶梯调用：3840 → 1920 → 1280。
+    pub fn start_scaled(
+        ffmpeg: &Path,
+        davs2: &Path,
+        url: &str,
+        chain10: bool,
+        crf: i32,
+        localaddr: &str,
+        audio_lead: f64,
+        scale_w: u32,
+    ) -> Result<RealtimeBridge, String> {
         let port = free_udp_port().map_err(|e| format!("挑 UDP 端口失败：{e}"))?;
         let local = is_local(url);
         // ★ 传输用 TCP（cmd3 监听，mpv 连接）而非 UDP 推送：环回 UDP 无流控，
@@ -197,8 +214,17 @@ impl RealtimeBridge {
             push_localaddr(&mut cmd, url, localaddr); // ★ 只对网络源生效（netif 判定）
             cmd.arg("-i")
                 .arg(url)
-                .args(["-map", "0:v:0"])
-                .args(&enc_args)
+                .args(["-map", "0:v:0"]);
+            // ★ 8K 性能不足自动降级：先缩放再编码，输出 4K/1080p，mpv
+            //   只解降级后的画面；这是"能播放"与"画质"之间的折中。
+            if scale_w > 0 {
+                cmd.args(["-vf", &format!("scale={scale_w}:-2")]);
+            }
+            crate::config::log_line(
+                "bridge",
+                &format!("start_scaled scale_w={scale_w} cmd={cmd:?}"),
+            );
+            cmd.args(&enc_args)
                 .args([
                     "-map", "0:a:0?", "-c:a", "aac", "-b:a", "96k",
                     "-f", "mpegts", &dst,

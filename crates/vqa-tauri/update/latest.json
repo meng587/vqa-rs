@@ -1,11 +1,11 @@
 {
-  "version": "0.2.13",
-  "notes": "0.2.13：修复 8K 首次播放只有声音没有画面——点击播放立即显示视频子窗并提顶，8K/高码率网络源使用更大的 TS 探测窗口，首帧有音无画时自动重载一次；本地文件与 HTTP 8K 首播已回归通过。",
-  "pub_date": "2026-11-18T03:55:27Z",
-  "platforms": {
-    "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWttV0U4dE1rQVZnTzYyM09yS1lWWHV6a1FtWVRKR3lxYkFKM1p4RWdXZjhkOGJnWFJtbFdkNTVhRzkvOS96WjFqTlR3MldDNFp0eEpsMURvQzQxZWdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0OTc0MTI3CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4xM194NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjEzCnRtWDF0d1JXOTZWSU1CVENpYWVEU1J1WVVLazB3aTFqc0JEcW5pUFRpSlVsZ3hVVzFLNGFqbVo0bVhOV2Z4cGR1bUsybkVtcWIwNktESEYzcis1VUR3PT0K",
-      "url": "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.13/vqa-workbench-0.2.13-setup.exe"
-    }
-  }
+    "version":  "0.2.14",
+    "notes":  "0.2.14：修复 8K 长播音画不同步/黑场——播放器启用 decoder+vo 丢帧与音频主时钟，8K 丢帧/帧率不足/音画漂移时自动按 3840/1920/1280 转码降级；直播断流或画面停止推进 3 秒自动重连；8K Tab 媒体浮层限制在 1080p 坐标空间，避免显存与渲染开销过大。",
+    "pub_date":  "2026-11-18T05:01:35Z",
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXRnT2FONXlUQWxlYmhZZ3ZmV0NLcFEzSjFBMXU2aVhFQ1NCYTFSTjN4NXI1UGoxT2w3ZEpjZURnbFJpRG9Scm4rRXJKdG1oWkw2WTRsUGFIRXRTMVFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0OTc4MDk1CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4xNF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjE0Ck5mYWpxYTRaMVpKd0JpaE05eFN5V3JieW9ZRE9wU3MvYW5NWW5vNjZ2aEVDU1Z1V2dTWlY4N28xQVYzS0MvVm9oMGJ0elhUZzQ2YjVMNEdiV0RxWkFnPT0K",
+                                             "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.14/vqa-workbench-0.2.14-setup.exe"
+                                         }
+                  }
 }

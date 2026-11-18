@@ -181,6 +181,7 @@ fn main() {
             commands::place_video,
             commands::player_prewarm,
             commands::player_play,
+            commands::player_adaptive_scale,
             commands::player_stop,
             commands::player_pause_toggle,
             commands::player_seek,

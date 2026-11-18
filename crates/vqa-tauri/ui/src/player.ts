@@ -22,6 +22,44 @@ let lastVb = 0; // mpv 的视频码率会间歇回 0，留住上一次有效值�
 let miPath = ""; // 当前媒体信息对应的源
 let miInfo: MediaInfo | null = null;
 
+/** 8K 播放健康监测：5 秒平均丢帧连续两窗超 10% → 逐级转码降级。
+ *  对应 Python 版已验证的 ladder：8K → 3840 → 1920 → 1280。 */
+interface AbState {
+  url: string;
+  srcW: number;
+  srcH: number;
+  level: number;
+  ladder: number[];
+  lastDrop: number;
+  samples: number[];
+  hits: number;
+  graceUntil: number;
+  lastSampleAt: number;
+  done: boolean;
+}
+let ab: AbState | null = null;
+
+function abLadder(srcW: number, srcH: number): number[] {
+  const w = srcW || Math.round(((srcH || 0) * 16) / 9);
+  return [3840, 1920, 1280].filter((x) => w > 0 && x * 20 < w * 19);
+}
+
+function resetAb(url: string) {
+  ab = {
+    url,
+    srcW: 0,
+    srcH: 0,
+    level: 0,
+    ladder: [],
+    lastDrop: 0,
+    samples: [],
+    hits: 0,
+    graceUntil: Date.now() + 12000,
+    lastSampleAt: 0,
+    done: false,
+  };
+}
+
 /** 取媒体信息（按路径缓存）。换片时清掉上一片的码率兜底值。 */
 async function ensureMediaInfo(path: string): Promise<MediaInfo | null> {
   if (miPath === path) return miInfo;
@@ -386,6 +424,7 @@ export function initPlayer() {
     if (running) {
       await api.stop();
       running = false;
+      ab = null;
       setActUi(false);
       return;
     }
@@ -393,6 +432,7 @@ export function initPlayer() {
     if (!u) return;
     await api.pushSourceHistory("player", u);
     try {
+      resetAb(u);
       await api.play(u, nic.value, flags.forceBridge);
       running = true;
       setActUi(true);
@@ -416,6 +456,7 @@ export function initPlayer() {
   $("c-stop").addEventListener("click", async () => {
     await api.stop();
     running = false;
+    ab = null;
     setActUi(false);
   });
   $("c-mute").addEventListener("click", () => {
@@ -536,6 +577,64 @@ export function initPlayer() {
   }
   (window as any).__placeChild = placeChild;
 
+  // 8K 健康监测：先保音画同步，丢帧持续超 10% 再逐级转码降级
+  function tickAb(st: PlayerStateJson) {
+    const s = st.snap;
+    if (!ab || !st.playing || !s || ab.done) return;
+    if (s.idle || st.preparing) {
+      ab.lastDrop = s.idle ? 0 : ab.lastDrop;
+      ab.samples = [];
+      return;
+    }
+    if (s.width >= 7000 && ab.srcW === 0) {
+      ab.srcW = s.width;
+      ab.srcH = s.height;
+      ab.ladder = abLadder(s.width, s.height);
+      // 首帧已出，12 秒预热宽限后再开始判定
+      ab.graceUntil = Date.now() + 12000;
+      ab.lastDrop = s.decoder_drop + s.render_drop;
+      return;
+    }
+    if (ab.srcW < 7000 || !ab.ladder.length) return;
+    const total = s.decoder_drop + s.render_drop;
+    if (Date.now() < ab.graceUntil) {
+      ab.lastDrop = total;
+      ab.lastSampleAt = Date.now();
+      return;
+    }
+    if (Date.now() - ab.lastSampleAt < 1000) return;
+    ab.lastSampleAt = Date.now();
+    ab.samples.push(Math.max(0, total - ab.lastDrop));
+    ab.lastDrop = total;
+    if (ab.samples.length < 5) return;
+    const avg = ab.samples.reduce((a, b) => a + b, 0) / ab.samples.length;
+    const fps = s.vf_fps || s.container_fps || 25;
+    const srcFps = s.container_fps || fps;
+    const fpsSlow = srcFps >= 40 && fps > 0 && fps < srcFps * 0.8;
+    const drift = Math.abs(s.avsync || 0) > 0.6;
+    ab.samples = [];
+    if (avg <= Math.max(2, fps * 0.1) && !fpsSlow && !drift) {
+      ab.hits = 0;
+      return;
+    }
+    ab.hits++;
+    if (ab.hits < 2) return;
+    ab.hits = 0;
+    if (ab.level >= ab.ladder.length) {
+      ab.done = true;
+      showNote("已降到最低档仍丢帧——本机解码性能不足，画面会继续播放", true);
+      return;
+    }
+    const scale = ab.ladder[ab.level++];
+    ab.graceUntil = Date.now() + 12000;
+    ab.lastDrop = 0;
+    showNote(`8K 解码跟不上（5 秒平均丢帧 ${Math.round(avg)}），正在转码 ${scale} 宽…`, false);
+    api.adaptiveScale(scale).catch((e: any) => {
+      ab && (ab.done = true);
+      showNote(`自动降级失败：${String(e)}`, true);
+    });
+  }
+
   // 轮询（100ms）
   setInterval(poll, 100);
   async function poll() {
@@ -552,6 +651,7 @@ export function initPlayer() {
         setActUi(active);
       }
       render(st);
+      tickAb(st);
       // 起播瞬间按的 Tab：画面出来（不再 idle）就补上浮层
       if (osdPending && !osdOn && st.playing && st.snap && !st.snap.idle) {
         osdPending = false;
@@ -727,8 +827,9 @@ function renderBridgeBar(st: PlayerStateJson) {
         ? `${to.fps}fps`
         : "";
   const outDepth = /10/.test(to.pix) ? "10-bit" : "8-bit";
+  const outDims = to.w > 0 ? `${to.w}×${to.h} ` : "";
   // 音频（AAC 96k）右侧 chips 已有，这里不再重复
-  const toText = `${to.enc_label.replace(/ \/ /g, "/")} ${outDepth}${outFps ? ` ${outFps}` : ""}`;
+  const toText = `${outDims}${to.enc_label.replace(/ \/ /g, "/")} ${outDepth}${outFps ? ` ${outFps}` : ""}`;
   $("bf-from").textContent = fromText;
   $("bf-to").textContent = toText;
   $("bf-tag").textContent = `桥转码 ${to.mode}`;
