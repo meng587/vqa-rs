@@ -1,11 +1,11 @@
 {
-    "version":  "0.2.14",
-    "notes":  "0.2.14：修复 8K 长播音画不同步/黑场——播放器启用 decoder+vo 丢帧与音频主时钟，8K 丢帧/帧率不足/音画漂移时自动按 3840/1920/1280 转码降级；直播断流或画面停止推进 3 秒自动重连；8K Tab 媒体浮层限制在 1080p 坐标空间，避免显存与渲染开销过大。",
-    "pub_date":  "2026-11-18T05:01:35Z",
+    "version":  "0.2.15",
+    "notes":  "0.2.15：按实际 8K AVS3 50fps/120Mbps 修正——ffprobe 误判 AVS3 时用 libuavs3d 实际解码确认并纠正宽高/帧率；AVS3 不再误走 davs2，转码桥强制 libuavs3d；8K AVS3 起桥先输出 4K，避免 8K H.264 编码失败。",
+    "pub_date":  "2026-11-18T05:30:49Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXRnT2FONXlUQWxlYmhZZ3ZmV0NLcFEzSjFBMXU2aVhFQ1NCYTFSTjN4NXI1UGoxT2w3ZEpjZURnbFJpRG9Scm4rRXJKdG1oWkw2WTRsUGFIRXRTMVFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0OTc4MDk1CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4xNF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjE0Ck5mYWpxYTRaMVpKd0JpaE05eFN5V3JieW9ZRE9wU3MvYW5NWW5vNjZ2aEVDU1Z1V2dTWlY4N28xQVYzS0MvVm9oMGJ0elhUZzQ2YjVMNEdiV0RxWkFnPT0K",
-                                             "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.14/vqa-workbench-0.2.14-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWtoZ1ZLOGlsTlBmdU1oWlZ3cFAwK244Wm05UjNFQ2dXTmZMc2N6VHcvWjV4eWt5Z09uUEt2dGpwZkhjNWRIaWJNSm5manRkdDBGdE9TK2w4SDVrUHdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0OTc5ODQ5CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4xNV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjE1CkJOVWdPY0MyNTA1VWFOYmlLNUdIMDlTdlMxTzFPRjdGVGhvb0NxUjNnV25wRWNZWVNCREx0bEE5NnJBVDFPUUZWZzNFM3dwS1p1bFNHVTd0UWg4b0NBPT0K",
+                                             "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.15/vqa-workbench-0.2.15-setup.exe"
                                          }
                   }
 }

@@ -178,12 +178,14 @@ impl RealtimeBridge {
         audio_lead: f64,
     ) -> Result<RealtimeBridge, String> {
         Self::start_scaled(
-            ffmpeg, davs2, url, chain10, crf, localaddr, audio_lead, 0,
+            ffmpeg, davs2, url, chain10, crf, localaddr, audio_lead, 0, None,
         )
     }
 
     /// 同 [`RealtimeBridge::start`]，但可指定输出宽度（0 = 保持源分辨率）。
     /// 8K 软解跟不上时，播放器按丢帧阶梯调用：3840 → 1920 → 1280。
+    /// `decoder` 可强制输入解码器（AVS3 用 `libuavs3d`，避免 ffmpeg
+    /// 把 AVS3 误判成 AVS2 后找不到解码器）。
     pub fn start_scaled(
         ffmpeg: &Path,
         davs2: &Path,
@@ -193,6 +195,7 @@ impl RealtimeBridge {
         localaddr: &str,
         audio_lead: f64,
         scale_w: u32,
+        decoder: Option<&str>,
     ) -> Result<RealtimeBridge, String> {
         let port = free_udp_port().map_err(|e| format!("挑 UDP 端口失败：{e}"))?;
         let local = is_local(url);
@@ -212,6 +215,11 @@ impl RealtimeBridge {
                 cmd.arg("-re"); // 本地文件按原速读，否则 mpv 端会快进
             }
             push_localaddr(&mut cmd, url, localaddr); // ★ 只对网络源生效（netif 判定）
+            // ★ AVS3 必须强制 libuavs3d：ffmpeg 的裸流探测会把 AVS3 当 AVS2，
+            //   默认解码器直接报 “Decoder (codec avs2) not found”。
+            if let Some(dec) = decoder {
+                cmd.args(["-c:v", dec]);
+            }
             cmd.arg("-i")
                 .arg(url)
                 .args(["-map", "0:v:0"]);

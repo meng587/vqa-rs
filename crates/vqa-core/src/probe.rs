@@ -218,6 +218,77 @@ pub fn probe(
     parsed
 }
 
+/// AVS 编码族：ffprobe 对裸 AVS3 常误判成 avs2（两者起始码相近），
+/// 需要用 libuavs3d 实际读一次流头来确认，否则 8K AVS3 会被错送进 davs2。
+fn is_avs_family(codec: &str) -> bool {
+    let c = codec.to_ascii_lowercase();
+    c.starts_with("avs") || c == "davs2" || c == "uavs3d" || c.contains("cavs")
+}
+
+/// 强制 libuavs3d 读流头；成功返回 (宽, 高, 像素格式, 源帧率)。
+/// 不输出、不消耗视频帧，ffmpeg 打印完流头即退出，8K 也能在 4 秒内返回。
+fn confirm_avs3(url: &str, localaddr: &str) -> Option<(i64, i64, String, String)> {
+    let ffmpeg = crate::tools::find_ffmpeg()?;
+    let mut cmd = ffmpeg::hidden(&ffmpeg);
+    cmd.args(["-hide_banner", "-v", "info"]);
+    if !localaddr.is_empty() && looks_net(url) {
+        cmd.args(["-localaddr", localaddr]);
+    }
+    cmd.args([
+        "-probesize", "8388608",
+        "-analyzeduration", "4000000",
+        "-c:v", "libuavs3d",
+        "-i", url,
+        // 必须真解出一帧：AVS2 被强制交给 libuavs3d 时只打一行假流头，
+        // frame=0 且立刻退出；AVS3 才能解出 >=1 帧。
+        "-t", "0.5",
+        "-frames:v", "1",
+        "-f", "null", "-",
+    ]);
+    let out = run_limited(cmd, Duration::from_secs(6))?;
+    let text = String::from_utf8_lossy(&out.stderr);
+    let decoded = text
+        .lines()
+        .filter_map(|l| l.trim().strip_prefix("frame="))
+        .filter_map(|v| v.split_whitespace().next())
+        .filter_map(|v| v.parse::<u64>().ok())
+        .max()
+        .unwrap_or(0);
+    if decoded == 0 {
+        return None;
+    }
+    let line = text
+        .lines()
+        .find(|l| l.contains("Video: avs3") && l.contains("libuavs3d"))?;
+    let parts: Vec<&str> = line.split(',').map(|s| s.trim()).collect();
+    let mut width = 0i64;
+    let mut height = 0i64;
+    let mut pix = String::new();
+    for p in &parts {
+        if let Some((a, b)) = p.split_once('x') {
+            if let (Ok(w), Ok(h)) = (a.parse::<i64>(), b.split_whitespace().next().unwrap_or("").parse::<i64>()) {
+                if w > 0 && h > 0 {
+                    width = w;
+                    height = h;
+                }
+            }
+        } else if p.starts_with("yuv") || p.starts_with("nv12") || p.starts_with("p010") {
+            pix = p.to_string();
+        }
+    }
+    if width <= 0 || height <= 0 {
+        return None;
+    }
+    let fps = parts
+        .iter()
+        .find_map(|p| p.strip_suffix(" fps"))
+        .and_then(|s| s.trim().parse::<f64>().ok())
+        .filter(|v| *v > 1.0)
+        .map(|v| format!("{v}/1"))
+        .unwrap_or_default();
+    Some((width, height, pix, fps))
+}
+
 /// 快速探测（仅 codec/尺寸/pix_fmt/bit_rate）。失败返回 None；**绝不拦起播**。
 pub fn probe_quick(url: &str, timeout: f64, localaddr: &str) -> Option<QuickProbe> {
     if url.is_empty() {
@@ -250,7 +321,7 @@ pub fn probe_quick(url: &str, timeout: f64, localaddr: &str) -> Option<QuickProb
         let is_video = safe(st.get("codec_type")) == "video"
             || st.get("width").is_some();
         if is_video {
-            return Some(QuickProbe {
+            let mut q = QuickProbe {
                 video: VideoStream {
                     codec: safe(st.get("codec_name")),
                     width: num(st.get("width")) as i64,
@@ -266,7 +337,24 @@ pub fn probe_quick(url: &str, timeout: f64, localaddr: &str) -> Option<QuickProb
                 bit_rate: if cont_bit > 0 { cont_bit } else { 0 },
                 video_start: num(st.get("start_time")),
                 format_start: num(fmt.get("start_time")),
-            });
+            };
+            // ★ ffprobe 的 AVS3/AVS2 自动识别不可靠：裸 AVS3 会被报成
+            //   avs2 + 2528x1159，随后被错送进 vkit_davs2。这里让 libuavs3d
+            //   读一次流头，确认是 AVS3 就纠正 codec/宽高/帧率。
+            if is_avs_family(&q.video.codec) && !q.video.codec.to_ascii_lowercase().contains("avs3") {
+                if let Some((w, h, pix, fps)) = confirm_avs3(url, localaddr) {
+                    q.video.codec = "avs3".into();
+                    q.video.width = w;
+                    q.video.height = h;
+                    if !pix.is_empty() {
+                        q.video.pix_fmt = pix;
+                    }
+                    if !fps.is_empty() {
+                        q.video.framerate = fps;
+                    }
+                }
+            }
+            return Some(q);
         }
     }
     Some(QuickProbe {

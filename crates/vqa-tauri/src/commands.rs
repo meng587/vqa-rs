@@ -344,10 +344,16 @@ pub fn player_prewarm(
             if !vqa_core::bridge::needs_bridge(&q, force_bridge) {
                 return; // 直放够快，不需要预热
             }
-            // 与 decide_bridge 同口径：只有 AVS2/10-bit 的本地源才走 chain10 桥
+            // 与 decide_bridge 同口径：只给 AVS2/10-bit 的本地源走 chain10 桥，
+            // AVS3 必须留给 ffmpeg 的 libuavs3d，不能塞给 vkit_davs2。
             let chain10 = q
                 .as_ref()
-                .map(|x| x.video.codec.contains("avs2") || x.video.pix_fmt.contains("10"))
+                .map(|x| {
+                    let c = x.video.codec.to_ascii_lowercase();
+                    let is_avs2 = c.contains("avs2") || c == "davs2";
+                    let is_avs3 = c.contains("avs3") || c == "uavs3d";
+                    is_avs2 || (!is_avs3 && x.video.pix_fmt.contains("10"))
+                })
                 .unwrap_or(false);
             if !chain10 || !vqa_core::bridge::is_local(&cleaned) {
                 return;
@@ -571,6 +577,13 @@ pub fn player_adaptive_scale(st: State<PlayerState>, scale_w: u32) -> Result<(),
     let nic_ip = st.last_nic_ip.lock().unwrap().clone();
     let q = st.probe_info.lock().unwrap().clone();
     let audio_lead = q.as_ref().map(|x| x.audio_lead()).unwrap_or(0.0);
+    let avs3 = q
+        .as_ref()
+        .map(|x| {
+            let c = x.video.codec.to_ascii_lowercase();
+            c.contains("avs3") || c == "uavs3d"
+        })
+        .unwrap_or(false);
     vqa_core::config::log_line(
         "player",
         &format!("adaptive-scale 请求：scale_w={scale_w} url={url}"),
@@ -584,6 +597,7 @@ pub fn player_adaptive_scale(st: State<PlayerState>, scale_w: u32) -> Result<(),
         &nic_ip,
         audio_lead,
         scale_w,
+        if avs3 { Some("libuavs3d") } else { None },
     )?;
     let bridge_url = b.url();
     {
@@ -622,6 +636,18 @@ fn decide_bridge(
     adopt: Option<Box<dyn BridgeHandle>>,
 ) -> Launch {
     let need = vqa_core::bridge::needs_bridge(q, force);
+    // AVS3 走 ffmpeg 的 libuavs3d；vkit_davs2 只解 AVS2，不能套 chain10。
+    let avs3 = q
+        .as_ref()
+        .map(|x| {
+            let c = x.video.codec.to_ascii_lowercase();
+            c.contains("avs3") || c == "uavs3d"
+        })
+        .unwrap_or(false);
+    let avs3_8k = avs3
+        && q.as_ref()
+            .map(|x| x.video.width >= 7000 && x.video.height >= 4000)
+            .unwrap_or(false);
     // ★ 音画同步修正量：源里音频比画面早到多少秒（桥必须裁掉音频头）
     let audio_lead = q.as_ref().map(|x| x.audio_lead()).unwrap_or(0.0);
     vqa_core::config::log_line(
@@ -670,14 +696,16 @@ fn decide_bridge(
     let Some(ffmpeg) = vqa_core::tools::find_ffmpeg() else {
         return Launch::Failed("需要转码桥但未找到 ffmpeg".into());
     };
-    // ★ chain10 判定：除 10-bit 外，**编码是 AVS2 就走 chain10**——
-    //   ffprobe 内置 davs2 对部分 10-bit AVS2 解码报错后会把 pix_fmt
-    //   误报为 yuv420p（8-bit，实测 test_avs2_4k.ts），普通桥会改用
-    //   内置 davs2 慢速解码（~8.8fps，供给远低于需求 = 永久卡顿）。
-    //   vkit_davs2 对 8/10-bit 都正确且文件直读 43fps。
+    // ★ chain10 判定：只给 AVS2 用。AVS3 由 ffmpeg 的 libuavs3d 解码，
+    //   vkit_davs2 只解 AVS2；把 AVS3 10-bit 错送进 chain10 会解不出画面。
     let chain10 = q
         .as_ref()
-        .map(|q| q.video.codec.contains("avs2") || q.video.pix_fmt.contains("10"))
+        .map(|q| {
+            let c = q.video.codec.to_ascii_lowercase();
+            let is_avs2 = c.contains("avs2") || c == "davs2";
+            let is_avs3 = c.contains("avs3") || c == "uavs3d";
+            is_avs2 || (!is_avs3 && q.video.pix_fmt.contains("10"))
+        })
         .unwrap_or(false);
     let mut davs2_path: Option<PathBuf> = None;
     if chain10 {
@@ -691,6 +719,9 @@ fn decide_bridge(
         }
     }
     let davs2 = davs2_path.unwrap_or_else(|| PathBuf::new());
+    // ★ AVS3 8K 起桥先输出 4K：8K 解码 + H.264 8K 编码同时压在一条链上，
+    //   弱机必然黑场；4K 保留细节，也更符合 H.264 NVENC 的 4K 上限。
+    let initial_scale = if avs3_8k { 3840 } else { 0 };
     // ★ 本地 AVS 源优先走**并行分片桥**（bridge_par，照搬 Python 版 §31.50）：
     //   单链整链吞吐只有 0.63×实时（"播几秒卡几秒"的根因），并行 4 链叠到
     //   ~1.85×，转码跑在播放前面——秒开、流畅、二次打开走缓存可拖动。
@@ -714,9 +745,23 @@ fn decide_bridge(
             }
         }
     }
-    match vqa_core::bridge::RealtimeBridge::start(&ffmpeg, &davs2, url, chain10, 26, nic_ip, audio_lead) {
+    match vqa_core::bridge::RealtimeBridge::start_scaled(
+        &ffmpeg,
+        &davs2,
+        url,
+        chain10,
+        26,
+        nic_ip,
+        audio_lead,
+        initial_scale,
+        if avs3 { Some("libuavs3d") } else { None },
+    ) {
         Ok(b) => {
-            let reason = format!("AVS 源自动转码桥（{}）", b.mode);
+            let reason = if initial_scale > 0 {
+                format!("AVS3 8K→{initial_scale} 自动转码桥（{}）", b.mode)
+            } else {
+                format!("AVS 源自动转码桥（{}）", b.mode)
+            };
             let url = b.url();
             Launch::Bridged {
                 url,
