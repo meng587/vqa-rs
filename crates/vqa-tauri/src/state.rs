@@ -15,7 +15,7 @@ use crate::mpv_host::VideoChild;
 /// Bridged 携带桥句柄——收割侧存入 state，否则线程结束时桥被 drop 停掉。
 pub enum Launch {
     Direct,
-    Bridged { url: String, reason: String, bridge: Box<dyn BridgeHandle> },
+    Bridged { url: String, reason: String, auto_scale: u32, bridge: Box<dyn BridgeHandle> },
     Failed(String),
 }
 

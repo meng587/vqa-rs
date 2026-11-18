@@ -598,6 +598,9 @@ fn start_auto_bridge(
     scale_w: u32,
 ) -> Result<(), String> {
     let ffmpeg = vqa_core::tools::find_ffmpeg().ok_or("需要转码降级但未找到 ffmpeg")?;
+    // ★ 重启桥时必须先停掉旧桥：旧 ffmpeg 还占着 udp 输入端口，
+    //   新桥会报 "No such device or address" 起不来。Drop 会 kill+wait。
+    drop(st.bridge.lock().unwrap().take());
     let q = st.probe_info.lock().unwrap().clone();
     let probe_missing = q.is_none();
     let audio_lead = q.as_ref().map(|x| x.audio_lead()).unwrap_or(0.0);
@@ -754,6 +757,7 @@ fn decide_bridge(
             return Launch::Bridged {
                 url: burl,
                 reason,
+                auto_scale: 0,
                 bridge: b,
             };
         }
@@ -810,6 +814,7 @@ fn decide_bridge(
                 return Launch::Bridged {
                     url,
                     reason,
+                    auto_scale: 0,
                     bridge: Box::new(pb),
                 };
             }
@@ -844,6 +849,7 @@ fn decide_bridge(
             Launch::Bridged {
                 url,
                 reason,
+                auto_scale: initial_scale,
                 bridge: Box::new(b),
             }
         }
@@ -1221,7 +1227,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                             }
                         }
                     }
-                    Launch::Bridged { url, reason, bridge } => {
+                    Launch::Bridged { url, reason, auto_scale, bridge } => {
                         if st.playing_url.lock().unwrap().is_empty() {
                             // 用户已停止：起好的桥直接丢弃（Drop 会 kill 子进程）
                             drop(bridge);
@@ -1253,6 +1259,14 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                             *st.bridge_url.lock().unwrap() = url.clone();
                             *st.bridge_since.lock().unwrap() = Some(std::time::Instant::now());
                             *st.bridge.lock().unwrap() = Some(bridge);
+                            // 正常探测到 8K 时也在这里起 4K 桥；同样记住降级宽度，
+                            // 桥进程中途退出后 watchdog 才能按同一宽度自动重启。
+                            if auto_scale > 0 {
+                                *st.auto_scale_url.lock().unwrap() =
+                                    st.playing_url.lock().unwrap().clone();
+                                *st.auto_scale_w.lock().unwrap() = auto_scale;
+                                *st.bridge_dead_since.lock().unwrap() = None;
+                            }
                             // 记录本次桥用的编码器（决定"转到什么"展示）。
                             // pick_h264_encoder 内部有进程级缓存，起桥时已算过，
                             // 这里取的是同一个结果，几乎零成本。
@@ -1662,6 +1676,48 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                             *st.live_retry_left.lock().unwrap()
                         ),
                     );
+                }
+            } else {
+                *stall = None;
+            }
+        }
+        // 4.3b) 8K 桥进程还活着、但源停了/不再出帧：mpv 时间轴会卡在最后一帧。
+        //       直播 8K 只有自动降级桥这一条路径（auto_scale_w > 0），
+        //       3 秒无推进就重启一次桥，避免“看着像自动退出/卡死”。
+        if playing
+            && bridge_on
+            && liveish
+            && had_picture
+            && !s.idle
+            && !s.paused
+            && !*st.preparing.lock().unwrap()
+            && *st.auto_scale_w.lock().unwrap() > 0
+        {
+            let t = s.time_ms.round() as i64;
+            let mut last = st.live_last_time.lock().unwrap();
+            let mut stall = st.live_stall_since.lock().unwrap();
+            if t > *last {
+                *last = t;
+                *stall = None;
+            } else if t > 0 {
+                let start = stall.get_or_insert_with(std::time::Instant::now);
+                if start.elapsed() >= std::time::Duration::from_secs(3)
+                    && *st.bridge_auto_restarts.lock().unwrap() < 1
+                {
+                    *st.bridge_auto_restarts.lock().unwrap() += 1;
+                    *stall = None;
+                    let scale = *st.auto_scale_w.lock().unwrap();
+                    let nic = st.last_nic_ip.lock().unwrap().clone();
+                    drop(last);
+                    drop(stall);
+                    st.set_hint_for("8K 转码桥无输出，正在重启…", 8);
+                    crate::events::ev(
+                        "player",
+                        &format!("8K 桥 t={t}ms 无推进，自动重启（宽度 {scale}）"),
+                    );
+                    if let Err(e) = start_auto_bridge(&st, &url, &nic, scale) {
+                        *st.err.lock().unwrap() = Some(format!("8K 桥重启失败：{e}"));
+                    }
                 }
             } else {
                 *stall = None;
