@@ -112,9 +112,16 @@ pub fn build_args(cfg: &XcodeCfg, enc: &str) -> Vec<String> {
         format!("{}k", kbps * 2),
     ]);
     let gop = cfg.gop.unwrap_or(25).clamp(1, 300);
-    // 硬编/软编的通用实时档，GOP 由页面配置（默认 25 帧，50p 下 ≈0.5s）
+    // 各编码器只给自身支持的实时参数；不能把 nvenc/qsv 的 preset 套给
+    // Media Foundation / AMF / openh264，否则会直接报 Unknown option。
     match enc {
-        "libopenh264" => a.extend(["-g".into(), gop.to_string()]),
+        "libopenh264" | "h264_mf" => a.extend(["-g".into(), gop.to_string()]),
+        "h264_amf" => a.extend([
+            "-quality".into(),
+            "speed".into(),
+            "-g".into(),
+            gop.to_string(),
+        ]),
         "h264_nvenc" | "hevc_nvenc" => a.extend([
             "-preset".into(),
             "p1".into(),
@@ -499,6 +506,18 @@ mod tests {
         let url = a.iter().rev().find(|x| x.starts_with("udp://239")).unwrap();
         assert!(url.contains("pkt_size=4096"));
         assert!(url.contains("ttl=8"));
+    }
+
+    #[test]
+    fn hardware_encoders_only_get_supported_options() {
+        let a = build_args(&cfg(), "h264_mf");
+        assert!(!a.iter().any(|x| x == "-preset"));
+        assert!(!a.iter().any(|x| x == "-tune"));
+        assert!(a.windows(2).any(|w| w[0] == "-g" && w[1] == "25"));
+
+        let a = build_args(&cfg(), "h264_amf");
+        assert!(!a.iter().any(|x| x == "-preset"));
+        assert!(a.windows(2).any(|w| w[0] == "-quality" && w[1] == "speed"));
     }
 
     #[test]

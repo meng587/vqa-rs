@@ -1,11 +1,11 @@
 {
-  "version": "0.2.22",
-  "notes": "直播转码改为独立设置子页：输入/转码/输出三组实际参数，支持网卡、GOP、音频码率、封装、UDP包长/TTL；新增实际命令预览与输入→转码→输出→结果阶段流程",
-  "pub_date": "2026-11-18T12:35:56Z",
+  "version": "0.2.23",
+  "notes": "直播转码独立设置子页：输入/转码/输出实际参数；修复 h264_mf / h264_amf 编码器参数兼容，GOP、网卡、音频码率、封装、UDP包长/TTL 全部按页面配置执行",
+  "pub_date": "2026-11-18T12:46:29Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXZEQ2VkZ1Y3dnlsZjhwNk1PZ3dCYVVLQWt4UFRPVG1HL3NJY3Ztd0ZBdkFRWnZJa1JxTlJnaTBPRThFWXg5L2twYVVMM2xESWxETkRuTjNzclZCdkFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDA1MzU2CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4yMl94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjIyClpwVlBnaTlVR0hhaVlobnFlUFFZRHNYelJtTWZGMFFWbkNSVkUrRkVoNTZxVTZVOVRFT2RXWXJZeW54UzZqLzJsOWxzNU1lZVVpV2ZPc2h3MmhBWEF3PT0K",
-      "url": "https://gitee.com/meng587/video-analysis-toolkit-rs/releases/download/v0.2.22/vqa-workbench-0.2.22-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWlsZ1VZWmE2T0dkZERYUDFMMXhxejlIblkwSnU2b3ZoN2EzaXJwTGd3TU1mS3IwSEg2d1kyc1NNS0lTTk9RVHhxS1RmUFpVMmdxTGNEZzZycklHU1FrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDA1OTg5CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4yM194NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjIzCjNsNGVrUjE3NmxJRkpsMmFkM0tENVVNTURSdmRyc2VMYkpjdnRvcE8xN0Z0SFFpdFBkOHUzd3VJNmsrV0cxcURORHlPazVPYTBQL0o3WjNMZWpaU0JBPT0K",
+      "url": "https://gitee.com/meng587/video-analysis-toolkit-rs/releases/download/v0.2.23/vqa-workbench-0.2.23-setup.exe"
     }
   }
 }
