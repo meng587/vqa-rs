@@ -1,11 +1,11 @@
 {
-  "version": "0.2.25",
-  "notes": "直播转码设置拆成输入参数 / 转码参数 / 输出参数三个子页面；透传模式开启时编码器显示为「透传（不重编码）」，关闭后恢复原来的编码器与音频设置；码率、GOP、分辨率、帧率、网卡、封装、UDP包长/TTL 继续按页面实际配置执行",
-  "pub_date": "2026-11-18T13:33:10Z",
+  "version": "0.2.26",
+  "notes": "直播转码页右上角设置按钮改为带文字的「参数设置」按钮；输入参数 / 转码参数 / 输出参数三个子页面与透传模式保持 0.2.25 的实现",
+  "pub_date": "2026-11-18T13:50:18Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXVpR2dtU0pFVWRpWEd1OWh4b29QTHVaUmJKMkpLVlFuZ1F5QWVwVHZXNjB2L0laVWZRcHkyUzFESzNEYVdsS2x3K3UraGdqMnhraFRVQnNYc0tISVFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDA4NzkwCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4yNV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjI1CittbWFROHFTQ0V2NEtleWN0Q3FUZGVuekJhYXFOZXFDSzZ5UHFTYXdxMG5FVlRGTmFWY3pvLzVteHdxOEdIdHNUK2VycHdRdUhCOVpGZ21uVERmMkRBPT0K",
-      "url": "https://gitee.com/meng587/video-analysis-toolkit-rs/releases/download/v0.2.25/vqa-workbench-0.2.25-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXJpZFowRW9xUGlqSDBCY3R6bVppTkdnS0tCWG1kSWNlam1kMU1JWGJ3U3E1UTF3WC82OTZxdHJucUZxOTJFUUhkRDZWSjNYSnZUU3lZdDNXTmtrUXdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDA5ODE4CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4yNl94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjI2CmIvVlRUV2dnQno1TS9ScXVpOTdNS0xVQnlNQVVIS25lK3NMYmxHVVJSYVlLancxaUN5c3JMM2FRT3hsNVZSSkg5NERvZ1E2MVprY1g3K2ttUk4yTkN3PT0K",
+      "url": "https://gitee.com/meng587/video-analysis-toolkit-rs/releases/download/v0.2.26/vqa-workbench-0.2.26-setup.exe"
     }
   }
 }
