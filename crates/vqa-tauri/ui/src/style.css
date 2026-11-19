@@ -646,6 +646,8 @@ body[data-page="analysis"] #p-chips, body[data-page="about"] #p-chips { display:
 .orow .k { flex: 0 0 74px; color: var(--mut); font-size: 12px; }
 .orow .v { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .orow .v.mono { font: 12px var(--mono); color: var(--ink2); }
+.orow .v a.orlink { color: var(--acc); text-decoration: none; }
+.orow .v a.orlink:hover { color: var(--copper); text-decoration: underline; }
 .orow .v.ok { color: var(--ok); }
 .oicon {
   width: 26px; height: 26px; flex: none; border-radius: 8px; padding: 0;
