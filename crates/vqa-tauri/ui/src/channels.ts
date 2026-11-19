@@ -11,6 +11,7 @@ import {
   groupMatches,
   groupNames,
   groupOf,
+  loadChannelGroups,
   normalizeGroup,
 } from "./channel-groups";
 import { openChannelEditor } from "./channel-editor";
@@ -108,7 +109,7 @@ export class ChannelBoard {
           seen.add(k);
           return true;
         });
-      this.groups = groupNames(this.chans);
+      this.groups = await loadChannelGroups(this.chans);
     } catch {
       this.chans = [];
       this.groups = [DEFAULT_GROUP];

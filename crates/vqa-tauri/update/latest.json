@@ -1,11 +1,11 @@
 {
-  "version": "0.2.44",
-  "notes": "0.2.44：音画同步频道列表取消并发设置，单检与轮巡都严格逐条执行；个人工具箱不再同时跑多条流。",
-  "pub_date": "2026-11-19T11:04:00Z",
-  "platforms": {
-    "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXNzVmF0bHA0dzM5a21kSXdORkdIVkkwSlV6RkdxSSt0VHNPSjFlZ3Jicko4bndRbmV2dE9EOUsxQ2xZVlRkYktTNE5jODlCVXh6alI0V3ZVYlZWQXdrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDg2MjM5CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi40NF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjQ0ClZZUVVBTmpad3dqMWxzWk01dmE3M3ZJOHE1MVp3QWdJT3RLWHlUM1gzdEthQTJaV3hUbzBQUHRTV0tHMVJqMTJpemQyUTRKUDZTNnczaVFPem94dUNBPT0K",
-      "url": "https://github.com/meng587/vqa-rs/releases/download/v0.2.44/vqa-workbench-0.2.44-setup.exe"
-    }
-  }
+    "version":  "0.2.45",
+    "notes":  "0.2.45：微突发检测频道列表新增「检测选中」，只检测当前选中频道；微突发与音画同步共用频道编辑页保存的类别分组，空分组也会在两页显示。",
+    "pub_date":  "2026-11-19T11:18:18Z",
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXFPNlRjdkx0U2gwTkxsamlzV1NYVEN4WWE0SVAzZ0VjSUJCcnFrTDMzZHNIblZEYVJndFF2RGNKVjZRcnRvOVR2NGdCZHE1T0d4RHZaNEcxMnhMOUFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDg3MDk4CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi40NV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjQ1CjQ1aHdNWGkrc0o3WGRuTkg4N3BJUG0rbjNjc3RWWFVUM1A0eGpNdW1wTkdqK2drRGJmejNHZWpMbWJYSTM0cGk3c0cwMzVqY2pHNGk4KzVGV1V1TkN3PT0K",
+                                             "url":  "https://github.com/meng587/vqa-rs/releases/download/v0.2.45/vqa-workbench-0.2.45-setup.exe"
+                                         }
+                  }
 }

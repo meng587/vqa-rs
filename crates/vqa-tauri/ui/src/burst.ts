@@ -14,6 +14,7 @@ import {
   groupMatches,
   groupNames,
   groupOf,
+  loadChannelGroups,
   normalizeGroup,
 } from "./channel-groups";
 
@@ -175,17 +176,24 @@ function setStatus(kind: "idle" | "running" | "error", text: string) {
   if (lamp) lamp.className = `lamp${kind === "running" ? " run" : kind === "error" ? " err" : ""}`;
 }
 
+function selectedIndex(): number {
+  if (!activeUrl) return -1;
+  return visibleIndexes().find((i) => channels[i]?.url === activeUrl) ?? -1;
+}
+
 function syncLockUi() {
   const isLocked = locked();
   const act = $<HTMLButtonElement>("b-act");
   const stop = $<HTMLButtonElement>("b-stop");
   const setBtn = $<HTMLButtonElement>("b-settings");
   const pollBtn = $<HTMLButtonElement>("b-poll");
+  const detectBtn = $<HTMLButtonElement>("b-detect-sel");
   const editBtn = $<HTMLButtonElement>("b-edit-list");
   const all = $<HTMLInputElement>("b-ch-all");
   if (act) act.disabled = isLocked;
   if (setBtn) setBtn.disabled = isLocked;
   if (pollBtn) pollBtn.disabled = isLocked;
+  if (detectBtn) detectBtn.disabled = isLocked || selectedIndex() < 0;
   if (editBtn) editBtn.disabled = isLocked;
   if (all) all.disabled = isLocked;
   const group = $<HTMLSelectElement>("b-ch-group");
@@ -555,6 +563,19 @@ function activateChannel(i: number) {
   const input = $<HTMLInputElement>("b-url");
   if (input) input.value = c.url;
   renderChannels();
+  syncLockUi();
+}
+
+/** 只检测频道列表里当前选中的这一路，不勾选也不轮询其他频道。 */
+function detectSelected() {
+  if (locked()) return;
+  const i = selectedIndex();
+  if (i < 0) {
+    setStatus("error", "先在频道列表选中一个频道");
+    return;
+  }
+  activateChannel(i);
+  void startContinuous();
 }
 
 function highlightRows() {
@@ -601,7 +622,7 @@ async function loadChannels() {
         seen.add(k);
         return true;
       });
-    groups = groupNames(channels, groups);
+    groups = await loadChannelGroups(channels);
   } catch {
     channels = [];
   }
@@ -947,6 +968,7 @@ export function initBurst() {
   $<HTMLButtonElement>("b-stop")?.addEventListener("click", () => void stopSession());
   $<HTMLButtonElement>("b-settings")?.addEventListener("click", openSettings);
   $<HTMLButtonElement>("b-edit-list")?.addEventListener("click", () => void openChannelEditor());
+  $<HTMLButtonElement>("b-detect-sel")?.addEventListener("click", detectSelected);
   $<HTMLButtonElement>("b-poll")?.addEventListener("click", () => void pollSelected());
   $<HTMLButtonElement>("b-ch-toggle")?.addEventListener("click", () =>
     setChannelCollapsed(!collapsed),

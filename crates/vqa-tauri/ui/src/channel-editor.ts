@@ -12,13 +12,12 @@ import {
   groupMatches,
   groupNames,
   groupOf,
+  GROUPS_KEY,
   normalizeGroup,
 } from "./channel-groups";
 
 const $ = <T extends HTMLElement>(id: string): T | null =>
   document.getElementById(id) as T | null;
-
-const GROUPS_KEY = "channels.groups";
 
 let built = false;
 let draft: Channel[] = [];
