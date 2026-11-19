@@ -6619,7 +6619,7 @@ dependencies = [
 
 [[package]]
 name = "vqa-tauri"
-version = "0.2.43"
+version = "0.2.44"
 dependencies = [
  "base64 0.22.1",
  "chrono",

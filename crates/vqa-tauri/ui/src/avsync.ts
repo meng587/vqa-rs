@@ -294,11 +294,10 @@ async function stop() {
   } catch {}
 }
 
-// ── 本页设置（时长 / 搜索 / 并发），存 shared 配置 ──
+// ── 本页设置（时长 / 搜索），存 shared 配置 ──
 interface AvPrefs {
   secs: number;
   search: number;
-  conc: number;
 }
 
 const AV_PREF_KEY = "avsync.prefs";
@@ -308,7 +307,6 @@ function readPrefs(): AvPrefs {
   return {
     secs: Number($<HTMLInputElement>("av-secs")?.value || 20) || 20,
     search: Number($<HTMLInputElement>("av-search")?.value || 800) || 800,
-    conc: board?.getConc() ?? 1,
   };
 }
 
@@ -327,7 +325,6 @@ async function loadPrefs() {
     const search = $<HTMLInputElement>("av-search");
     if (secs && Number.isFinite(p.secs)) secs.value = String(p.secs);
     if (search && Number.isFinite(p.search)) search.value = String(p.search);
-    if (Number.isFinite(p.conc)) board?.setConc(Number(p.conc));
   } catch {
     /* 设置读不到就用默认值 */
   }
@@ -355,10 +352,9 @@ export function initAvSync() {
     board = new ChannelBoard(host, {
       owner: "av",
       title: "频道列表",
-      conc: 1,
+      sequential: true,
       compact: true,
       onCollapse: () => setChannelCollapsed(true),
-      onConc: queueSave,
       runOne: async (ch, job, focus): Promise<RunOutcome> => {
         if (focus) {
           const input = $<HTMLInputElement>("av-src");

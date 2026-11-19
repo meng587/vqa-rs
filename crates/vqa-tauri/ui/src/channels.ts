@@ -30,6 +30,8 @@ export interface ChannelHooks {
   title?: string;
   /** 初始并发度（1 = 逐条） */
   conc?: number;
+  /** 单机顺序检测：固定逐条执行，不显示并发设置 */
+  sequential?: boolean;
   /** 左侧窄栏模式：只保留编辑/预览/检测，增删改走列表编辑页 */
   compact?: boolean;
   /** 窄栏模式下收起整个频道栏 */
@@ -73,10 +75,11 @@ export class ChannelBoard {
   constructor(host: HTMLElement, hooks: ChannelHooks) {
     this.host = host;
     this.hooks = hooks;
-    this.conc = clampConc(hooks.conc ?? 1);
+    this.conc = hooks.sequential ? 1 : clampConc(hooks.conc ?? 1);
   }
 
   setConc(n: number) {
+    if (this.hooks.sequential) return;
     this.conc = clampConc(n);
     const inp = this.host.querySelector<HTMLInputElement>('[data-role="conc"]');
     if (inp) inp.value = String(this.conc);
@@ -115,14 +118,15 @@ export class ChannelBoard {
 
   private build() {
     const compact = this.hooks.compact === true;
+    const concCtl = this.hooks.sequential
+      ? ""
+      : `<label class="chconc" title="同时检测的频道数；1 = 逐条，检测时预览框跟第一个开跑的频道">并发 <input type="number" min="1" max="8" step="1" data-role="conc" value="${this.conc}" /></label>`;
     const toolbar = compact
       ? `
       <div class="chbar is-compact">
         <div class="chttlrow"><b class="chttl">${this.hooks.title || "频道列表"}</b><span class="chcount">0</span>${this.hooks.onCollapse ? `<button class="chcollapse" data-a="collapse" type="button" title="收起频道列表">收起 <span aria-hidden="true">›</span></button>` : ""}</div>
         <div class="chsub">
-          <label class="chconc" title="同时检测的频道数；1 = 逐条，检测时预览框跟第一个开跑的频道">
-            并发 <input type="number" min="1" max="8" step="1" data-role="conc" value="${this.conc}" />
-          </label>
+          ${concCtl}
           <label class="chgroupfilter" title="只显示并轮巡当前分组">
             分组 <select data-role="group"></select>
           </label>
@@ -141,10 +145,7 @@ export class ChannelBoard {
         <label class="chgroupfilter" title="只显示并轮巡当前分组">
           分组 <select data-role="group"></select>
         </label>
-        <label class="chconc" title="同时检测的频道数；1 = 逐条，检测时预览框跟第一个开跑的频道">
-          并发
-          <input type="number" min="1" max="8" step="1" data-role="conc" value="${this.conc}" />
-        </label>
+        ${concCtl}
         <span class="chsp"></span>
         <button class="cbtn" data-a="add">添加</button>
         <button class="cbtn" data-a="import">批量导入</button>
@@ -439,7 +440,7 @@ export class ChannelBoard {
     this.busy = true;
     this.stopFlag = false;
     this.updateBar();
-    const conc = Math.max(1, Math.min(this.conc, list.length));
+    const conc = this.hooks.sequential ? 1 : Math.max(1, Math.min(this.conc, list.length));
     let next = 0;
     let previewOn = false;
     const worker = async (slot: number) => {
