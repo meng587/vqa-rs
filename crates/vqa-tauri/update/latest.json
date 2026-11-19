@@ -1,10 +1,10 @@
 {
     "version":  "0.2.33",
-    "notes":  "0.2.33：微突发检测页重做——坐标轴改为清晰 HTML 刻度、新增参数设置（网卡/阈值/检测时间）、可收缩频道列表与单路/多路轮询。",
-    "pub_date":  "2026-11-19T05:00:30Z",
+    "notes":  "0.2.33：微突发检测页重做——坐标轴改为清晰 HTML 刻度、新增参数设置（网卡/阈值/检测时间）、可收缩频道列表与单路/多路轮询；修正图表画布高度溢出，图表完整落在卡片内。",
+    "pub_date":  "2026-11-19T05:16:34Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWpOdlhsL01TaUFzNTJGOE1USXAzb2dGYk5BU3ZDODcycW1hMTNsTzhtMEM1UEF6Z0g0eWpPREovM3RlNFhORmJJTU5SMEM3VTBsWlFScmw3ZkFuamc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDY0NDMwCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4zM194NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjMzCnVrbkNaMjBVSFhmUytsU3hqY3F1K3N1ejhnY3k5ZlR0YzRXcGRPR0xiZ1QvNVpFa3RONnd3b3VmN3U0WU1nb05nMVA1enNqLzFaSzBnTVVzaGpCTUJBPT0K",
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW9SSXIycDI4UkNDQzZhdmhteTl3bGNPT1lydTJtcnI3L21yTEZOSHdOQ1NSSDBPZ3lrVnNRelJzcnhLaGJCR0VtOHNkTHA3Z1VJZHY2RkRjVHkyQ3dnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDY1Mzk0CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4zM194NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjMzCnBudGZibm1mMmtqMEN5Q0RZLzFjOUNyTHg0MHBoSUovdmpLenZhQURRdkdtemtlbWgrK21FWHFoc0VWcUYwNUFFRlBEVmRWd1JLU0RKb0gvQ2JuZ0FnPT0K",
                                              "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.33/vqa-workbench-0.2.33-setup.exe"
                                          }
                   }
