@@ -1,11 +1,11 @@
 {
-  "version": "0.2.37",
-  "notes": "0.2.37：微突发检测频道列表的收起入口改为右侧明确按钮；移除频道列表“加入当前”，频道增删统一走“编辑列表”。",
-  "pub_date": "2026-11-19T09:28:07Z",
+  "version": "0.2.38",
+  "notes": "0.2.38：视频分析的组播网卡选择移入「视频分析设置」抽屉，保存后作为默认；顶栏只保留来源、开始扫描与报告操作。",
+  "pub_date": "2026-11-19T09:40:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXIzaCtCL2UrLzJha2ZuNmxPOXhKMW82OU5wcEl2MGVrWFdvcG13T1Iyb250WndBMFFTM1VwM2QwcndKUEQzaVFPOFIrc0RiMjJTbmtwMmZoTkswbWdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDgwNDg3CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4zN194NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjM3CkFRekJFaXlaRHJENll2WUNJQkplblJ0QXI1RFFXT2ZETXhmM1F4ZmxQN1Vza2F2V05hTUlKOUFMWHFqdmN2UUpqOVkzSjNCM2Q2YXcxeWQrVXpseENBPT0K",
-      "url": "https://github.com/meng587/vqa-rs/releases/download/v0.2.37/vqa-workbench-0.2.37-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW1KSWlpS3lEZzFsTDJRQ2Nwek0vQnVHNmRyR0V3MjlEVU1tSDJxdHlmRTVGVGQ0NUZqT21nWVBIcXQzSnBQMEROc1pDQkFBcCsxRTVMYWVGVEpDQUFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDgxMjAwCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4zOF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjM4CkhqV21KVGpyc0plVTY4OG1rTWM3UllVUDQ4MmZhS2RXdXFpaytkKzNMOEFBVjVnOUNobS9MbVJwTk1ZeHdTbTlHTmJxcjlJR2lMVE01UWhtbGUxR0NnPT0K",
+      "url": "https://github.com/meng587/vqa-rs/releases/download/v0.2.38/vqa-workbench-0.2.38-setup.exe"
     }
   }
 }

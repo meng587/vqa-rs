@@ -1,7 +1,7 @@
 //! 各功能自己的设置抽屉：播放器页齿轮 →「播放器设置」，分析页齿轮 →「视频分析设置」。
 //! 每个功能各存一份配置，互不影响：
 //!   播放器 → shared/settings.json 的 out_snap_dir / out_rec_dir / player.default_*
-//!   分析   → analysis.report_dir
+//!   分析   → analysis.report_dir / analysis.nic
 //! 抽屉不切换页面，改完立刻对新截图/录像/导出生效。
 
 import { api } from "./api";
@@ -62,6 +62,12 @@ function buildDrawers() {
   <aside class="drawer" id="dr-analysis" hidden>
     <div class="drhead"><b>视频分析设置</b><button class="iconbtn drx txtbtn" id="dr-a-x" title="关闭"></button></div>
     <div class="drbody">
+      <div class="drsec">网络</div>
+      <div class="setrow">
+        <span class="k">组播网卡</span>
+        <select id="a-nic"><option value="">自动</option></select>
+      </div>
+      <div class="drhint">自动 = 按系统路由选择；分析 UDP / RTP 组播时绑定该网卡。保存后作为默认，下次启动仍沿用；找不到该网卡时回到自动。</div>
       <div class="drsec">导出</div>
       <div class="setrow">
         <span class="k">报告目录</span>
@@ -205,6 +211,7 @@ function wirePlayerDrawer() {
 
 function wireAnalysisDrawer() {
   const report = $("dr-a-report") as HTMLInputElement;
+  const nic = $("a-nic") as HTMLSelectElement;
   const msg = $("dr-a-msg") as HTMLElement;
   const saveBtn = $("dr-a-save") as HTMLButtonElement;
 
@@ -222,8 +229,15 @@ function wireAnalysisDrawer() {
   async function load() {
     try {
       const p = await api.analysisSettings();
+      let saved: unknown = null;
+      try {
+        saved = await api.uiGet("analysis.nic");
+      } catch {
+        /* 没保存过就保持自动 */
+      }
       report.value = p.report_dir;
       report.placeholder = p.report_note;
+      nic.value = typeof saved === "string" ? saved : "";
       say("");
     } catch (e) {
       say(`读取失败：${e}`, "err");
@@ -244,8 +258,11 @@ function wireAnalysisDrawer() {
     say("保存中…");
     try {
       const p = await api.setAnalysisSettings(report.value.trim());
+      await api.uiSet("analysis.nic", nic.value);
       report.value = p.report_dir;
-      say(p.report_dir ? `已保存 · 报告 → ${p.report_dir}` : "已恢复默认 · 每次导出弹保存对话框", "ok");
+      const nicText = nic.selectedOptions[0]?.textContent || "自动";
+      const where = p.report_dir ? `报告 → ${p.report_dir}` : "报告 → 每次导出弹保存对话框";
+      say(`已保存 · ${where} · 网卡 → ${nicText}`, "ok");
     } catch (e) {
       say(String(e), "err");
     } finally {
@@ -255,6 +272,7 @@ function wireAnalysisDrawer() {
 
   $("dr-a-reset").addEventListener("click", () => {
     report.value = "";
+    nic.value = "";
     saveBtn.click();
   });
 }

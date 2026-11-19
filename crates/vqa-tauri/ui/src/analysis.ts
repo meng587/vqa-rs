@@ -49,17 +49,24 @@ let resCache: Res | null = null;
 
 export function initAnalysis() {
   const url = $("a-url") as HTMLInputElement;
-  const nic = $("a-nic") as HTMLSelectElement;
+  const nic = $("a-nic") as HTMLSelectElement | null;
   const act = $("a-act") as HTMLButtonElement;
   const histBtn = $("a-hist") as HTMLButtonElement;
   const histPop = $("a-histpop") as HTMLElement;
 
-  // 网卡下拉：值 = IP，显示「IP · 网卡名」
-  api.listNics().then((list: NicRow[]) => {
+  // 网卡下拉：值 = IP，显示「IP · 网卡名」；位置在「视频分析设置」抽屉里
+  api.listNics().then(async (list: NicRow[]) => {
+    if (!nic) return;
     nic.innerHTML = [
       `<option value="">自动</option>`,
       ...list.map((n) => `<option value="${esc(n.ip)}" title="${esc(n.desc || n.name)}">${esc(nicLabel(n))}</option>`),
     ].join("");
+    try {
+      const saved = await api.uiGet("analysis.nic");
+      if (typeof saved === "string" && list.some((n) => n.ip === saved)) nic.value = saved;
+    } catch {
+      /* 没保存过就保持自动 */
+    }
   });
 
   histBtn.addEventListener("click", (e) => {
@@ -105,7 +112,7 @@ export function initAnalysis() {
     if (!u) return;
     await api.pushSourceHistory("analysis", u);
     try {
-      await api.analysisStart(u, nic.value);
+      await api.analysisStart(u, nic?.value || "");
       running = true;
       setActUi(true);
     } catch (e: any) {
