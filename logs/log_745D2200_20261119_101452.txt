@@ -1,0 +1,393 @@
+===== VQA 诊断日志 =====
+生成时间   : 2026-11-19 10:14:52
+应用版本   : 0.2.28 (Tauri/Web UI)
+核心库     : vqa-core TS 解析 / TR101 290 / PCR 双环 PLL
+操作系统   : Microsoft Windows [�汾 10.0.26300.9974]
+主机名     : DESKTOP-HP8EL40 (x86_64)
+设备MAC    : 745D22003E68
+运行时长   : 64 分钟
+
+===== 播放器状态 =====
+{
+  "auto_decoder": "default",
+  "bridge": null,
+  "bridge_enc": "h264_nvenc",
+  "bridge_note": "8K 自动降级：转码输出 1280 宽 / 25fps",
+  "bridge_stderr_last": "[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n",
+  "bridge_to": null,
+  "err": "转码桥进程反复退出，已停止播放：[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input\r\n[mp2 @ 000001cbccfe4680] Header missing\r\n[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input",
+  "hint": null,
+  "loop": false,
+  "playing": true,
+  "preparing": false,
+  "probe": null,
+  "recording": false,
+  "snap": {
+    "a_bitrate": 68199.0,
+    "audio_codec": "aac",
+    "avsync": 0.0,
+    "container_fps": 50.0,
+    "dec_pixfmt": "d3d11",
+    "decoder_drop": 0,
+    "duration_ms": 112941.333,
+    "height": 720,
+    "hwdec": "d3d11va",
+    "idle": true,
+    "mute": false,
+    "paused": false,
+    "render_drop": 0,
+    "seekable": false,
+    "speed": 1.0,
+    "time_ms": 112901.333,
+    "v_bitrate": 894128.0,
+    "vf_fps": 25.0,
+    "video_codec": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+    "volume": 100.0,
+    "width": 1280
+  }
+}
+
+===== 分析页状态 =====
+模式: 0  错误: 无
+
+===== 分析结果摘要 =====
+（尚未扫描）
+
+===== 事件时间线（最近 50 条）=====
+[+   8.72s] [player] 起播 udp://238.123.43.96:2000
+[+   9.51s] [player] 直放（无需转码）
+[+  13.80s] [drops] 丢帧突增 0 → 80（+80，t=3.6s）
+[+  18.81s] [drops] 丢帧突增 80 → 303（+223，t=8.6s）
+[+  23.90s] [drops] 丢帧突增 303 → 520（+217，t=13.4s）
+[+  27.92s] [player] 8K 自动降级：转码输出宽 3840 / 25fps，源 udp://238.123.43.96:2000
+[+  28.90s] [drops] 丢帧突增 520 → 684（+164，t=17.1s）
+[+  34.00s] [player] 8K 桥 t=3781ms 无推进，自动重启（宽度 3840）
+[+  35.49s] [player] 8K 自动降级：转码输出宽 3840 / 25fps，源 udp://238.123.43.96:2000
+[+  50.67s] [player] 8K 自动降级：转码输出宽 1920 / 25fps，源 udp://238.123.43.96:2000
+[+  50.67s] [player] 8K 桥 t=12781ms 无推进，自动重启（宽度 1920）
+[+  51.90s] [player] 8K 自动降级：转码输出宽 1920 / 25fps，源 udp://238.123.43.96:2000
+[+  73.32s] [player] 8K 自动降级：转码输出宽 1280 / 25fps，源 udp://238.123.43.96:2000
+[+  78.90s] [player] 8K 桥 t=4021ms 无推进，自动重启（宽度 1280）
+[+  80.28s] [player] 8K 自动降级：转码输出宽 1280 / 25fps，源 udp://238.123.43.96:2000
+[+1814.81s] [bridge] 转码桥进程退出，按 1280 宽自动重启（第 2 次）
+[+1816.02s] [player] 8K 自动降级：转码输出宽 1280 / 25fps，源 udp://238.123.43.96:2000
+
+===== 播放采样（每 5s 一条，最近 60 条）=====
+[+1628.40s] t=1544.9s avsync=+0.0ms 丢帧=0/0 3.21Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1633.41s] t=1550.0s avsync=+0.0ms 丢帧=0/0 2.85Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1638.41s] t=1555.9s avsync=+0.2ms 丢帧=0/0 1.25Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1643.50s] t=1561.2s avsync=+0.0ms 丢帧=0/0 3.70Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1648.51s] t=1566.2s avsync=+0.0ms 丢帧=0/0 3.84Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1653.60s] t=1571.3s avsync=+0.0ms 丢帧=0/0 3.68Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1658.60s] t=1575.0s avsync=+0.0ms 丢帧=0/0 2.08Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1663.61s] t=1581.0s avsync=+0.2ms 丢帧=0/0 6.47Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1668.71s] t=1585.1s avsync=+0.0ms 丢帧=0/0 5.61Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1673.81s] t=1591.3s avsync=+0.3ms 丢帧=0/0 2.24Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1678.90s] t=1596.7s avsync=+0.0ms 丢帧=0/0 4.11Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1683.91s] t=1601.7s avsync=+0.0ms 丢帧=0/0 3.62Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1689.00s] t=1606.8s avsync=+0.0ms 丢帧=0/0 3.44Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1694.00s] t=1610.5s avsync=+0.0ms 丢帧=0/0 4.40Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1699.01s] t=1615.5s avsync=+0.0ms 丢帧=0/0 4.08Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1704.10s] t=1620.7s avsync=+0.2ms 丢帧=0/0 7.47Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1709.21s] t=1626.0s avsync=+0.0ms 丢帧=0/0 1.98Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1714.21s] t=1632.0s avsync=+0.2ms 丢帧=0/0 1.85Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1719.31s] t=1637.3s avsync=+0.0ms 丢帧=0/0 3.01Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1724.31s] t=1641.2s avsync=+0.0ms 丢帧=0/0 3.49Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1729.40s] t=1646.3s avsync=+0.2ms 丢帧=0/0 3.39Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1734.41s] t=1652.1s avsync=+0.0ms 丢帧=0/0 3.50Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1739.50s] t=1656.0s avsync=+0.0ms 丢帧=0/0 2.79Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1744.50s] t=1661.1s avsync=+0.1ms 丢帧=0/0 4.30Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1749.51s] t=1666.7s avsync=+0.0ms 丢帧=0/0 3.95Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1754.61s] t=1671.9s avsync=+0.0ms 丢帧=0/0 3.56Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1759.70s] t=1676.9s avsync=+0.0ms 丢帧=0/0 4.46Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1764.81s] t=1682.1s avsync=+0.0ms 丢帧=0/0 4.41Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1769.90s] t=1685.9s avsync=+0.0ms 丢帧=0/0 5.35Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1774.90s] t=1691.8s avsync=+0.3ms 丢帧=0/0 3.15Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1780.01s] t=1697.3s avsync=+0.0ms 丢帧=0/0 4.62Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1785.10s] t=1702.3s avsync=+0.0ms 丢帧=0/0 2.98Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1790.11s] t=1706.3s avsync=+0.0ms 丢帧=0/0 2.89Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1795.20s] t=1712.4s avsync=+0.1ms 丢帧=0/0 3.12Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1800.31s] t=1717.6s avsync=+0.0ms 丢帧=0/0 3.33Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1805.40s] t=1722.7s avsync=+0.0ms 丢帧=0/0 3.83Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1810.40s] t=1726.6s avsync=+0.2ms 丢帧=0/0 3.52Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1816.02s] t=1727.3s avsync=+0.0ms 丢帧=0/0 3.52Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1821.11s] t=3.8s avsync=+0.0ms 丢帧=0/0 1.71Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1826.20s] t=8.9s avsync=+0.0ms 丢帧=0/0 4.31Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1831.31s] t=12.8s avsync=+0.0ms 丢帧=0/0 4.72Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1836.31s] t=17.8s avsync=+0.0ms 丢帧=0/0 4.16Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1841.41s] t=21.5s avsync=+0.0ms 丢帧=0/0 6.77Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1846.51s] t=28.3s avsync=+0.2ms 丢帧=0/0 5.69Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1851.61s] t=32.3s avsync=+0.0ms 丢帧=0/0 2.62Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1856.71s] t=38.8s avsync=+0.2ms 丢帧=0/0 0.85Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1861.80s] t=44.1s avsync=+0.0ms 丢帧=0/0 1.66Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1866.80s] t=47.8s avsync=+0.0ms 丢帧=0/0 1.34Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1871.81s] t=52.8s avsync=+0.2ms 丢帧=0/0 3.22Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1876.91s] t=59.1s avsync=+0.0ms 丢帧=0/0 10.33Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1881.91s] t=64.1s avsync=+0.0ms 丢帧=0/0 2.87Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1887.00s] t=69.2s avsync=+0.0ms 丢帧=0/0 1.52Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1892.11s] t=73.2s avsync=+0.0ms 丢帧=0/0 0.79Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1897.20s] t=78.3s avsync=+0.0ms 丢帧=0/0 4.99Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1902.21s] t=84.1s avsync=+0.2ms 丢帧=0/0 5.65Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1907.30s] t=88.4s avsync=+0.0ms 丢帧=0/0 5.41Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1912.30s] t=93.1s avsync=+0.0ms 丢帧=0/0 1.57Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1917.31s] t=99.7s avsync=+0.2ms 丢帧=0/0 3.62Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1922.41s] t=103.9s avsync=+0.0ms 丢帧=0/0 1.00Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+[+1927.50s] t=107.7s avsync=+0.0ms 丢帧=0/0 1.22Mbps vf_fps=25.00 硬解=d3d11va 1280x720
+
+===== mpv 日志（尾部 50 行）=====
+[1923.286][d][vo/gpu-next] max content size: 2560x1392
+[1923.286][d][vo/gpu-next] monitor size: 2560x1440
+[1923.288][v][vo/gpu-next] Window size: 1098x584 (Borders: l=0 t=0 r=0 b=0)
+[1923.288][v][vo/gpu-next] Video source: 960x540 (1:1)
+[1923.288][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (30, 0) 1038x584
+[1923.288][v][vo/gpu-next] Video scale: 1.081250/1.081481
+[1923.288][v][vo/gpu-next] OSD borders: l=30 t=0 r=30 b=0
+[1923.288][v][vo/gpu-next] Video borders: l=30 t=0 r=30 b=0
+[1923.290][v][vo/gpu-next] Window size: 1098x584 (Borders: l=0 t=0 r=0 b=0)
+[1923.290][v][vo/gpu-next] Video source: 960x540 (1:1)
+[1923.290][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (30, 0) 1038x584
+[1923.290][v][vo/gpu-next] Video scale: 1.081250/1.081481
+[1923.290][v][vo/gpu-next] OSD borders: l=30 t=0 r=30 b=0
+[1923.290][v][vo/gpu-next] Video borders: l=30 t=0 r=30 b=0
+[1926.013][v][vo/gpu-next] Window size: 1098x1 (Borders: l=0 t=0 r=0 b=0)
+[1926.013][v][vo/gpu-next] Video source: 960x540 (1:1)
+[1926.013][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (548, 0) 1x1
+[1926.013][v][vo/gpu-next] Video scale: 0.001042/0.001852
+[1926.013][v][vo/gpu-next] OSD borders: l=548 t=0 r=549 b=0
+[1926.013][v][vo/gpu-next] Video borders: l=548 t=0 r=549 b=0
+[3581.555][v][vo/gpu-next] Window size: 1x1 (Borders: l=0 t=0 r=0 b=0)
+[3581.555][v][vo/gpu-next] Video source: 960x540 (1:1)
+[3581.555][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (0, 0) 1x1
+[3581.555][v][vo/gpu-next] Video scale: 0.001042/0.001852
+[3581.555][v][vo/gpu-next] OSD borders: l=0 t=0 r=0 b=0
+[3581.555][v][vo/gpu-next] Video borders: l=0 t=0 r=0 b=0
+[3652.379][v][vo/gpu-next] Window size: 1098x1 (Borders: l=0 t=0 r=0 b=0)
+[3652.379][v][vo/gpu-next] Video source: 960x540 (1:1)
+[3652.379][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (548, 0) 1x1
+[3652.379][v][vo/gpu-next] Video scale: 0.001042/0.001852
+[3652.379][v][vo/gpu-next] OSD borders: l=548 t=0 r=549 b=0
+[3652.379][v][vo/gpu-next] Video borders: l=548 t=0 r=549 b=0
+[3657.527][v][vo/gpu-next] Window size: 1x1 (Borders: l=0 t=0 r=0 b=0)
+[3657.527][v][vo/gpu-next] Video source: 960x540 (1:1)
+[3657.527][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (0, 0) 1x1
+[3657.527][v][vo/gpu-next] Video scale: 0.001042/0.001852
+[3657.527][v][vo/gpu-next] OSD borders: l=0 t=0 r=0 b=0
+[3657.527][v][vo/gpu-next] Video borders: l=0 t=0 r=0 b=0
+[3754.180][v][vo/gpu-next] Window size: 1098x1 (Borders: l=0 t=0 r=0 b=0)
+[3754.180][v][vo/gpu-next] Video source: 960x540 (1:1)
+[3754.180][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (548, 0) 1x1
+[3754.180][v][vo/gpu-next] Video scale: 0.001042/0.001852
+[3754.180][v][vo/gpu-next] OSD borders: l=548 t=0 r=549 b=0
+[3754.180][v][vo/gpu-next] Video borders: l=548 t=0 r=549 b=0
+[3774.344][v][vo/gpu-next] Window size: 1x1 (Borders: l=0 t=0 r=0 b=0)
+[3774.344][v][vo/gpu-next] Video source: 960x540 (1:1)
+[3774.344][v][vo/gpu-next] Video display: (0, 0) 960x540 -> (0, 0) 1x1
+[3774.344][v][vo/gpu-next] Video scale: 0.001042/0.001852
+[3774.344][v][vo/gpu-next] OSD borders: l=0 t=0 r=0 b=0
+[3774.344][v][vo/gpu-next] Video borders: l=0 t=0 r=0 b=0
+
+===== 应用日志（尾部 200 行）=====
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+[mp2 @ 000001cbccfe4680] Header missing
+[aist#0:1/mp2 @ 000001cbcccdc380] [dec:mp2 @ 000001cbccfe43c0] Error submitting packet to decoder: Invalid data found when processing input
+
+===== 崩溃记录 =====
+（无崩溃记录）
+===== 结束 =====
