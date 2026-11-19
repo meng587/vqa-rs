@@ -2272,3 +2272,6 @@ main{padding:8px 24px; gap:8px; min-width:0}
 /* hidden 属性必须优先于 flex/grid 样式 */
 .bst-page [hidden],
 .bst-modal[hidden] { display: none !important; }
+
+/* 收敛旧页 #b-spark 的高特异性规则，避免 canvas 按属性高度撑出卡片 */
+.pg[data-page="burst"] #b-spark{position:absolute;left:64px;top:8px;width:calc(100% - 74px);height:calc(100% - 36px);flex:none;min-height:0;}
