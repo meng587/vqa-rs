@@ -283,10 +283,6 @@ export function initCompliance() {
 
   exportBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    if (!last) {
-      setStatus("还没有检测结果可导出", "err");
-      return;
-    }
     exppop.hidden = !exppop.hidden;
   });
   document.addEventListener("click", (e) => {
