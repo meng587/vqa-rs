@@ -435,6 +435,19 @@ impl Mpv {
     pub fn set_pause(&self, on: bool) -> Result<(), String> {
         self.set_prop("pause", json!(on))
     }
+    /// 直接向 mpv 查询布尔属性。属性变化事件偶尔会滞后或被主轮询吞掉，
+    /// 播放/暂停这种需要“按真实状态切换”的操作不能只依赖快照缓存。
+    pub fn get_bool(&self, name: &str) -> Result<bool, String> {
+        let r = self.command(json!(["get_property", name]))?;
+        r.get("data")
+            .and_then(Value::as_bool)
+            .ok_or_else(|| format!("属性 {name} 不是布尔值"))
+    }
+    /// 原子切换暂停：mpv 自己按当前真实状态取反，避免前端拿到旧快照后
+    /// 反复 set_pause(true) 导致“暂停后按播放仍是暂停”。
+    pub fn cycle_pause(&self) -> Result<(), String> {
+        self.command(json!(["cycle", "pause"])).map(|_| ())
+    }
     pub fn set_prop(&self, name: &str, val: Value) -> Result<(), String> {
         self.command(json!(["set_property", name, val])).map(|_| ())
     }

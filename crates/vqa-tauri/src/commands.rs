@@ -920,15 +920,21 @@ pub fn player_stop(st: State<PlayerState>) {
 }
 
 #[tauri::command]
-pub fn player_pause_toggle(st: State<PlayerState>) {
+pub fn player_pause_toggle(st: State<PlayerState>) -> Result<Option<bool>, String> {
     let mut replay_via_play = false;
-    if let Some(m) = st.mpv.lock().unwrap().as_ref() {
-        let snap = m.snapshot();
-        if snap.idle {
+    let mut paused_after = None;
+    {
+        let guard = st.mpv.lock().unwrap();
+        let m = guard.as_ref().ok_or_else(|| "播放器尚未启动".to_string())?;
+        // 不能只信 snap.paused：轮询/属性事件可能滞后。直接向 mpv 查真实状态。
+        let idle = m
+            .get_bool("idle-active")
+            .unwrap_or_else(|_| m.snapshot().idle);
+        if idle {
             // ★ 起播管线进行中（探测/桥转码）：不要动——此时把原始 AVS2
             //   喂给官方 mpv（无 AVS2 解码器）会秒退，UI 卡在"已播完"
             if *st.preparing.lock().unwrap() {
-                return;
+                return Ok(None);
             }
             // 重播：桥模式用桥产物（TS 文件/流地址），直放用原地址
             let bridge_u = st.bridge_url.lock().unwrap().clone();
@@ -942,18 +948,30 @@ pub fn player_pause_toggle(st: State<PlayerState>) {
                 //   第二次会命中缓存，直接播本地文件（秒开、可拖动）
                 replay_via_play = true;
             } else if !url.is_empty() {
-                let _ = m.loadfile(&url);
+                m.loadfile(&url)?;
+                paused_after = Some(false);
+            } else {
+                return Err("当前没有可播放的来源，请先选择文件或填组播地址".into());
             }
         } else {
-            let _ = m.set_pause(!snap.paused);
+            // cycle pause 以 mpv 真实状态为准，避免旧快照导致永远只能暂停。
+            m.cycle_pause()
+                .map_err(|e| format!("播放/暂停切换失败：{e}"))?;
+            paused_after = m.get_bool("pause").ok();
+            let _ = vqa_core::config::log_line(
+                "player",
+                &format!("pause-toggle 已执行：idle=false paused_after={paused_after:?}"),
+            );
         }
     }
     if replay_via_play {
         let u2 = st.playing_url.lock().unwrap().clone();
         if !u2.is_empty() {
-            let _ = player_play(st, u2, String::new(), false);
+            player_play(st, u2, String::new(), false)?;
         }
+        return Ok(None);
     }
+    Ok(paused_after)
 }
 
 #[tauri::command]

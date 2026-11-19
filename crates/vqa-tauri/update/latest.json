@@ -1,11 +1,11 @@
 {
-    "version":  "0.2.31",
-    "notes":  "0.2.31：8K AVS3 源探测修复（去掉首帧时间截断，libuavs3d 补探可回填源格式）；8K 自动降级桥默认静音，避免损坏 MP2 音频拖垮桥；微突发巡检改为微突发检测，新增 1/10/100/1000ms 检测时间窗。",
-    "pub_date":  "2026-11-19T03:44:45Z",
+    "version":  "0.2.32",
+    "notes":  "0.2.32：修复播放器控制条播放/暂停不生效——改为直接读取 mpv 真实状态并用 cycle pause 切换，避免旧快照导致暂停后无法恢复；控制条点击改为模块级事件委托，拖放/浮层等可选集成异常不再影响按钮；失败时给出明确提示。",
+    "pub_date":  "2026-11-19T04:19:58Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWlFYTExVmR4S1ZYRlFpMWdGeTBCMmsvL2hQYzZQS3pUWDYvMUJxWHlXU1kzN3RhOTZXdkFhSzVPT0NmZDRqenY4d2I2N0ZHN1VaTFhiQThNTVI3S1FVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDU5ODg1CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4zMV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjMxCmhUZW13VklsUmFwTzRiR0pIKzRPdUFES2NmVW9YeWtSa2gwclluQUZLb1AvcmxwYXRsZE53TmpGbDdwOGt3SmVLMktmdE9aR2s1ZWpHb2ZheHVmMUJBPT0K",
-                                             "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.31/vqa-workbench-0.2.31-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWtTKzFLZHlJL3psZVJiS1ZXd0RRMU03YU5XMHJQaC9Tb0dzMjM1NDcwMEhvK1Y1NFBlUGlqTy9VbG02c0ZyRnE0bm1qeDNodjFVMUx0TUdhLzlBS1FjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDYxOTk4CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4zMl94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjMyCmtibW83dUM1d2x6UDhJR2xIOUF2L0FWeXNURVhzS2NRSWNZNWJPWHIxK05QZUYwQitQblNnSElnSGFJbUJ1Ui9ob1dJTnAwbnA4bFZvclpHNGF2eERBPT0K",
+                                             "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.32/vqa-workbench-0.2.32-setup.exe"
                                          }
                   }
 }

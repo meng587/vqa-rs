@@ -172,7 +172,7 @@ export const api = {
   prewarm: (url: string, nicIp: string, forceBridge: boolean) =>
     invoke<void>("player_prewarm", { url, nicIp, forceBridge }),
   stop: () => invoke<void>("player_stop"),
-  pauseToggle: () => invoke<void>("player_pause_toggle"),
+  pauseToggle: () => invoke<boolean | null>("player_pause_toggle"),
   seek: (fraction: number) => invoke<void>("player_seek", { fraction }),
   setVolume: (volume: number) => invoke<void>("player_set_volume", { volume }),
   setMute: (mute: boolean) => invoke<void>("player_set_mute", { mute }),

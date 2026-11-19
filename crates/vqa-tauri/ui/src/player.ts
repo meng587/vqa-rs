@@ -11,6 +11,43 @@ import { flags } from "./flags";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
+/** 控制条播放/暂停按钮：按真实状态刷新图标和文字 */
+function setPlayButton(paused: boolean): void {
+  const btn = document.getElementById("c-play");
+  if (!btn) return;
+  btn.innerHTML =
+    icon(paused ? "play" : "pause") +
+    `<span class="btxt">${paused ? "播放" : "暂停"}</span>`;
+}
+
+/** 播放/暂停统一入口：捕获点击、回写真实状态、失败时明确提示。
+ *  用模块级委托而不是只绑在按钮节点上，避免初始化流程中某个可选集成
+ *  （拖放/浮层）异常导致后面的按钮监听没有挂上。 */
+function requestPauseToggle(): void {
+  api
+    .pauseToggle()
+    .then((paused) => {
+      if (typeof paused === "boolean") {
+        if (stateCache?.snap) stateCache.snap.paused = paused;
+        if (snapCache) snapCache.paused = paused;
+        setPlayButton(paused);
+      }
+    })
+    .catch((e) => showNote(`播放/暂停失败：${String(e)}`, true));
+}
+
+document.addEventListener(
+  "click",
+  (ev) => {
+    const target = ev.target as HTMLElement | null;
+    const hit = target?.closest("#c-play, #v-replay");
+    if (!hit) return;
+    ev.preventDefault();
+    requestPauseToggle();
+  },
+  true,
+);
+
 let snapCache: Snap | null = null;
 let stateCache: PlayerStateJson | null = null;
 let lastSpeed = 1.0;
@@ -218,20 +255,28 @@ export function initPlayer() {
     api.prewarm(file, nic.value, flags.forceBridge).catch(() => undefined);
     showNote(`${name} 已加入，正在后台预热——点播放即秒开`, false);
   };
-  getCurrentWebview().onDragDropEvent((e) => {
-    const t = e.payload.type;
-    if (t === "enter" || t === "over") {
-      if (document.body.dataset.page === "player") {
-        vcard.classList.add("drop-hot");
-        dropHint.hidden = false;
+  try {
+    const dropPromise = getCurrentWebview().onDragDropEvent((e) => {
+      const t = e.payload.type;
+      if (t === "enter" || t === "over") {
+        if (document.body.dataset.page === "player") {
+          vcard.classList.add("drop-hot");
+          dropHint.hidden = false;
+        }
+        return;
       }
-      return;
-    }
-    clearDropUi();
-    if (t === "drop") handleDrop(e.payload.paths);
-  });
+      clearDropUi();
+      if (t === "drop") handleDrop(e.payload.paths);
+    });
+    // Tauri 返回 Promise<UnlistenFn>；失败不能让它打断后面的控制条绑定
+    dropPromise?.catch?.((e) => console.warn("拖放监听注册失败", e));
+  } catch (e) {
+    console.warn("拖放监听不可用", e);
+  }
   // mpv 子窗那条路（播放中拖到画面上）：只收路径，不区分页
-  listen<string[]>("video://drop", (e) => handleDrop(e.payload));
+  listen<string[]>("video://drop", (e) => handleDrop(e.payload)).catch((e) =>
+    console.warn("video://drop 监听注册失败", e),
+  );
 
   // ── Tab：播放中在画面上叠加媒体信息 ────────────────────────────────
   // HTML 浮层画不出来（mpv 是原生子窗、压在 WebView 之上），所以交给
@@ -457,7 +502,7 @@ export function initPlayer() {
 
   // 控制条
   const playBtn = $("c-play") as HTMLButtonElement;
-  playBtn.addEventListener("click", () => api.pauseToggle());
+  // 点击由模块级委托统一处理，避免初始化中可选集成异常导致监听缺失
   $("c-stop").addEventListener("click", async () => {
     await api.stop();
     running = false;
@@ -754,12 +799,10 @@ function render(st: PlayerStateJson) {
   } else {
     empty.style.display = "none";
   }
-  ($("v-replay") as HTMLButtonElement).onclick = () => api.pauseToggle();
 
   // 播放/暂停：图标 + 汉字，和来源栏按钮保持同一套按键语言
   const paused = snap ? snap.paused || snap.idle : true;
-  ($("c-play") as HTMLElement).innerHTML =
-    icon(paused ? "play" : "pause") + `<span class="btxt">${paused ? "播放" : "暂停"}</span>`;
+  setPlayButton(paused);
 
   // seek/时间
   const dur = snap?.duration_ms ?? 0;
