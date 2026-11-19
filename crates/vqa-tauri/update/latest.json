@@ -1,11 +1,11 @@
 {
-    "version":  "0.2.47",
-    "notes":  "关于页新增 AtomGit Releases 下载入口。",
-    "pub_date":  "2026-11-19T12:17:15Z",
+    "version":  "0.2.48",
+    "notes":  "音画同步新增设置抽屉：网卡、分析时长、搜索范围和采样帧率集中设置，检测与预览按保存的网卡收流。",
+    "pub_date":  "2026-11-19T12:49:43Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXY4elpzVmtxYThzMGlzTjF0Z2ZwWDB2cmJwZnJXc0xCeVRsTk5ReXQ4U3V5bk1aWWZOMWNhcEZCY1NkaGtndFF6Tyt6N1UvcllSK2ZZbXE3YkpFTWdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDkwNjM1CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi40N194NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjQ3ClhkSXBweWNYdytQYWZqUXBmYW55eUU5THF5T1l2ajd4TnZrcGFGL2RiQkl4N2JpTTJjdEs5Y2llYStSREZmdGcwdWxGZjJCeVpPMFBWZnEyb3NvakRBPT0K",
-                                             "url":  "https://github.com/meng587/vqa-rs/releases/download/v0.2.47/vqa-workbench-0.2.47-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWhDQUo1eU9LUjk2T0F1YUZaRHlCUU1FbEVmNHlVaTVybDE2RHZ0UnNPK3JZNVNvbm00YVZJWnB5dk1nZndUNnNabnEvZVlxVnhzd05FNHA4cUtIT2dVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDkyNTgzCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi40OF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjQ4ClhwQm1ZM0RUaVNkdEl3elVPcStNcTVjRnJqdXVacThYbWJMNXBtU0drVmZzM2w3YnZHRzFwR2ZBRFc2eHk4Z1E2OTFZTVZzSktXYk5FK09wSVJDOERnPT0K",
+                                             "url":  "https://github.com/meng587/vqa-rs/releases/download/v0.2.48/vqa-workbench-0.2.48-setup.exe"
                                          }
                   }
 }

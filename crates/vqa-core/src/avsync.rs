@@ -30,11 +30,14 @@ pub struct AvSyncCfg {
     pub search_ms: i32,
     /// 视频侧采样帧率
     pub fps: f64,
+    /// 组播输入绑定的本机网卡 IP；空 = 自动路由
+    #[serde(default)]
+    pub nic_ip: String,
 }
 
 impl Default for AvSyncCfg {
     fn default() -> Self {
-        Self { source: String::new(), secs: 20.0, search_ms: 800, fps: 25.0 }
+        Self { source: String::new(), secs: 20.0, search_ms: 800, fps: 25.0, nic_ip: String::new() }
     }
 }
 
@@ -90,11 +93,12 @@ fn ffmpeg_exe() -> Result<PathBuf> {
     crate::tools::find_ffmpeg().ok_or_else(|| anyhow::anyhow!("未找到 ffmpeg（请检查 bin 目录或设置 ffmpeg_path）"))
 }
 
-fn spawn_gray(ff: &PathBuf, src: &str, secs: f64, fps: f64) -> Result<Child> {
+fn spawn_gray(ff: &PathBuf, src: &str, secs: f64, fps: f64, nic_ip: &str) -> Result<Child> {
     let vf = format!("fps={fps},scale={VW}:{VH},format=gray");
     let mut c: Command = crate::ffmpeg::hidden(ff);
     c.args(["-hide_banner", "-nostdin", "-loglevel", "error"])
         .args(["-t", &format!("{:.2}", secs.max(1.0))])
+        .args(crate::netif::bind_args(src, nic_ip))
         .args(["-i", src, "-an", "-vf", &vf])
         .args(["-f", "rawvideo", "-pix_fmt", "gray", "-"])
         .stdin(Stdio::null())
@@ -103,10 +107,11 @@ fn spawn_gray(ff: &PathBuf, src: &str, secs: f64, fps: f64) -> Result<Child> {
     Ok(c.spawn()?)
 }
 
-fn spawn_pcm(ff: &PathBuf, src: &str, secs: f64) -> Result<Child> {
+fn spawn_pcm(ff: &PathBuf, src: &str, secs: f64, nic_ip: &str) -> Result<Child> {
     let mut c: Command = crate::ffmpeg::hidden(ff);
     c.args(["-hide_banner", "-nostdin", "-loglevel", "error"])
         .args(["-t", &format!("{:.2}", secs.max(1.0))])
+        .args(crate::netif::bind_args(src, nic_ip))
         .args(["-i", src, "-vn", "-ac", "1", "-ar", &AR.to_string()])
         .args(["-f", "s16le", "-"])
         .stdin(Stdio::null())
@@ -239,7 +244,10 @@ pub fn analyze(
         return AvSyncResult::fail(&src, "未找到 ffmpeg");
     };
 
-    let (mut vch, mut ach) = match (spawn_gray(&ff, &src, secs, fps), spawn_pcm(&ff, &src, secs)) {
+    let (mut vch, mut ach) = match (
+        spawn_gray(&ff, &src, secs, fps, &cfg.nic_ip),
+        spawn_pcm(&ff, &src, secs, &cfg.nic_ip),
+    ) {
         (Ok(v), Ok(a)) => (v, a),
         (v, a) => {
             let _ = v.map(|mut c| {
