@@ -3,6 +3,7 @@
 import { api, AvSyncResult, Channel } from "./api";
 import { ChannelBoard, RunOutcome } from "./channels";
 import { icon } from "./icons";
+import { registerFlowTarget } from "./transfer";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -414,6 +415,34 @@ export function initAvSync() {
   renderKpi(null, 0);
   drawCurve(null);
   setState("idle", "待机");
+
+  const flowBusy = () => {
+    const act = $<HTMLButtonElement>("av-act");
+    const boardStop = document.querySelector<HTMLElement>('#av-chboard [data-a="stop"]');
+    return !!act?.disabled || !!(boardStop && !boardStop.hidden);
+  };
+
+  registerFlowTarget(
+    "avsync",
+    async (src) => {
+      const u = src.trim();
+      if (!u) return { state: "failed", message: "来源为空" };
+      const input = $<HTMLInputElement>("av-src");
+      if (input) input.value = u;
+      if (flowBusy()) {
+        return { state: "filled", message: "音画同步正在检测，地址已填入" };
+      }
+      if (document.body.dataset.page === "avsync") {
+        void startManual();
+      } else {
+        // 隐藏页不启动预览，避免白白多占一路解码；检测本身照常进行。
+        setState("running", "启动中…");
+        void runOnce(u, "main").catch(() => {});
+      }
+      return { state: "started", message: "已开始检测" };
+    },
+    flowBusy,
+  );
 }
 
 /** 离开页面时释放预览进程（后台检测任务本身不受影响）。 */

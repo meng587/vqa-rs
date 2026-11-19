@@ -11,6 +11,7 @@ import {
   ChannelBoard,
   RowState,
 } from "./channels";
+import { registerFlowTarget } from "./transfer";
 
 const $ = <T extends HTMLElement>(id: string): T | null =>
   document.getElementById(id) as T | null;
@@ -632,6 +633,9 @@ async function startContinuous() {
     setStatus("error", "频道地址为空");
     return;
   }
+  activeUrl = url;
+  board?.selectByUrl(url);
+  updateCurrentLabel();
   starting = true;
   syncLockUi();
   setStatus("running", url.startsWith("udp://") || url.startsWith("rtp://") ? "绑定端口…" : "启动本地文件回放…");
@@ -870,4 +874,22 @@ export function initBurst() {
       window.requestAnimationFrame(() => drawSpark(snapshot));
     }
   });
+
+  registerFlowTarget(
+    "burst",
+    async (src) => {
+      const u = src.trim();
+      if (!u) return { state: "failed", message: "来源为空" };
+      const input = $<HTMLInputElement>("b-url");
+      if (input) input.value = u;
+      if (locked()) {
+        return { state: "filled", message: "微突发检测正在工作，地址已填入" };
+      }
+      await startContinuous();
+      return running
+        ? { state: "started", message: "已开始检测" }
+        : { state: "failed", message: "启动失败，请查看微突发状态栏" };
+    },
+    () => locked(),
+  );
 }

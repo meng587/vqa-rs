@@ -1,11 +1,11 @@
 {
-  "version": "0.2.49",
-  "notes": "一致性比对重做频道列表：按“基准 ↔ 待比”成对展示，支持分组筛选、频道/来源/地址搜索、全选与轮询选中；新增独立“编辑列表”页，可统一编辑分组、频道、比对方式和多路来源。微突发检测优化地址栏与工具栏，新增本地文件浏览；频道列表增加分组搜索，音画同步与一致性比对按钮位置统一。视频分析、合规检测的导出与设置入口同步调整。",
-  "pub_date": "2026-11-19T13:59:40Z",
+  "version": "0.2.50",
+  "notes": "新增来源地址“流转”：播放器、视频分析、合规检测、直播转码、微突发、音画同步的当前来源，可单选/多选流转到其它模块并直接启动；运行中的目标只填地址，不打断原任务。播放器、视频分析、合规检测增加频道快选列表；轮询播放/扫描/检测支持设置每路时长，轮询结束后可汇总导出 Markdown/HTML/Word；来源栏统一为篆体“来源”+原输入框。",
+  "pub_date": "2026-11-19T17:16:14Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW9xenVrTUhCUWpoallZam90d0VXZUo3aDFmR3ZxM2pqc091WHlvZkQxdXUwbVlPemZXSndyckN3Z21MbTBvN2pickRDQ1ozNmRVM05raDJxWmI5ZGdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDk2NzgwCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi40OV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjQ5CnMzcFNYM0pnVXVhQTd2ZzVJUnJHeFM4Wk8yMnRxajF6NTl5QXI0NzJ2NVNPaDdTbGxSTTV5SVZZV3hBMy8ralhJdEN5Q1MramEwSWsvQ0lxbHd1TkFBPT0K",
-      "url": "https://github.com/meng587/vqa-rs/releases/download/v0.2.49/vqa-workbench-0.2.49-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXV5bmNwT0FjZmdkeFVBelhBQ1ZNZm9lV1ZBRGphYVd6MjgwL3kyM2RQeXpNd3BhYUFzUjRIMnozQVJjc3ZxTDVqNzJwdnphdVl2bnFqQXU1azZIWEE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MTA4NTc0CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi41MF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjUwCnRtSzRKTFBlRG00ZXp4dlp0MFFpbFRTYlVVVmMwZkhqeXFram05Rit2VU1Qam5LeUNRSDY0SmV1TUJzcnlGazE3d1VVZHN0cXFtbDhLYWxiYWN3dERBPT0K",
+      "url": "https://github.com/meng587/vqa-rs/releases/download/v0.2.50/vqa-workbench-0.2.50-setup.exe"
     }
   }
 }

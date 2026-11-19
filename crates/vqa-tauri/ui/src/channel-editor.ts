@@ -1,4 +1,4 @@
-//! 频道列表编辑页：微突发 / 音画同步共用一份本机频道库。
+//! 频道列表编辑页：播放器 / 视频分析 / 合规检测 / 微突发 / 音画同步共用一份本机频道库。
 //!
 //! 列表本身不在这里持有，页面只负责“打开编辑页 → 改名称/地址/启用 →
 //! 保存并广播 channels-changed”，各业务页收到后重新拉取列表。
@@ -44,7 +44,7 @@ function ensure() {
       <div class="che-head">
         <div class="che-titlewrap">
           <b id="che-title">频道列表编辑</b>
-          <span>微突发检测 / 音画同步共用 · 保存后立即同步到各页面</span>
+          <span>播放器 / 视频分析 / 合规检测 / 微突发 / 音画同步共用 · 保存后立即同步到各页面</span>
         </div>
         <div class="che-headacts">
           <button class="che-mini" id="che-close" type="button">关闭</button>

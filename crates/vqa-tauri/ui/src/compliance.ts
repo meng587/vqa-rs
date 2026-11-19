@@ -10,6 +10,7 @@
 
 import {
   api,
+  type Channel,
   type ComplianceLive,
   type ComplianceResult,
   type NicRow,
@@ -26,12 +27,22 @@ import {
   buildComplianceMarkdown,
 } from "./compliance-report";
 import { initChannelPicker } from "./channel-picker";
+import type { ChannelBoard } from "./channels";
+import { registerFlowTarget } from "./transfer";
+import {
+  buildComplianceBatchDocx,
+  buildComplianceBatchHtml,
+  buildComplianceBatchMarkdown,
+  type ComplianceBatchItem,
+} from "./compliance-batch-report";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
 let last: ComplianceResult | null = null;
 let pollTimer: number | null = null;
 let liveMode = false;
+let activeRow: string | null = null;
+let rowSink: ((url: string, state: "idle" | "run" | "ok" | "warn" | "err", text: string) => void) | null = null;
 
 function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -105,6 +116,10 @@ function liveEnded(msg: string, state: "idle" | "err") {
   liveMode = false;
   $("k-stop").hidden = true;
   ($("k-act") as HTMLButtonElement).disabled = false;
+  if (activeRow) {
+    rowSink?.(activeRow, state === "err" ? "err" : "ok", msg);
+    activeRow = null;
+  }
   setStatus(msg, state);
 }
 
@@ -155,14 +170,40 @@ export function initCompliance() {
   const histBtn = $("k-hist") as HTMLButtonElement;
   const histPop = $("k-histpop") as HTMLElement;
 
-  initChannelPicker({
+  let channelBoard: ChannelBoard | null = null;
+  let batchRunning = false;
+  let batchStop = false;
+  let pollSecs = 30;
+  let batchItems: ComplianceBatchItem[] = [];
+
+  channelBoard = initChannelPicker({
     page: "compliance",
     hostId: "k-chboard",
     bodyId: "k-body",
     railId: "k-ch-rail",
     inputId: "k-url",
     collapsedKey: "compliance.ch.collapsed",
+    detectLabel: "检测选中",
+    pollLabel: "轮询检测",
+    onDetect: (ch) => {
+      if (batchRunning) return;
+      if (liveMode) {
+        setStatus("收流中，先停止当前检测", "err");
+        return;
+      }
+      url.value = ch.url;
+      channelBoard?.selectByUrl(ch.url);
+      activeRow = ch.url;
+      channelBoard?.updateRowByUrl(ch.url, "run", "检测中…");
+      batchItems = [];
+      $("k-batch").hidden = true;
+      act.click();
+    },
+    onPoll: (list) => void pollSelected(list),
+    stopRun: () => stopBatch(),
   });
+  rowSink = (u, state, text) => channelBoard?.updateRowByUrl(u, state, text);
+  void loadPollSecs();
 
   // 合规说明是页内视图：顶栏书本图标或页脚链接打开，说明页里点「返回检测」关掉
   const docView = $("k-doc");
@@ -172,6 +213,9 @@ export function initCompliance() {
     docView.hidden = !on;
     $("k-status").hidden = on;
     $("k-wrap").hidden = on;
+    const batchHost = $("k-batch");
+    if (on) batchHost.hidden = true;
+    else if (batchItems.length) batchHost.hidden = false;
     docBtn.classList.toggle("is-on", on);
     docBtn.title = on ? "返回检测结果" : "合规说明（检测依据与判定口径）";
   };
@@ -234,11 +278,19 @@ export function initCompliance() {
   });
 
   stop.addEventListener("click", async () => {
+    if (batchRunning) {
+      stopBatch();
+      return;
+    }
     await api.complianceLiveStop();
     liveEnded("已停止收流", "idle");
   });
 
   act.addEventListener("click", async () => {
+    if (batchRunning) {
+      stopBatch();
+      return;
+    }
     showDoc(false); // 开始检测就回检测视图，别让结果藏在说明后面
     const src = url.value.trim();
     if (!src) {
@@ -247,6 +299,8 @@ export function initCompliance() {
     }
     const isLive = /^udp:|^rtp:/i.test(src);
     api.pushSourceHistory("compliance", src);
+    batchItems = [];
+    $("k-batch").hidden = true;
     act.disabled = true;
     setStatus(isLive ? "正在起收流…" : "正在探测…", "run");
     try {
@@ -261,6 +315,10 @@ export function initCompliance() {
       } else {
         const r = await api.complianceCheck(src, kind.value);
         render(r);
+        if (activeRow) {
+          rowSink?.(activeRow, r.summary.fail > 0 ? "warn" : "ok", r.summary.fail > 0 ? "有不合格项" : "已完成");
+          activeRow = null;
+        }
         setStatus(`检测完成 · ${r.kind} · 合格 ${r.summary.pass} / 不合格 ${r.summary.fail} / 未标注 ${r.summary.unknown}`, r.summary.ok ? "idle" : "err");
         act.disabled = false;
       }
@@ -278,8 +336,157 @@ export function initCompliance() {
     $("k-foot").hidden = true;
     $("k-empty").hidden = false;
     $("k-sum").innerHTML = "";
+    $("k-batch").hidden = true;
     setStatus("已切换依据，请重新开始检测", "idle");
   });
+
+  async function loadPollSecs() {
+    try {
+      const v = await api.uiGet("compliance.poll_secs");
+      if (typeof v === "number" && v >= 5) pollSecs = Math.min(600, Math.round(v));
+    } catch {
+      /* 默认 30 秒 */
+    }
+  }
+
+  async function pollSelected(list: Channel[]) {
+    if (batchRunning || liveMode || !list.length) return;
+    await loadPollSecs();
+    showDoc(false);
+    batchRunning = true;
+    batchStop = false;
+    batchItems = [];
+    activeRow = null;
+    $("k-batch").hidden = true;
+    $("k-empty").hidden = true;
+    $("k-tbl").hidden = true;
+    $("k-foot").hidden = true;
+    $("k-sum").innerHTML = "";
+    channelBoard?.setBusy(true);
+    for (let k = 0; k < list.length; k++) {
+      if (batchStop) break;
+      const ch = list[k];
+      if (!ch) continue;
+      url.value = ch.url;
+      channelBoard?.selectByUrl(ch.url);
+      channelBoard?.updateRowByUrl(ch.url, "run", `检测 ${k + 1}/${list.length}`);
+      setStatus(`轮询检测 ${k + 1}/${list.length} · ${ch.name}`, "run");
+      try {
+        const r = await runBatchChannel(ch);
+        if (r) {
+          batchItems.push({ name: ch.name, url: ch.url, result: r });
+          channelBoard?.updateRowByUrl(ch.url, r.summary.fail > 0 ? "warn" : "ok", r.summary.fail > 0 ? "有不合格项" : "已完成");
+        } else {
+          batchItems.push({ name: ch.name, url: ch.url, result: null, err: "未取到结果" });
+          channelBoard?.updateRowByUrl(ch.url, "err", "无结果");
+        }
+      } catch (e: any) {
+        batchItems.push({ name: ch.name, url: ch.url, result: null, err: String(e).slice(0, 80) });
+        channelBoard?.updateRowByUrl(ch.url, "err", String(e).slice(0, 60));
+        act.disabled = false;
+        stop.hidden = true;
+        liveMode = false;
+      }
+    }
+    batchRunning = false;
+    batchStop = false;
+    liveMode = false;
+    channelBoard?.setBusy(false);
+    act.disabled = false;
+    stop.hidden = true;
+    const ok = batchItems.filter((x) => x.result).length;
+    renderBatchSummary();
+    setStatus(`轮询检测完成：${ok}/${batchItems.length} 路有结果，已汇总为一份结果`, ok ? "idle" : "err");
+  }
+
+  async function runBatchChannel(ch: Channel): Promise<ComplianceResult | null> {
+    await api.pushSourceHistory("compliance", ch.url);
+    act.disabled = true;
+    const isLive = /^udp:|^rtp:/i.test(ch.url);
+    if (!isLive) {
+      const r = await api.complianceCheck(ch.url, kind.value);
+      act.disabled = false;
+      return r;
+    }
+    liveMode = true;
+    stop.hidden = false;
+    let snap: ComplianceLive | null = null;
+    try {
+      await api.complianceLiveStart(ch.url, nic?.value || "", kind.value);
+      const until = Date.now() + pollSecs * 1000;
+      while (Date.now() < until && !batchStop) {
+        try {
+          snap = await api.complianceLiveSnapshot(kind.value);
+        } catch {
+          /* 单次快照失败继续等 */
+        }
+        if (snap?.err) break;
+        if (snap && !snap.alive) break;
+        await new Promise((r) => window.setTimeout(r, 1000));
+      }
+      try {
+        snap = await api.complianceLiveSnapshot(kind.value);
+      } catch {
+        /* 保留上一帧 */
+      }
+    } finally {
+      await api.complianceLiveStop().catch(() => undefined);
+      liveMode = false;
+      stop.hidden = true;
+      act.disabled = false;
+    }
+    if (!snap) return null;
+    return { mode: snap.mode, source: snap.source, kind: snap.kind, items: snap.items, summary: snap.summary, basis: snap.basis };
+  }
+
+  function stopBatch() {
+    if (batchRunning) {
+      batchStop = true;
+      api.complianceLiveStop().catch(() => undefined);
+      return;
+    }
+    if (liveMode) {
+      api.complianceLiveStop().catch(() => undefined);
+      liveEnded("已停止收流", "idle");
+    }
+  }
+
+  function renderBatchSummary() {
+    const host = $("k-batch");
+    if (!batchItems.length) {
+      host.hidden = true;
+      $("k-empty").hidden = false;
+      return;
+    }
+    $("k-empty").hidden = true;
+    $("k-tbl").hidden = true;
+    $("k-foot").hidden = true;
+    const ok = batchItems.filter((x) => x.result).length;
+    const rows = batchItems
+      .map((it) => {
+        if (!it.result) {
+          return `<tr><td title="${esc(it.url)}">${esc(it.name)}</td><td colspan="4" class="bs-err">${esc(it.err || "未取到结果")}</td></tr>`;
+        }
+        const r = it.result;
+        const result = r.summary.fail > 0 ? "存在不合格项" : !r.summary.ok ? "有未标注项" : "全部合格";
+        return `<tr>
+          <td title="${esc(it.url)}">${esc(it.name)}</td>
+          <td>${esc(r.kind)}</td>
+          <td>${r.summary.pass}</td>
+          <td>${r.summary.fail}</td>
+          <td>${r.summary.unknown}</td>
+          <td class="${r.summary.fail ? "bs-warn" : "bs-ok"}">${result}</td>
+        </tr>`;
+      })
+      .join("");
+    host.innerHTML = `
+      <div class="batchsum-h"><b>轮询汇总</b><span>共 ${batchItems.length} 路 · 有结果 ${ok} 路 · 失败 ${batchItems.length - ok} 路</span></div>
+      <table class="batchsum-tbl">
+        <thead><tr><th>频道</th><th>依据</th><th>合格</th><th>不合格</th><th>未标注</th><th>结论</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    host.hidden = false;
+  }
 
   // 回车 = 开始（与其它页一致）
   url.addEventListener("keydown", (e) => {
@@ -300,8 +507,9 @@ export function initCompliance() {
   });
 
   async function doExport(fmt: "md" | "docx" | "html") {
+    const batch = batchItems.length > 0 ? batchItems : null;
     const r = last;
-    if (!r) {
+    if (!batch && !r) {
       setStatus("还没有检测结果可导出", "err");
       return;
     }
@@ -312,17 +520,19 @@ export function initCompliance() {
       .toLocaleString("sv-SE", { hour12: false })
       .replace(/[-: ]/g, (m) => (m === " " ? "_" : m))
       .slice(0, 17);
-    const base = `合规检测_${stamp}`;
+    const base = `${batch ? "合规检测轮询报告" : "合规检测"}_${stamp}`;
     try {
       if (fmt === "md") {
-        const p = await api.reportExport(`${base}.md`, buildComplianceMarkdown(r), "md");
+        const text = batch ? buildComplianceBatchMarkdown(batch) : buildComplianceMarkdown(r!);
+        const p = await api.reportExport(`${base}.md`, text, "md");
         if (p) setStatus(`Markdown 报告已导出：${p}`, "idle");
       } else if (fmt === "docx") {
-        const b64 = await buildComplianceDocx(r);
+        const b64 = batch ? await buildComplianceBatchDocx(batch) : await buildComplianceDocx(r!);
         const p = await api.reportExportB64(`${base}.docx`, b64, "docx");
         if (p) setStatus(`Word 报告已导出：${p}`, "idle");
       } else {
-        const p = await api.reportExport(`${base}.html`, buildComplianceHtml(r), "html");
+        const html = batch ? buildComplianceBatchHtml(batch) : buildComplianceHtml(r!);
+        const p = await api.reportExport(`${base}.html`, html, "html");
         if (p) setStatus(`HTML 报告已导出：${p}（可直接用浏览器打开/发邮件）`, "idle");
       }
     } catch (e) {
@@ -347,6 +557,23 @@ export function initCompliance() {
       pollTimer = window.setInterval(tick, 1000);
     }
   });
+
+  registerFlowTarget(
+    "compliance",
+    async (src) => {
+      const u = src.trim();
+      if (!u) return { state: "failed", message: "来源为空" };
+      const input = $("k-url") as HTMLInputElement;
+      input.value = u;
+      if (batchRunning || liveMode || act.disabled) {
+        return { state: "filled", message: "合规检测正在工作，地址已填入" };
+      }
+      channelBoard?.selectByUrl(u);
+      act.click();
+      return { state: "started", message: "已提交检测" };
+    },
+    () => batchRunning || liveMode || act.disabled,
+  );
 }
 
 /** 供状态栏 / 其它页取用：当前一次合规结论（无结果时 null）。 */

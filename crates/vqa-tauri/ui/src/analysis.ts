@@ -1,14 +1,26 @@
 //! 视频分析页 —— 扫描/实时轮询 + 7 页签渲染。
 //! 数据源：analysis_progress（200ms）/ analysis_result（1s 实时）/ packet_rows。
 
-import { api, type NicRow, type Res } from "./api";
+import { api, type Channel, type NicRow, type Res } from "./api";
 import { icon } from "./icons";
 import { setNavLamp, nicLabel } from "./main";
 import { buildDocxReport } from "./report-docx";
 import { buildMarkdownReport } from "./report-markdown";
 import { initChannelPicker } from "./channel-picker";
+import type { ChannelBoard } from "./channels";
+import { registerFlowTarget } from "./transfer";
+import {
+  buildAnalysisBatchDocx,
+  buildAnalysisBatchHtml,
+  buildAnalysisBatchMarkdown,
+  type AnalysisBatchItem,
+} from "./analysis-batch-report";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
+
+function isLiveSource(u: string): boolean {
+  return /^(udp|rtp|rtsp|rtmp|srt|http|https):/i.test(u.trim());
+}
 
 const TAB_LABELS: Record<string, string> = {
   overview: "概览",
@@ -57,14 +69,40 @@ export function initAnalysis() {
   const histBtn = $("a-hist") as HTMLButtonElement;
   const histPop = $("a-histpop") as HTMLElement;
 
-  initChannelPicker({
+  let channelBoard: ChannelBoard | null = null;
+  let batchRunning = false;
+  let batchStop = false;
+  let pollSecs = 30;
+  let batchItems: AnalysisBatchItem[] = [];
+  let activeScanUrl: string | null = null;
+
+  channelBoard = initChannelPicker({
     page: "analysis",
     hostId: "a-chboard",
     bodyId: "a-body",
     railId: "a-ch-rail",
     inputId: "a-url",
     collapsedKey: "analysis.ch.collapsed",
+    detectLabel: "扫描选中",
+    pollLabel: "轮询扫描",
+    onDetect: (ch) => {
+      if (batchRunning) return;
+      if (running) {
+        showStatus("正在扫描，先停止当前任务", "err");
+        return;
+      }
+      url.value = ch.url;
+      channelBoard?.selectByUrl(ch.url);
+      activeScanUrl = ch.url;
+      channelBoard?.updateRowByUrl(ch.url, "run", "扫描中…");
+      batchItems = [];
+      $("a-batch").hidden = true;
+      void go();
+    },
+    onPoll: (list) => void pollSelected(list),
+    stopRun: () => stopBatch(),
   });
+  void loadPollSecs();
 
   // 网卡下拉：值 = IP，显示「IP · 网卡名」；位置在「视频分析设置」抽屉里
   api.listNics().then(async (list: NicRow[]) => {
@@ -114,6 +152,10 @@ export function initAnalysis() {
     if (e.key === "Enter") go();
   });
   async function go() {
+    if (batchRunning) {
+      stopBatch();
+      return;
+    }
     if (running) {
       await api.analysisStop();
       running = false;
@@ -122,12 +164,23 @@ export function initAnalysis() {
     }
     const u = url.value.trim();
     if (!u) return;
+    if (batchItems.length) {
+      batchItems = [];
+      $("a-batch").hidden = true;
+    }
+    $("a-panels").hidden = false;
+    $("a-panels").style.display = "flex";
+    activeScanUrl = u;
+    channelBoard?.selectByUrl(u);
+    channelBoard?.updateRowByUrl(u, "run", "扫描中…");
     await api.pushSourceHistory("analysis", u);
     try {
       await api.analysisStart(u, nic?.value || "");
       running = true;
       setActUi(true);
     } catch (e: any) {
+      activeScanUrl = null;
+      channelBoard?.updateRowByUrl(u, "err", String(e).slice(0, 60));
       showStatus(String(e), "err");
     }
   }
@@ -136,6 +189,146 @@ export function initAnalysis() {
     act.innerHTML = on ? `<span>${icon("square", 13)}</span>停止` : `<span>${icon("search", 13)}</span>开始扫描`;
   }
   setActUi(false);
+
+  async function loadPollSecs() {
+    try {
+      const v = await api.uiGet("analysis.poll_secs");
+      if (typeof v === "number" && v >= 5) pollSecs = Math.min(600, Math.round(v));
+    } catch {
+      /* 默认 30 秒 */
+    }
+  }
+
+  async function pollSelected(list: Channel[]) {
+    if (batchRunning || running || !list.length) return;
+    await loadPollSecs();
+    batchRunning = true;
+    batchStop = false;
+    batchItems = [];
+    $("a-batch").hidden = true;
+    $("a-panels").hidden = true;
+    $("a-panels").style.display = "none";
+    $("a-stats").hidden = true;
+    $("a-tabs").hidden = true;
+    channelBoard?.setBusy(true);
+    running = true;
+    setActUi(true);
+    for (let k = 0; k < list.length; k++) {
+      if (batchStop) break;
+      const ch = list[k];
+      if (!ch) continue;
+      url.value = ch.url;
+      channelBoard?.selectByUrl(ch.url);
+      channelBoard?.updateRowByUrl(ch.url, "run", `扫描 ${k + 1}/${list.length}`);
+      try {
+        const res = await runBatchChannel(ch);
+        if (res) {
+          batchItems.push({ name: ch.name, url: ch.url, res });
+          channelBoard?.updateRowByUrl(ch.url, "ok", "已完成");
+        } else {
+          batchItems.push({ name: ch.name, url: ch.url, res: null, err: "未取到结果" });
+          channelBoard?.updateRowByUrl(ch.url, "err", "无结果");
+        }
+      } catch (e: any) {
+        batchItems.push({ name: ch.name, url: ch.url, res: null, err: String(e).slice(0, 80) });
+        channelBoard?.updateRowByUrl(ch.url, "err", String(e).slice(0, 60));
+      }
+    }
+    batchRunning = false;
+    batchStop = false;
+    running = false;
+    setActUi(false);
+    channelBoard?.setBusy(false);
+    renderBatchSummary();
+    const ok = batchItems.filter((x) => x.res).length;
+    showStatus(`轮询扫描完成：${ok}/${batchItems.length} 路有结果`, ok ? "" : "err");
+    pushLog(`轮询扫描完成：${ok}/${batchItems.length} 路有结果，已汇总为一份结果`);
+  }
+
+  async function runBatchChannel(ch: Channel): Promise<Res | null> {
+    await api.pushSourceHistory("analysis", ch.url);
+    await api.analysisStart(ch.url, nic?.value || "");
+    running = true;
+    setActUi(true);
+    const live = isLiveSource(ch.url);
+    if (live) {
+      const until = Date.now() + pollSecs * 1000;
+      while (Date.now() < until && !batchStop) {
+        await new Promise((r) => window.setTimeout(r, 250));
+      }
+      if (!batchStop) await api.analysisStop().catch(() => undefined);
+    }
+    await waitScanIdle();
+    const res = (await api.analysisResult()) as Res | null;
+    return res;
+  }
+
+  async function waitScanIdle() {
+    await new Promise((r) => window.setTimeout(r, 300));
+    for (;;) {
+      if (batchStop) return;
+      try {
+        const p = await api.analysisProgress();
+        if (p.mode === 0) return;
+      } catch {
+        return;
+      }
+      await new Promise((r) => window.setTimeout(r, 250));
+    }
+  }
+
+  function stopBatch() {
+    if (batchRunning) {
+      batchStop = true;
+      api.analysisStop().catch(() => undefined);
+      return;
+    }
+    if (running) {
+      running = false;
+      activeScanUrl = null;
+      setActUi(false);
+      api.analysisStop().catch(() => undefined);
+    }
+  }
+
+  function renderBatchSummary() {
+    const host = $("a-batch");
+    if (!batchItems.length) {
+      host.hidden = true;
+      $("a-panels").hidden = false;
+      $("a-panels").style.display = "flex";
+      return;
+    }
+    $("a-panels").hidden = true;
+    $("a-panels").style.display = "none";
+    $("a-stats").hidden = true;
+    $("a-tabs").hidden = true;
+    const ok = batchItems.filter((x) => x.res).length;
+    const rows = batchItems
+      .map((it) => {
+        if (!it.res) {
+          return `<tr><td colspan="2" title="${esc(it.url)}">${esc(it.name)}</td><td colspan="4" class="bs-err">${esc(it.err || "失败")}</td><td>失败</td></tr>`;
+        }
+        const r = it.res;
+        const bad = (r.tr290 || []).filter((t) => t.level >= 2).length;
+        return `<tr>
+          <td title="${esc(it.url)}">${esc(it.name)}</td>
+          <td>${((r.bitrate_avg || 0) / 1e6).toFixed(2)} Mbps</td>
+          <td>${r.sync_errors ?? "—"}</td>
+          <td>${bad}</td>
+          <td>${(r.programs || []).length} / ${(r.pids || []).length}</td>
+          <td class="${bad ? "bs-warn" : "bs-ok"}">${bad ? "有异常" : "正常"}</td>
+        </tr>`;
+      })
+      .join("");
+    host.innerHTML = `
+      <div class="batchsum-h"><b>轮询汇总</b><span>共 ${batchItems.length} 路 · 有结果 ${ok} 路 · 失败 ${batchItems.length - ok} 路</span></div>
+      <table class="batchsum-tbl">
+        <thead><tr><th>频道</th><th>平均码率</th><th>同步错误</th><th>TR290 L2+</th><th>节目 / PID</th><th>结论</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    host.hidden = false;
+  }
 
   // 页签
   const tabs = document.querySelectorAll<HTMLElement>("#a-tabs .tab");
@@ -165,7 +358,8 @@ export function initAnalysis() {
   });
 
   async function doExport(fmt: "md" | "docx" | "html") {
-    if (!resCache) {
+    const batch = batchItems.length > 0 ? batchItems : null;
+    if (!batch && !resCache) {
       pushLog("还没有扫描结果，先扫描再导出");
       return;
     }
@@ -176,17 +370,19 @@ export function initAnalysis() {
       .toLocaleString("sv-SE", { hour12: false })
       .replace(/[-: ]/g, (m) => (m === " " ? "_" : m))
       .slice(0, 17);
-    const base = `TS流质量检测报告_${stamp}`;
+    const base = `${batch ? "TS流质量检测轮询报告" : "TS流质量检测报告"}_${stamp}`;
     try {
       if (fmt === "md") {
-        const p = await api.reportExport(`${base}.md`, buildMarkdownReport(resCache), "md");
+        const text = batch ? buildAnalysisBatchMarkdown(batch) : buildMarkdownReport(resCache!);
+        const p = await api.reportExport(`${base}.md`, text, "md");
         if (p) pushLog(`Markdown 报告已导出：${p}`);
       } else if (fmt === "docx") {
-        const b64 = await buildDocxReport(resCache);
+        const b64 = batch ? await buildAnalysisBatchDocx(batch) : await buildDocxReport(resCache!);
         const p = await api.reportExportB64(`${base}.docx`, b64, "docx");
         if (p) pushLog(`Word 报告已导出：${p}`);
       } else {
-        const p = await api.reportExport(`${base}.html`, buildHtmlReport(resCache), "html");
+        const html = batch ? buildAnalysisBatchHtml(batch) : buildHtmlReport(resCache!);
+        const p = await api.reportExport(`${base}.html`, html, "html");
         if (p) pushLog(`HTML 报告已导出：${p}（可直接用浏览器打开/发邮件）`);
       }
     } catch (err) {
@@ -222,11 +418,15 @@ export function initAnalysis() {
   setInterval(async () => {
     try {
       const p = await api.analysisProgress();
-      // 收割完成态
-      if (lastMode !== 0 && p.mode === 0) {
+      // 收割完成态；批量轮询由 pollSelected 自己收结果
+      if (!batchRunning && !batchItems.length && lastMode !== 0 && p.mode === 0) {
         running = false;
         setActUi(false);
         if (!p.err) hasResult = true;
+        if (activeScanUrl) {
+          channelBoard?.updateRowByUrl(activeScanUrl, p.err ? "err" : "ok", p.err || "已完成");
+          activeScanUrl = null;
+        }
         refreshResult();
       }
       lastMode = p.mode;
@@ -240,7 +440,7 @@ export function initAnalysis() {
     }
   }, 200);
   setInterval(async () => {
-    if (lastMode === 2) refreshResult();
+    if (!batchRunning && !batchItems.length && lastMode === 2) refreshResult();
   }, 1000);
   setInterval(async () => {
     if (lastMode !== 0) pushLogList(await api.analysisLog());
@@ -248,8 +448,26 @@ export function initAnalysis() {
 
   window.addEventListener("page-changed", (e) => {
     page = (e as CustomEvent).detail;
-    if (page === "analysis" && hasResult) refreshResult();
+    if (page === "analysis" && hasResult && !batchItems.length) refreshResult();
   });
+
+  registerFlowTarget(
+    "analysis",
+    async (src) => {
+      const u = src.trim();
+      if (!u) return { state: "failed", message: "来源为空" };
+      const input = $("a-url") as HTMLInputElement;
+      input.value = u;
+      if (batchRunning || running) {
+        return { state: "filled", message: "视频分析正在运行，地址已填入" };
+      }
+      await go();
+      return running
+        ? { state: "started", message: "已开始扫描" }
+        : { state: "failed", message: "启动失败，请查看视频分析状态栏" };
+    },
+    () => batchRunning || running,
+  );
 }
 
 // ═══════════════════════════ 状态行/日志 ═══════════════════════════
@@ -317,6 +535,8 @@ async function refreshResult() {
 }
 
 function renderAll(res: Res) {
+  $("a-panels").hidden = false;
+  $("a-panels").style.display = "flex";
   $("a-stats").hidden = false;
   $("a-tabs").hidden = false;
   renderStats(res);

@@ -1,4 +1,4 @@
-//! 通用频道列表：微突发 / 音画同步两页共用一份配置和同一套列表组件。
+//! 通用频道列表：播放器 / 视频分析 / 合规检测 / 微突发 / 音画同步共用一份配置和同一套列表组件。
 //!
 //! 页面只提供「怎么跑一条」和「怎么预览一条」，列表本身的状态、选中、
 //! 增删、持久化都在这里，避免两页各写一套。
@@ -483,6 +483,9 @@ export class ChannelBoard {
   }
 
   private updateBar() {
+    const rows = this.visibleRows();
+    let runnable = 0;
+    for (const { ch } of rows) if (ch.enabled && ch.url) runnable += 1;
     this.host.querySelectorAll<HTMLElement>(".chrow").forEach((row) => {
       row.classList.toggle("sel", Number(row.dataset.i) === this.sel);
       row.classList.toggle("off", !this.chans[Number(row.dataset.i)]?.enabled);
@@ -496,14 +499,14 @@ export class ChannelBoard {
         return;
       }
       const needsSel = a === "del" || a === "prev" || a === "one" || a === "extra";
-      b.disabled = this.busy || (needsSel && this.sel < 0);
+      b.disabled = this.busy || (needsSel && this.sel < 0) || (a === "all" && runnable === 0);
     });
     const conc = this.q<HTMLInputElement>('[data-role="conc"]');
     if (conc) conc.disabled = this.busy;
     const group = this.q<HTMLSelectElement>('[data-role="group"]');
     if (group) group.disabled = this.busy;
     const allbox = this.q<HTMLInputElement>('[data-a="allbox"]');
-    if (allbox) allbox.disabled = this.busy;
+    if (allbox) allbox.disabled = this.busy || rows.length === 0;
   }
 
   private select(i: number, preview: boolean) {

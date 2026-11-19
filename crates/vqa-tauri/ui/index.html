@@ -128,6 +128,7 @@
         <button class="gradbtn" id="p-act"><span data-ic="play"></span>开始播放</button>
         <div class="vsep"></div>
         <div class="icogroup">
+          <button class="iconbtn ghost txtbtn tb-flow" id="p-flow" data-flow="player" title="把当前来源流转到其它模块" type="button"><span data-ic="route"></span><span class="btxt">流转</span></button>
           <button class="iconbtn ghost txtbtn tb-browse" id="p-browse" title="浏览本地文件…"><span data-ic="folder"></span><span class="btxt">浏览</span></button>
           <button class="iconbtn ghost txtbtn tb-info" id="p-info" title="媒体信息（容器/编码/帧率/码率…）"><span data-ic="info"></span><span class="btxt">信息</span></button>
           <button class="iconbtn ghost txtbtn tb-set" id="p-set" title="播放器设置"><span data-ic="settings"></span><span class="btxt">设置</span></button>
@@ -195,6 +196,7 @@
         <button class="gradbtn" id="a-act"><span data-ic="search"></span>开始扫描</button>
         <div class="vsep"></div>
         <div class="icogroup">
+          <button class="iconbtn ghost txtbtn tb-flow" id="a-flow" data-flow="analysis" title="把当前来源流转到其它模块" type="button"><span data-ic="route"></span><span class="btxt">流转</span></button>
           <button class="iconbtn ghost txtbtn tb-browse" id="a-browse" title="浏览本地文件…" type="button"><span data-ic="folder"></span><span class="btxt">浏览</span></button>
           <div class="expbox">
             <button class="iconbtn ghost txtbtn tb-set" id="a-export" title="导出（Markdown / Word / HTML）" type="button"><span data-ic="download"></span><span class="btxt">导出</span></button>
@@ -221,6 +223,8 @@
       </div>
 
       <div class="sgrid" id="a-stats" hidden></div>
+
+      <div class="batchsum" id="a-batch" hidden></div>
 
       <div class="tabs" id="a-tabs" hidden>
         <button class="tab is-on" data-tab="overview">概览</button>
@@ -271,6 +275,7 @@
         <button class="iconbtn ghost txtbtn bst-stop" id="k-stop" title="停止收流" type="button" hidden><span data-ic="square"></span><span class="btxt">停止</span></button>
         <div class="vsep"></div>
         <div class="icogroup">
+          <button class="iconbtn ghost txtbtn tb-flow" id="k-flow" data-flow="compliance" title="把当前来源流转到其它模块" type="button"><span data-ic="route"></span><span class="btxt">流转</span></button>
           <button class="iconbtn ghost txtbtn tb-browse" id="k-browse" title="浏览本地文件…" type="button"><span data-ic="folder"></span><span class="btxt">浏览</span></button>
           <div class="expbox">
             <button class="iconbtn ghost txtbtn tb-set" id="k-export" title="导出合规报告（Markdown / Word / HTML）" type="button"><span data-ic="download"></span><span class="btxt">导出</span></button>
@@ -298,6 +303,8 @@
         <span class="txt" id="k-status-text">待机</span>
         <span class="chips" id="k-sum"></span>
       </div>
+
+      <div class="batchsum" id="k-batch" hidden></div>
 
       <div class="tblwrap" id="k-wrap">
         <div class="emptypane" id="k-empty">
@@ -392,6 +399,7 @@
               <label for="x-in">来源地址 / 本地文件</label>
               <div class="x-inputrow">
                 <input class="x-inp mono" id="x-in" placeholder="udp://@239.x.x.x:port 或本地文件" spellcheck="false" />
+                <button class="txtbtn tb-flow" id="x-flowbtn" data-flow="transcode" title="把当前来源流转到其它模块" type="button"><span data-ic="route"></span><span class="btxt">流转</span></button>
                 <button class="iconbtn ghost txtbtn tb-browse" id="x-browse" title="浏览本地文件…" type="button"><span data-ic="folder"></span><span class="btxt">浏览</span></button>
               </div>
               <p class="x-hint">支持 UDP / RTP / HTTP / RTSP / SRT / 本地文件。</p>
@@ -509,6 +517,7 @@
         </div>
         <div class="bst-actions">
           <button class="gradbtn bst-start" id="b-act" type="button"><span data-ic="activity"></span><span class="btxt">开始检测</span></button>
+          <button class="txtbtn tb-flow" id="b-flow" data-flow="burst" type="button" title="把当前来源流转到其它模块"><span data-ic="route"></span><span class="btxt">流转</span></button>
           <button class="txtbtn tb-browse" id="b-browse" type="button" title="选择本地媒体文件"><span data-ic="folder"></span><span class="btxt">浏览</span></button>
           <button class="txtbtn tb-set" id="b-settings" type="button" title="微突发检测设置"><span data-ic="settings"></span><span class="btxt">设置</span></button>
           <button class="txtbtn bst-stop" id="b-stop" type="button" hidden><span data-ic="square"></span><span class="btxt">停止</span></button>
@@ -611,6 +620,7 @@
           <input class="src" id="av-src" placeholder="本地文件 / udp://@239.x.x.x:port / rtsp://…" spellcheck="false" />
         </div>
         <button class="gradbtn" id="av-act"><span data-ic="audiolines"></span>开始检测</button>
+        <button class="iconbtn ghost txtbtn tb-flow" id="av-flow" data-flow="avsync" title="把当前来源流转到其它模块" type="button"><span data-ic="route"></span><span class="btxt">流转</span></button>
         <button class="iconbtn ghost txtbtn tb-browse" id="av-browse" title="浏览本地文件…" type="button"><span data-ic="folder"></span><span class="btxt">浏览</span></button>
         <button class="iconbtn ghost txtbtn tb-set" id="av-set" type="button" title="音画同步设置"><span data-ic="settings"></span><span class="btxt">设置</span></button>
         <div class="vsep"></div>
@@ -619,7 +629,7 @@
 
       <div class="av-body" id="av-body">
         <aside class="av-side">
-          <div class="chboard" id="av-chboard"></div>
+          <div class="chboard is-compact" id="av-chboard"></div>
         </aside>
         <button class="av-chrail" id="av-ch-rail" type="button" title="展开频道列表" aria-label="展开频道列表">
           <span data-ic="chevronright"></span><span class="av-chrail-t">频道列表</span>

@@ -3,12 +3,14 @@
 
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { listen } from "@tauri-apps/api/event";
-import { api, type MediaInfo, type NicRow, type PlayerStateJson, type ProgRow, type Snap } from "./api";
+import { api, type Channel, type MediaInfo, type NicRow, type PlayerStateJson, type ProgRow, type Snap } from "./api";
 import { icon } from "./icons";
 import { SPEEDS } from "./constants";
 import { setNavLamp, setEngineLamp, nicLabel } from "./main";
 import { flags } from "./flags";
 import { initChannelPicker } from "./channel-picker";
+import type { ChannelBoard } from "./channels";
+import { registerFlowTarget } from "./transfer";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -174,14 +176,25 @@ export function initPlayer() {
   const progSel = $("p-prog") as HTMLSelectElement;
   const progLbl = $("p-proglbl") as HTMLElement;
 
-  initChannelPicker({
+  let channelBoard: ChannelBoard | null = null;
+  let polling = false;
+  let pollStop = false;
+  let pollSecs = 30;
+
+  channelBoard = initChannelPicker({
     page: "player",
     hostId: "p-chboard",
     bodyId: "p-body",
     railId: "p-ch-rail",
     inputId: "p-url",
     collapsedKey: "player.ch.collapsed",
+    detectLabel: "播放选中",
+    pollLabel: "轮询播放",
+    onDetect: (ch) => void playChannel(ch),
+    onPoll: (list) => void pollPlay(list),
+    stopRun: () => stopPolling(),
   });
+  void loadPollSecs();
 
   // 网卡下拉：值 = IP（取流绑定用），显示「IP · 网卡名」，断开的标注出来
   api.listNics().then((list: NicRow[]) => {
@@ -480,7 +493,111 @@ export function initPlayer() {
   url.addEventListener("keydown", (e) => {
     if (e.key === "Enter") go();
   });
+
+  async function loadPollSecs() {
+    try {
+      const v = await api.uiGet("player.poll_secs");
+      if (typeof v === "number" && v >= 5) pollSecs = Math.min(600, Math.round(v));
+    } catch {
+      /* 默认 30 秒 */
+    }
+  }
+
+  async function startPlay(u: string) {
+    await api.pushSourceHistory("player", u);
+    resetAb(u);
+    await api.play(u, nic.value, flags.forceBridge);
+    running = true;
+    setActUi(true);
+    // 先按当前视频区把子窗摆到可见位置，再让后端去起 mpv/探测
+    placeChild();
+  }
+
+  async function playChannel(ch: Channel) {
+    if (polling) return;
+    url.value = ch.url;
+    channelBoard?.selectByUrl(ch.url);
+    channelBoard?.updateRowByUrl(ch.url, "run", "播放中…");
+    try {
+      await startPlay(ch.url);
+      channelBoard?.updateRowByUrl(ch.url, "ok", "正在播放");
+    } catch (e: any) {
+      channelBoard?.updateRowByUrl(ch.url, "err", String(e).slice(0, 60));
+      showNote(String(e), true);
+    }
+  }
+
+  async function pollPlay(list: Channel[]) {
+    if (polling) return;
+    if (!list.length) return;
+    polling = true;
+    pollStop = false;
+    await loadPollSecs();
+    channelBoard?.setBusy(true);
+    let done = 0;
+    let stopped = false;
+    for (let k = 0; k < list.length; k++) {
+      if (pollStop) {
+        stopped = true;
+        break;
+      }
+      const ch = list[k];
+      if (!ch) continue;
+      url.value = ch.url;
+      channelBoard?.selectByUrl(ch.url);
+      channelBoard?.updateRowByUrl(ch.url, "run", `播放 ${k + 1}/${list.length}`);
+      try {
+        await startPlay(ch.url);
+        const waitMs = pollSecs * 1000;
+        for (let waited = 0; waited < waitMs && !pollStop; waited += 500) {
+          await new Promise((r) => window.setTimeout(r, 500));
+        }
+        if (pollStop) {
+          stopped = true;
+          break;
+        }
+        channelBoard?.updateRowByUrl(ch.url, "ok", `已播 ${pollSecs}s`);
+        done += 1;
+      } catch (e: any) {
+        channelBoard?.updateRowByUrl(ch.url, "err", String(e).slice(0, 60));
+      }
+    }
+    await api.stop().catch(() => undefined);
+    running = false;
+    ab = null;
+    setActUi(false);
+    polling = false;
+    pollStop = false;
+    channelBoard?.setBusy(false);
+    showNote(
+      stopped ? `轮询播放已停止：${done}/${list.length} 路` : `轮询播放完成：${done}/${list.length} 路`,
+      false,
+      4000,
+    );
+  }
+
+  function stopPolling() {
+    if (!polling) {
+      if (running) {
+        running = false;
+        ab = null;
+        setActUi(false);
+        api.stop().catch(() => undefined);
+      }
+      return;
+    }
+    pollStop = true;
+    running = false;
+    ab = null;
+    setActUi(false);
+    api.stop().catch(() => undefined);
+  }
+
   async function go() {
+    if (polling) {
+      stopPolling();
+      return;
+    }
     if (running) {
       await api.stop();
       running = false;
@@ -490,14 +607,8 @@ export function initPlayer() {
     }
     const u = url.value.trim();
     if (!u) return;
-    await api.pushSourceHistory("player", u);
     try {
-      resetAb(u);
-      await api.play(u, nic.value, flags.forceBridge);
-      running = true;
-      setActUi(true);
-      // 先按当前视频区把子窗摆到可见位置，再让后端去起 mpv/探测
-      placeChild();
+      await startPlay(u);
     } catch (e: any) {
       showNote(String(e), true);
     }
@@ -514,6 +625,10 @@ export function initPlayer() {
   const playBtn = $("c-play") as HTMLButtonElement;
   // 点击由模块级委托统一处理，避免初始化中可选集成异常导致监听缺失
   $("c-stop").addEventListener("click", async () => {
+    if (polling) {
+      stopPolling();
+      return;
+    }
     await api.stop();
     running = false;
     ab = null;
@@ -765,6 +880,33 @@ export function initPlayer() {
       /* 后端未就绪时静默 */
     }
   }
+
+  registerFlowTarget(
+    "player",
+    async (src) => {
+      const u = src.trim();
+      if (!u) return { state: "failed", message: "来源为空" };
+      url.value = u;
+      if (polling) {
+        return { state: "filled", message: "播放器正在轮询，地址已填入" };
+      }
+      if (running) {
+        return { state: "filled", message: "播放器正在播放，地址已填入" };
+      }
+      channelBoard?.selectByUrl(u);
+      channelBoard?.updateRowByUrl(u, "run", "播放中…");
+      try {
+        await startPlay(u);
+        channelBoard?.updateRowByUrl(u, "ok", "正在播放");
+        return { state: "started", message: "已开始播放" };
+      } catch (e: any) {
+        channelBoard?.updateRowByUrl(u, "err", String(e).slice(0, 60));
+        showNote(String(e), true);
+        return { state: "failed", message: `启动失败：${String(e).slice(0, 80)}` };
+      }
+    },
+    () => running || polling,
+  );
 }
 
 // ═══════════════════════════ 渲染 ═══════════════════════════
@@ -779,7 +921,7 @@ function render(st: PlayerStateJson) {
   // 错误/提示行
   if (st.err) showNote(`✗ ${st.err}`, true);
   else if (st.hint) showNote(st.hint, false);
-  else {
+  else if (Date.now() >= noteHoldUntil) {
     noteEl.className = "noteline";
     noteEl.textContent = "";
   }
@@ -960,10 +1102,12 @@ function renderChips(st: PlayerStateJson) {  // 只重建动态 chips 区，固�
 // ═══════════════════════════ 小工具 ═══════════════════════════
 
 const noteEl = document.getElementById("p-note") as HTMLElement;
+let noteHoldUntil = 0;
 
-function showNote(text: string, isErr: boolean) {
+function showNote(text: string, isErr: boolean, holdMs = 0) {
   noteEl.textContent = text;
   noteEl.className = `noteline ${isErr ? "err" : "hint"}`;
+  noteHoldUntil = holdMs > 0 ? Date.now() + holdMs : 0;
 }
 
 function fracOf(e: PointerEvent, el: HTMLElement): number {

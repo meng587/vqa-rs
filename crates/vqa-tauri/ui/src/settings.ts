@@ -36,6 +36,13 @@ function buildDrawers() {
         <select id="p-nic" class="setnic"><option value="">自动</option></select>
       </div>
       <div class="drhint">自动 = 按系统路由选择；指定网卡后，UDP / RTP 组播取流会绑定该网卡。保存后作为默认，下次启动仍沿用；找不到该网卡时回到自动。</div>
+      <div class="drsec">轮询播放</div>
+      <div class="setrow">
+        <span class="k">每路时长</span>
+        <input id="dr-p-poll" type="number" min="5" max="600" step="5" />
+        <span class="unit">秒</span>
+      </div>
+      <div class="drhint">「轮询播放」按勾选频道顺序播放，每路停留这里设置的秒数；一遍播完自动停止。</div>
       <div class="drsec">输出目录</div>
       <div class="setrow">
         <span class="k">截图</span>
@@ -71,6 +78,13 @@ function buildDrawers() {
         <select id="a-nic"><option value="">自动</option></select>
       </div>
       <div class="drhint">自动 = 按系统路由选择；分析 UDP / RTP 组播时绑定该网卡。保存后作为默认，下次启动仍沿用；找不到该网卡时回到自动。</div>
+      <div class="drsec">轮询扫描</div>
+      <div class="setrow">
+        <span class="k">每路时长</span>
+        <input id="dr-a-poll" type="number" min="5" max="600" step="5" />
+        <span class="unit">秒</span>
+      </div>
+      <div class="drhint">「轮询扫描」按勾选频道顺序执行；直播流每路采集这里设置的秒数，文件按自身时长跑完。一遍结束后汇总成一份结果。</div>
       <div class="drsec">导出</div>
       <div class="setrow">
         <span class="k">报告目录</span>
@@ -98,6 +112,13 @@ function buildDrawers() {
         <select id="k-nic"><option value="">自动</option></select>
       </div>
       <div class="drhint">自动 = 按系统路由选择；合规检测收 UDP / RTP 组播流时绑定该网卡。保存后作为默认，下次启动仍沿用；找不到该网卡时回到自动。</div>
+      <div class="drsec">轮询检测</div>
+      <div class="setrow">
+        <span class="k">每路时长</span>
+        <input id="dr-k-poll" type="number" min="5" max="600" step="5" />
+        <span class="unit">秒</span>
+      </div>
+      <div class="drhint">「轮询检测」按勾选频道顺序执行；直播流每路采集这里设置的秒数后收结果，文件按自身时长检测。一遍结束后汇总成一份结果。</div>
       <div class="setmsg" id="dr-k-msg"></div>
     </div>
     <div class="drfoot">
@@ -181,6 +202,7 @@ function wirePlayerDrawer() {
   const loop = $("dr-p-loop") as HTMLInputElement;
   const force = $("dr-p-force") as HTMLInputElement;
   const nic = $("p-nic") as HTMLSelectElement;
+  const poll = $("dr-p-poll") as HTMLInputElement;
   const msg = $("dr-p-msg") as HTMLElement;
   const saveBtn = $("dr-p-save") as HTMLButtonElement;
 
@@ -205,8 +227,11 @@ function wirePlayerDrawer() {
       loop.checked = !!p.default_loop;
       force.checked = !!p.default_force_bridge;
       nic.value = p.default_nic ?? "";
+      const saved = await api.uiGet("player.poll_secs");
+      poll.value = String(typeof saved === "number" && saved >= 5 ? saved : 30);
       say("");
     } catch (e) {
+      poll.value = poll.value || "30";
       say(`读取失败：${e}`, "err");
     }
   }
@@ -235,6 +260,7 @@ function wirePlayerDrawer() {
     saveBtn.disabled = true;
     say("保存中…");
     try {
+      const secs = Math.max(5, Math.min(600, Math.round(Number(poll.value) || 30)));
       const p = await api.setPlayerSettings({
         snapDir: snap.value.trim(),
         recDir: rec.value.trim(),
@@ -242,6 +268,8 @@ function wirePlayerDrawer() {
         defaultForceBridge: force.checked,
         defaultNic: nic.value,
       });
+      await api.uiSet("player.poll_secs", secs);
+      poll.value = String(secs);
       snap.value = p.snap_custom ?? "";
       rec.value = p.rec_custom ?? "";
       setForceBridge(!!p.default_force_bridge);
@@ -259,6 +287,7 @@ function wirePlayerDrawer() {
     loop.checked = false;
     force.checked = false;
     nic.value = "";
+    poll.value = "30";
     saveBtn.click();
   });
 }
@@ -268,6 +297,7 @@ function wirePlayerDrawer() {
 function wireAnalysisDrawer() {
   const report = $("dr-a-report") as HTMLInputElement;
   const nic = $("a-nic") as HTMLSelectElement;
+  const poll = $("dr-a-poll") as HTMLInputElement;
   const msg = $("dr-a-msg") as HTMLElement;
   const saveBtn = $("dr-a-save") as HTMLButtonElement;
 
@@ -294,8 +324,11 @@ function wireAnalysisDrawer() {
       report.value = p.report_dir;
       report.placeholder = p.report_note;
       nic.value = typeof saved === "string" ? saved : "";
+      const pollSaved = await api.uiGet("analysis.poll_secs");
+      poll.value = String(typeof pollSaved === "number" && pollSaved >= 5 ? pollSaved : 30);
       say("");
     } catch (e) {
+      poll.value = poll.value || "30";
       say(`读取失败：${e}`, "err");
     }
   }
@@ -313,8 +346,11 @@ function wireAnalysisDrawer() {
     saveBtn.disabled = true;
     say("保存中…");
     try {
+      const secs = Math.max(5, Math.min(600, Math.round(Number(poll.value) || 30)));
       const p = await api.setAnalysisSettings(report.value.trim());
       await api.uiSet("analysis.nic", nic.value);
+      await api.uiSet("analysis.poll_secs", secs);
+      poll.value = String(secs);
       report.value = p.report_dir;
       const nicText = nic.selectedOptions[0]?.textContent || "自动";
       const where = p.report_dir ? `报告 → ${p.report_dir}` : "报告 → 每次导出弹保存对话框";
@@ -329,6 +365,7 @@ function wireAnalysisDrawer() {
   $("dr-a-reset").addEventListener("click", () => {
     report.value = "";
     nic.value = "";
+    poll.value = "30";
     saveBtn.click();
   });
 }
@@ -337,6 +374,7 @@ function wireAnalysisDrawer() {
 
 function wireComplianceDrawer() {
   const nic = $("k-nic") as HTMLSelectElement;
+  const poll = $("dr-k-poll") as HTMLInputElement;
   const msg = $("dr-k-msg") as HTMLElement;
   const saveBtn = $("dr-k-save") as HTMLButtonElement;
 
@@ -355,8 +393,11 @@ function wireComplianceDrawer() {
     try {
       const saved = await api.uiGet("compliance.nic");
       nic.value = typeof saved === "string" ? saved : "";
+      const pollSaved = await api.uiGet("compliance.poll_secs");
+      poll.value = String(typeof pollSaved === "number" && pollSaved >= 5 ? pollSaved : 30);
       say("");
     } catch (e) {
+      poll.value = poll.value || "30";
       say(`读取失败：${e}`, "err");
     }
   }
@@ -365,9 +406,12 @@ function wireComplianceDrawer() {
     saveBtn.disabled = true;
     say("保存中…");
     try {
+      const secs = Math.max(5, Math.min(600, Math.round(Number(poll.value) || 30)));
       await api.uiSet("compliance.nic", nic.value);
+      await api.uiSet("compliance.poll_secs", secs);
+      poll.value = String(secs);
       const nicText = nic.selectedOptions[0]?.textContent || "自动";
-      say(`已保存 · 网卡 → ${nicText}`, "ok");
+      say(`已保存 · 网卡 → ${nicText} · 轮询每路 ${secs} 秒`, "ok");
     } catch (e) {
       say(String(e), "err");
     } finally {
@@ -377,6 +421,7 @@ function wireComplianceDrawer() {
 
   $("dr-k-reset").addEventListener("click", () => {
     nic.value = "";
+    poll.value = "30";
     saveBtn.click();
   });
 }

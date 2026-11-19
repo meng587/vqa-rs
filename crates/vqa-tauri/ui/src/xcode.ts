@@ -3,6 +3,7 @@
 
 import { api, type XcodeCfg, type XcodeStats } from "./api";
 import { icon } from "./icons";
+import { registerFlowTarget } from "./transfer";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
 
@@ -574,4 +575,29 @@ export function initXcode() {
   summarizeCfg(makeCfg());
   setState("idle", "待机", "待机");
   showMonitor();
+
+  registerFlowTarget(
+    "transcode",
+    async (src) => {
+      const u = src.trim();
+      if (!u) return { state: "failed", message: "来源为空" };
+      const input = inEl();
+      if (input) input.value = u;
+      summarizeCfg(makeCfg());
+      if (actEl()?.disabled) {
+        return { state: "filled", message: "直播转码正在运行，地址已填入" };
+      }
+      const cfg = makeCfg();
+      const issue = validate(cfg);
+      if (issue) {
+        if (document.body.dataset.page === "transcode") showSetup(issuePage(cfg));
+        return { state: "filled", message: "地址已填入，转码配置未完成" };
+      }
+      const ok = await start();
+      return ok
+        ? { state: "started", message: "已开始转码" }
+        : { state: "failed", message: "启动失败，请查看直播转码状态" };
+    },
+    () => !!actEl()?.disabled,
+  );
 }

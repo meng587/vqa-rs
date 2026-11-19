@@ -186,7 +186,10 @@ function setRunning(on: boolean) {
   const rp = $<HTMLButtonElement>("cg-runpair");
   if (rp) rp.disabled = on || !activePair();
   const rg = $<HTMLButtonElement>("cg-rungroup");
-  if (rg) rg.disabled = on;
+  if (rg) {
+    const picked = visiblePairs().filter((p) => selectedPairs.has(resultKey(p))).length;
+    rg.disabled = on || picked === 0;
+  }
 }
 
 // ═════════════ 分组渲染 ═════════════
@@ -350,7 +353,10 @@ function syncSelectionUi() {
   box.checked = list.length > 0 && picked === list.length;
   box.indeterminate = picked > 0 && picked < list.length;
   const rg = $<HTMLButtonElement>("cg-rungroup");
-  if (rg) rg.hidden = allPairs().length === 0;
+  if (rg) {
+    rg.hidden = allPairs().length === 0;
+    rg.disabled = running || picked === 0;
+  }
 }
 
 function pairRowHtml(p: Pair): string {
@@ -469,8 +475,9 @@ function renderGroups() {
   if (rp) rp.disabled = running || !cp;
   const rg = $<HTMLButtonElement>("cg-rungroup");
   if (rg) {
+    const picked = visiblePairs().filter((p) => selectedPairs.has(resultKey(p))).length;
     rg.hidden = all.length === 0;
-    rg.disabled = running;
+    rg.disabled = running || picked === 0;
   }
 }
 
