@@ -4,6 +4,7 @@
 //! 每次比对复用后端 consist 任务槽，全部轮询按并发路数调度，任务 id 为 all-1…all-8。
 
 import { api, AlarmRecord, Channel, ConsistResult } from "./api";
+import { openConsistEditor } from "./consist-editor";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -14,20 +15,20 @@ const esc = (s: string) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
-interface CSource {
+export interface CSource {
   id: string;
   name: string;
   url: string;
   base: boolean;
   enabled: boolean;
 }
-interface CChannel {
+export interface CChannel {
   id: string;
   name: string;
   mode: "base" | "pairwise";
   sources: CSource[];
 }
-interface CGroup {
+export interface CGroup {
   id: string;
   name: string;
   channels: CChannel[];
@@ -1625,6 +1626,29 @@ async function loadGroups() {
 
 // ═════════════ 初始化 ═════════════
 
+function openListEditor() {
+  openConsistEditor(groups, async (next) => {
+    await api.uiSet(G_KEY, next);
+    groups = next;
+    results.clear();
+    groupStates.clear();
+    channelStates.clear();
+    channelErrors.clear();
+    closedGroups.clear();
+    if (cgGroupFilter !== "all" && !groups.some((g) => g.id === cgGroupFilter)) cgGroupFilter = "all";
+    if (!groups.some((g) => g.id === activeGid)) activeGid = groups[0]?.id || "";
+    const g = activeGroup();
+    if (!g || !g.channels.some((c) => c.id === activeCid)) activeCid = g?.channels[0]?.id || "";
+    activeTgt = "";
+    selectedPairs.clear();
+    for (const p of allPairs()) selectedPairs.add(resultKey(p));
+    selectionReady = true;
+    renderGroups();
+    startPreview(activePair());
+    setRunInfo("列表已保存");
+  });
+}
+
 export function initConsist() {
   $("cg-param")?.addEventListener("click", openParam);
   $("cg-param-x")?.addEventListener("click", closeParam);
@@ -1660,6 +1684,7 @@ export function initConsist() {
 
   $("cg-new")?.addEventListener("click", () => openGroupMeta());
   $("cg-import")?.addEventListener("click", importChannels);
+  $("cg-editlist")?.addEventListener("click", openListEditor);
   $("cg-all")?.addEventListener("click", runAll);
   $("cg-runpair")?.addEventListener("click", runCurrent);
   $("cg-rungroup")?.addEventListener("click", runSelected);
