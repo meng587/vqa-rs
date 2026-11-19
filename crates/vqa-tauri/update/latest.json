@@ -1,11 +1,11 @@
 {
-  "version": "0.2.26",
-  "notes": "直播转码页右上角设置按钮改为带文字的「参数设置」按钮；输入参数 / 转码参数 / 输出参数三个子页面与透传模式保持 0.2.25 的实现",
-  "pub_date": "2026-11-18T13:50:18Z",
-  "platforms": {
-    "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXJpZFowRW9xUGlqSDBCY3R6bVppTkdnS0tCWG1kSWNlam1kMU1JWGJ3U3E1UTF3WC82OTZxdHJucUZxOTJFUUhkRDZWSjNYSnZUU3lZdDNXTmtrUXdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDA5ODE4CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4yNl94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjI2CmIvVlRUV2dnQno1TS9ScXVpOTdNS0xVQnlNQVVIS25lK3NMYmxHVVJSYVlLancxaUN5c3JMM2FRT3hsNVZSSkg5NERvZ1E2MVprY1g3K2ttUk4yTkN3PT0K",
-      "url": "https://gitee.com/meng587/video-analysis-toolkit-rs/releases/download/v0.2.26/vqa-workbench-0.2.26-setup.exe"
-    }
-  }
+    "version":  "0.2.28",
+    "notes":  "左侧导航壳层：播放器与 8 个功能模块收进左栏，移除 01-08 模块编号与页头 Kicker 编号；左栏支持 64px 收起，播放器/表格页适配 1360x860；一致性双画面与参数弹窗保留。",
+    "pub_date":  "2026-11-19T00:49:31Z",
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW1tM0lDdUdpSE56MFcxQlVNOXZwWnMvUFArSXFiTmRRTVBzME85bjFJbEw4aStlYWNGSzdzVDAyVXJMTVdzRkI4RjhIMXErNEtjWjRvSTNlMGxpV2dJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDQ5MzcxCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4yOF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjI4CmpjakdGbUVzbkNrc2lRelp6Qm9vREZtK1V3U0V0ZUlINTFHUUw1SVYva2pCSmU2L1YzU3dUYXdiNnBiNDByL0JLaGc3WFRrczN0clZwOHpBT0FiTUFnPT0K",
+                                             "url":  "https://gitee.com/meng587/video-analysis-toolkit-rs/releases/download/v0.2.28/vqa-workbench-0.2.28-setup.exe"
+                                         }
+                  }
 }
