@@ -1,11 +1,11 @@
 {
-    "version":  "0.2.28",
-    "notes":  "左侧导航壳层：播放器与 8 个功能模块收进左栏，移除 01-08 模块编号与页头 Kicker 编号；左栏支持 64px 收起，播放器/表格页适配 1360x860；一致性双画面与参数弹窗保留。",
-    "pub_date":  "2026-11-19T00:49:31Z",
-    "platforms":  {
-                      "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW1tM0lDdUdpSE56MFcxQlVNOXZwWnMvUFArSXFiTmRRTVBzME85bjFJbEw4aStlYWNGSzdzVDAyVXJMTVdzRkI4RjhIMXErNEtjWjRvSTNlMGxpV2dJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDQ5MzcxCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4yOF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjI4CmpjakdGbUVzbkNrc2lRelp6Qm9vREZtK1V3U0V0ZUlINTFHUUw1SVYva2pCSmU2L1YzU3dUYXdiNnBiNDByL0JLaGc3WFRrczN0clZwOHpBT0FiTUFnPT0K",
-                                             "url":  "https://gitee.com/meng587/video-analysis-toolkit-rs/releases/download/v0.2.28/vqa-workbench-0.2.28-signed-setup.exe"
-                                         }
-                  }
+  "version": "0.2.30",
+  "notes": "0.2.30：修复 AVS2 4K 快速探测宽高为空时误判直放、导致 mpv 退出的问题；AVS 编码探不到尺寸时强制走转码桥。",
+  "pub_date": "2026-11-19T02:31:02Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW5FN0JuOHhkZ1VXRG1FYWUrTGFlWnh1R2lIWmU0YURLVjRETjVLWXVOTForL25ENWc1YVVDMFdDMHdEU1Q4b04xcFVDRzB3aXBHdXNZc3hUUUZhS2c0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDU1NDYyCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4zMF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjMwClVnQnh0Zk1wZTdNVGRZRFNRbTVnMHJYRHdkcnBTVG1tVVhrT3U0T1praERoV2ZWNUdlcW1COFNFb1BNbXZqdk9Zd29zR2hyLzFPNnA1MUFIV1gzdENnPT0K",
+      "url": "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.30/vqa-workbench-0.2.30-setup.exe"
+    }
+  }
 }

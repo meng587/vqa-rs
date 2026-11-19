@@ -29,7 +29,7 @@ const pages = document.querySelectorAll<HTMLElement>(".pg");
 export type Page = "player" | "analysis" | "compliance" | "transcode" | "burst" | "avsync" | "consist" | "about";
 type ConsistView = "compare" | "alarm";
 
-/** 顶栏页头与快捷动作：只做壳层，不替代页面内原有控件。 */
+/** 页头文案：只做壳层，页面内保留唯一的主操作与参数入口。 */
 const PAGE_CHROME: Record<Page, { kicker: string; title: string; sub: string; seal: string }> = {
   player: { kicker: "PLAYER & MONITOR", title: "播放器", sub: "本地文件 / UDP 组播实时监看", seal: "播" },
   analysis: { kicker: "STREAM ANALYSIS", title: "视频分析", sub: "TS 结构 / PCR / TR101 290 / 码率曲线", seal: "析" },
@@ -39,17 +39,6 @@ const PAGE_CHROME: Record<Page, { kicker: string; title: string; sub: string; se
   avsync: { kicker: "A/V SYNC", title: "音画同步", sub: "音频包络与视频帧对齐，测量偏移", seal: "音" },
   consist: { kicker: "CONSISTENCY", title: "一致性比对", sub: "同频道多来源双画面逐帧比对", seal: "鉴" },
   about: { kicker: "ABOUT", title: "关于", sub: "版本 / 更新 / 诊断与工具链", seal: "关" },
-};
-
-const TOP_ACTIONS: Record<Page, { run?: string; runLabel?: string; settings?: string }> = {
-  player: { run: "p-act", runLabel: "开始播放", settings: "p-set" },
-  analysis: { run: "a-act", runLabel: "开始扫描", settings: "a-set" },
-  compliance: { run: "k-act", runLabel: "开始检测" },
-  transcode: { run: "x-act", runLabel: "开始转码", settings: "x-set" },
-  burst: { run: "b-act", runLabel: "开始巡检" },
-  avsync: { run: "av-act", runLabel: "开始检测" },
-  consist: { run: "cg-all", runLabel: "开始轮询", settings: "cg-param" },
-  about: {},
 };
 
 function updatePageChrome(page: Page) {
@@ -63,31 +52,7 @@ function updatePageChrome(page: Page) {
   if (sub) sub.textContent = meta.sub;
   if (seal) seal.textContent = meta.seal;
   document.title = `${meta.title} · 视听质量检测工作站`;
-
-  const act = TOP_ACTIONS[page];
-  const run = document.getElementById("tb-run") as HTMLButtonElement | null;
-  const settings = document.getElementById("tb-settings") as HTMLButtonElement | null;
-  if (run) {
-    run.hidden = !act.run;
-    run.textContent = act.runLabel ?? "开始";
-  }
-  if (settings) settings.hidden = !act.settings;
 }
-
-function clickCurrent(id?: string) {
-  if (!id) return;
-  const el = document.getElementById(id) as HTMLButtonElement | null;
-  if (el && !el.hidden) el.click();
-}
-
-document.getElementById("tb-run")?.addEventListener("click", () => {
-  const page = (document.body.dataset.page || "player") as Page;
-  clickCurrent(TOP_ACTIONS[page].run);
-});
-document.getElementById("tb-settings")?.addEventListener("click", () => {
-  const page = (document.body.dataset.page || "player") as Page;
-  clickCurrent(TOP_ACTIONS[page].settings);
-});
 
 /** 一致性页内部子视图：比对工作台 / 告警处理。 */
 function showConsistView(view: ConsistView) {
@@ -157,9 +122,9 @@ export function setNavLamp(page: "player" | "analysis" | "compliance" | "transco
   lamp.className = `lamp${state === "running" ? " run" : state === "error" ? " err" : ""}`;
 }
 
-/** 页脚引擎状态点（mpv 存活 = 绿）。 */
+/** 左栏底部引擎状态点（mpv 存活 = 绿）。 */
 export function setEngineLamp(ok: boolean) {
-  const dot = document.querySelector<HTMLElement>(".engine .dot");
+  const dot = document.getElementById("engine-dot");
   if (dot) dot.style.background = ok ? "var(--ok)" : "var(--bad)";
 }
 
@@ -544,6 +509,7 @@ document.getElementById("dg-upload")?.addEventListener("click", async () => {
 });
 
 // ---- 页面初始化 ----
+initSettings();
 initPlayer();
 initAnalysis();
 initCompliance();
@@ -552,7 +518,6 @@ initBurst();
 initAvSync();
 initConsist();
 initAlarm();
-initSettings();
 initMediaInfo();
 // 空态里的「选择 TS 文件」复用顶栏的浏览动作
 document.getElementById("a-empty-browse")?.addEventListener("click", () =>

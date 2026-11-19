@@ -632,6 +632,12 @@ pub fn needs_bridge(q: &Option<QuickProbe>) -> bool {
     if !is_avs {
         return false;
     }
+    // ★ AVS2 4K 的快速探测经常只认出 codec、宽高为 0（avs1.ts 实测：
+    //   codec=avs2 0x0 pix=""）。此时不能再按尺寸判直放——mpv 直接啃
+    //   会退出。AVS 家族只要探不到尺寸，一律先走转码桥。
+    if q.video.width <= 0 || q.video.height <= 0 {
+        return true;
+    }
     let ten_bit = q.video.pix_fmt.contains("10");
     let big = q.video.height >= 1440;
     ten_bit || big
@@ -684,5 +690,15 @@ mod tests {
         q.video.height = 4320;
         q.video.pix_fmt = "yuv420p10le".into();
         assert!(!needs_bridge(&Some(q)));
+    }
+
+    #[test]
+    fn bridge_required_for_avs2_with_unknown_dimensions() {
+        let mut q = QuickProbe::default();
+        q.video.codec = "avs2".into();
+        q.video.width = 0;
+        q.video.height = 0;
+        q.video.pix_fmt = String::new();
+        assert!(needs_bridge(&Some(q)));
     }
 }

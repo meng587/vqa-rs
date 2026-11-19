@@ -76,6 +76,7 @@ export interface PlayerSettings {
   rec_custom: string | null;
   default_loop: boolean;
   default_force_bridge: boolean;
+  default_nic: string;
 }
 
 /// 视频分析设置（只属于分析页）
@@ -219,6 +220,7 @@ export const api = {
     recDir: string;
     defaultLoop: boolean;
     defaultForceBridge: boolean;
+    defaultNic: string;
   }) => invoke<PlayerSettings>("player_settings_set", v),
   analysisSettings: () => invoke<AnalysisSettings>("analysis_settings_get"),
   setAnalysisSettings: (reportDir: string) =>

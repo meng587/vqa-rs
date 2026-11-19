@@ -174,7 +174,7 @@ main {
 .tag.tl { left: 10px; }
 .tag.tr { right: 10px; font-family: var(--sans); color: var(--warn); }
 .v-empty {
-  position: absolute; inset: 0; display: grid; place-items: center; z-index: 4;
+  position: absolute; inset: 0 0 52px 0; display: grid; place-items: center; z-index: 4;
 }
 .v-empty .inner { display: grid; justify-items: center; }
 .v-empty .bigplay {
@@ -267,6 +267,7 @@ main {
 .chip-m.ok { color: var(--ok); }
 /* 提示行（错误/瞬态 hint） */
 .noteline { font-size: 12px; min-height: 15px; }
+#p-note:empty { display: none; }
 .noteline.err { color: var(--bad); }
 .noteline.hint { color: var(--ok); }
 
@@ -571,9 +572,6 @@ main { padding: 0; gap: 0; }
   height: 32px; flex: none; display: flex; align-items: center; gap: 12px;
   padding: 0 18px; border-top: 1px solid var(--border2); background: var(--surface2);
 }
-.statusbar .engine { margin: 0; padding: 0; border: 0; gap: 7px; font-size: 11.5px; color: var(--mut); flex: none; }
-.statusbar .engine .dot { width: 7px; height: 7px; }
-.statusbar .engine .mpv { font: 11px var(--mono); color: var(--faint); }
 .sbtitle {
   font-size: 11.5px; color: var(--faint); flex: none;
   min-width: 68px; padding-right: 12px; margin-right: 2px;
@@ -1904,14 +1902,13 @@ nav#nav.sidenav{
 }
 .side-dings{
   margin:0;
-  padding:0 2px 5px;
+  padding:0 0 5px;
   border-right:0;
   border-bottom:1px solid rgba(168,121,58,.16);
-  justify-content:flex-start;
-  gap:2px;
+  justify-content:center;
+  gap:3px;
   opacity:.9;
 }
-.side-dings .dn-cap{font:7.5px var(--mono); color:var(--faint); margin-left:3px; letter-spacing:.04em}
 .side-dings svg{width:12px; height:13px}
 .side-dings .ding-main{width:14px; height:15px}
 
@@ -1937,6 +1934,8 @@ nav#nav.sidenav{
 .side-status div{min-width:0}
 .side-status b{display:block; font:7.5px var(--mono); letter-spacing:.09em; color:var(--bronze); overflow:hidden; text-overflow:ellipsis}
 .side-status small{display:block; margin-top:2px; font:9px var(--sans); color:var(--faint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.side-engine b{font:600 11px var(--sans); letter-spacing:0; color:var(--ink)}
+.side-engine small{font:9px var(--mono); color:var(--faint); margin-top:1px}
 
 .side-meta{
   display:flex;
@@ -1996,6 +1995,20 @@ body.side-collapsed .side-collapse{transform:rotate(180deg)}
 .ph-copy{min-width:0; flex:1 1 auto}
 .kicker{font-size:8.5px; letter-spacing:.15em}
 .ph-title-line{display:flex; align-items:center; gap:10px; margin-top:3px; min-width:0}
+.ph-title-line h1{flex:none}
+.ph-title-line .ph-sub{
+  margin:0 0 4px 14px;
+  max-width:min(420px, 32vw);
+  flex:0 1 auto;
+  min-width:0;
+  align-self:flex-end;
+  text-align:left;
+  font:10.5px var(--sans);
+  color:var(--mut);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
 .pagehead h1{
   margin:0;
   font-family:"VQA Seal","KaiTi","STKaiti","SimSun","Songti SC",serif;
@@ -2049,9 +2062,74 @@ main{padding:8px 24px; gap:8px; min-width:0}
   .side-label span:last-child{display:none}
   .sidenav .mn{font-size:12px; padding:0 8px; gap:8px}
 }
+/* 汉字按键：图标 + 中文，主操作用绿色，其余用带色描边次级按钮 */
+.txtbtn{
+  width:auto;
+  height:36px;
+  padding:0 13px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  border:1px solid var(--line2);
+  border-radius:8px;
+  background:var(--paper);
+  color:var(--ink);
+  font:12.5px var(--sans);
+  white-space:nowrap;
+}
+.txtbtn:hover{border-color:rgba(53,95,77,.42); color:var(--ink); background:var(--field)}
+.txtbtn svg{width:15px; height:15px; color:var(--tb, var(--bronze))}
+.txtbtn .btxt{font:12.5px var(--sans); font-weight:500; letter-spacing:.02em; white-space:nowrap}
+.txtbtn.tb-browse{--tb:var(--bronze); border-color:rgba(53,95,77,.26); background:rgba(53,95,77,.06)}
+.txtbtn.tb-browse:hover{border-color:rgba(53,95,77,.5); background:rgba(53,95,77,.11)}
+.txtbtn.tb-info{--tb:var(--rust); border-color:rgba(180,71,31,.24); background:rgba(180,71,31,.055)}
+.txtbtn.tb-info:hover{border-color:rgba(180,71,31,.46); background:rgba(180,71,31,.1)}
+.txtbtn.tb-set{--tb:var(--copper); border-color:rgba(168,121,58,.28); background:rgba(168,121,58,.075)}
+.txtbtn.tb-set:hover{border-color:rgba(168,121,58,.5); background:rgba(168,121,58,.13)}
+.btxt{font:12.5px var(--sans); letter-spacing:.02em; white-space:nowrap}
+.icogroup{gap:6px}
+
+.srcbar .lbl{font-size:12.5px; letter-spacing:.08em; color:var(--mut); font-weight:500}
+.srcbar input.src{font-size:13px}
+.setrow select{
+  flex:1;
+  min-width:0;
+  height:36px;
+  padding:0 10px;
+  background:var(--field);
+  border:1px solid var(--line2);
+  border-radius:8px;
+  color:var(--ink);
+  font:12px var(--sans);
+  outline:none;
+}
+.setrow select:focus{border-color:var(--bronze)}
+
+.ctrl .cbtn.txtc{
+  width:auto;
+  height:28px;
+  min-width:0;
+  padding:0 9px;
+  gap:5px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid rgba(33,28,20,.14);
+  border-radius:7px;
+  background:rgba(255,253,247,.45);
+  color:var(--mut);
+  font:12px var(--sans);
+}
+.ctrl .cbtn.txtc:hover{border-color:rgba(53,95,77,.4); color:var(--ink); background:var(--paper)}
+.ctrl .cbtn.txtc svg{width:15px; height:15px; flex:none; color:var(--bronze)}
+.ctrl .cbtn.txtc.on{color:var(--bronze); background:rgba(53,95,77,.1); border-color:rgba(53,95,77,.36)}
+.ctrl .cbtn.txtc.on svg{color:var(--bronze)}
+.ctrl .cbtn.txtc.rec-on{color:var(--rust); border-color:rgba(180,71,31,.4)}
+.ctrl .cbtn.txtc.rec-on svg{color:var(--rust)}
+
 @media (max-width:1000px){
   body{--side-w:168px}
   body.side-collapsed{--side-w:54px}
   .pagehead h1{font-size:27px}
-  .ph-side .tb-btn{padding:0 8px}
 }

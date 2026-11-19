@@ -84,8 +84,7 @@
     <button class="mn" data-goto="about" title="关于"><span class="mn-ic" data-ic="info"></span><span class="mn-t">关于</span></button>
   </nav>
   <div class="side-bottom">
-    <div class="dingnine side-dings" title="九鼎 · 九州">
-      <span class="dn-t">九鼎</span>
+    <div class="dingnine side-dings" aria-hidden="true">
       <svg viewBox="0 0 24 24"><use href="#ding-glyph"/></svg>
       <svg viewBox="0 0 24 24"><use href="#ding-glyph"/></svg>
       <svg viewBox="0 0 24 24"><use href="#ding-glyph"/></svg>
@@ -95,9 +94,8 @@
       <svg viewBox="0 0 24 24"><use href="#ding-glyph"/></svg>
       <svg viewBox="0 0 24 24"><use href="#ding-glyph"/></svg>
       <svg viewBox="0 0 24 24"><use href="#ding-glyph"/></svg>
-      <span class="dn-cap">九州</span>
     </div>
-    <div class="side-status"><span class="dot"></span><div><b>LOCAL WORKBENCH</b><small>离线检测 · 本机引擎</small></div></div>
+    <div class="side-status side-engine" title="引擎状态"><span class="dot" id="engine-dot"></span><div><b>引擎就绪</b><small>mpv 0.42</small></div></div>
     <div class="side-meta"><span id="side-ver">v0.2.27 / LOCAL</span><button class="side-collapse" id="side-collapse" title="收起导航" aria-label="收起导航"><span data-ic="chevronleft"></span></button></div>
   </div>
 </aside>
@@ -108,17 +106,8 @@
     <div class="ph-title-line">
       <h1 id="ph-title">播放器</h1>
       <span class="seal" id="ph-seal">播</span>
+      <div class="sub ph-sub" id="ph-sub">本地文件 / UDP 组播实时监看</div>
     </div>
-    <div class="sub" id="ph-sub">本地文件 / UDP 组播实时监看</div>
-  </div>
-  <div class="ph-side">
-    <div class="topright">
-      <span class="led">LIVE</span>
-      <span class="tb-ver" id="tb-ver">v0.2.27</span>
-      <button class="tb-btn" id="tb-settings" title="当前页面参数设置">参数设置</button>
-      <button class="tb-btn p" id="tb-run" title="当前页面主操作">开始</button>
-    </div>
-    <div class="phmeta"><span class="stamp">REALTIME / 实时</span></div>
   </div>
 </div>
 
@@ -133,17 +122,15 @@
           <button class="iconbtn ghost histbtn" id="p-hist" title="历史" data-ic="chevrondown"></button>
           <div class="histpop" id="p-histpop" hidden></div>
         </div>
-        <span class="lbl">网卡</span>
-        <select class="nic" id="p-nic"></select>
         <span class="lbl" id="p-proglbl" hidden>节目</span>
         <select class="nic progsel" id="p-prog" hidden title="多节目 TS 切换节目"></select>
         <div class="vsep"></div>
         <button class="gradbtn" id="p-act"><span data-ic="play"></span>开始播放</button>
         <div class="vsep"></div>
         <div class="icogroup">
-          <button class="iconbtn ghost" id="p-browse" title="浏览本地文件…" data-ic="folder"></button>
-          <button class="iconbtn ghost" id="p-info" title="媒体信息（容器/编码/帧率/码率…）" data-ic="info"></button>
-          <button class="iconbtn ghost" id="p-set" title="播放器设置" data-ic="settings"></button>
+          <button class="iconbtn ghost txtbtn tb-browse" id="p-browse" title="浏览本地文件…"><span data-ic="folder"></span><span class="btxt">浏览</span></button>
+          <button class="iconbtn ghost txtbtn tb-info" id="p-info" title="媒体信息（容器/编码/帧率/码率…）"><span data-ic="info"></span><span class="btxt">信息</span></button>
+          <button class="iconbtn ghost txtbtn tb-set" id="p-set" title="播放器设置"><span data-ic="settings"></span><span class="btxt">设置</span></button>
         </div>
       </div>
 
@@ -165,8 +152,8 @@
           </div>
         </div>
         <div class="ctrl" id="ctrl">
-          <button class="cbtn" id="c-play" title="播放/暂停" data-ic="pause"></button>
-          <button class="cbtn stop-glyph" id="c-stop" title="停止"></button>
+          <button class="cbtn txtc" id="c-play" title="播放/暂停"><span data-ic="play"></span><span class="btxt">播放</span></button>
+          <button class="cbtn txtc" id="c-stop" title="停止"><span data-ic="square"></span><span class="btxt">停止</span></button>
           <div class="csep"></div>
           <div class="seek off" id="c-seek"><div class="track"><div class="fill" id="c-seekfill"></div><div class="thumb" id="c-seekthumb"></div></div></div>
           <span class="ctime" id="c-time">00:00:00 / --:--</span>
@@ -174,9 +161,9 @@
           <button class="cbtn" id="c-mute" title="静音" data-ic="volume"></button>
           <div class="vol" id="c-vol"><div class="track"><div class="fill" id="c-volfill"></div><div class="thumb" id="c-volthumb"></div></div></div>
           <div class="csep"></div>
-          <button class="cbtn" id="c-snap" title="快照到图片目录" data-ic="camera"></button>
-          <button class="cbtn" id="c-rec" title="录制（stream-record 直拷）" data-ic="circledot"></button>
-          <button class="cbtn" id="c-loop" title="循环播放（播完自动从头）" data-ic="repeat"></button>
+          <button class="cbtn txtc" id="c-snap" title="快照到图片目录"><span data-ic="camera"></span><span class="btxt">截图</span></button>
+          <button class="cbtn txtc" id="c-rec" title="录制（stream-record 直拷）"><span data-ic="circledot"></span><span class="btxt">录制</span></button>
+          <button class="cbtn txtc" id="c-loop" title="循环播放（播完自动从头）"><span data-ic="repeat"></span><span class="btxt">循环</span></button>
           <div class="speed">
             <button id="c-speedbtn">1x ▾</button>
             <div class="menu" id="c-speedmenu" hidden></div>
@@ -772,8 +759,6 @@
 
 <!-- ══════════ 贯通整宽的状态栏 ══════════ -->
 <div class="statusbar">
-  <div class="engine"><span class="dot"></span>引擎就绪<span class="mpv">· mpv 0.42</span></div>
-  <div class="vsep"></div>
   <div class="sbtitle" id="sb-title">播放器</div>
   <div class="bridgebar" id="bridge-bar" hidden>
     <span class="bf-tag" id="bf-tag">桥转码</span>

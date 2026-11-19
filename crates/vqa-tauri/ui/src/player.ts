@@ -142,6 +142,11 @@ export function initPlayer() {
       `<option value="">自动</option>`,
       ...list.map((n) => `<option value="${esc(n.ip)}" title="${esc(n.desc || n.name)}">${esc(nicLabel(n))}</option>`),
     ].join("");
+    // 恢复上次保存的默认网卡；网卡不存在时留在“自动”
+    api.playerSettings().then((p) => {
+      const saved = (p.default_nic ?? "").trim();
+      if (saved && Array.from(nic.options).some((o) => o.value === saved)) nic.value = saved;
+    }).catch(() => undefined);
   });
 
   // 节目下拉：只有多节目 TS 才露出来。起播后探一次 PAT/PMT，>1 个节目才显示。
@@ -659,7 +664,7 @@ export function initPlayer() {
       stateCache = st;
       snapCache = st.snap;
       if (st.snap && st.snap.v_bitrate > 0) lastVb = st.snap.v_bitrate;
-      // 右上「开始/停止」跟随后端状态：播完（mpv 回 idle 且不在准备中）要回到「开始」，
+      // 来源栏「开始/停止」跟随后端状态：播完（mpv 回 idle 且不在准备中）要回到「开始」，
       // 否则 running 只由点击维护，播到结尾按钮会一直卡在「停止」。
       const active = !!st.playing && !(st.snap?.idle && !st.preparing);
       if (active !== running) {
@@ -751,9 +756,10 @@ function render(st: PlayerStateJson) {
   }
   ($("v-replay") as HTMLButtonElement).onclick = () => api.pauseToggle();
 
-  // 播放/暂停图标
+  // 播放/暂停：图标 + 汉字，和来源栏按钮保持同一套按键语言
   const paused = snap ? snap.paused || snap.idle : true;
-  ($("c-play") as HTMLElement).innerHTML = icon(paused ? "play" : "pause");
+  ($("c-play") as HTMLElement).innerHTML =
+    icon(paused ? "play" : "pause") + `<span class="btxt">${paused ? "播放" : "暂停"}</span>`;
 
   // seek/时间
   const dur = snap?.duration_ms ?? 0;

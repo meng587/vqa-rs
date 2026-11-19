@@ -27,6 +27,12 @@ function buildDrawers() {
   <aside class="drawer" id="dr-player" hidden>
     <div class="drhead"><b>播放器设置</b><button class="iconbtn drx" id="dr-p-x" title="关闭"></button></div>
     <div class="drbody">
+      <div class="drsec">网络</div>
+      <div class="setrow">
+        <span class="k">组播网卡</span>
+        <select id="p-nic" class="setnic"><option value="">自动</option></select>
+      </div>
+      <div class="drhint">自动 = 按系统路由选择；指定网卡后，UDP / RTP 组播取流会绑定该网卡。保存后作为默认，下次启动仍沿用；找不到该网卡时回到自动。</div>
       <div class="drsec">输出目录</div>
       <div class="setrow">
         <span class="k">截图</span>
@@ -112,6 +118,7 @@ function wirePlayerDrawer() {
   const rec = $("dr-p-rec") as HTMLInputElement;
   const loop = $("dr-p-loop") as HTMLInputElement;
   const force = $("dr-p-force") as HTMLInputElement;
+  const nic = $("p-nic") as HTMLSelectElement;
   const msg = $("dr-p-msg") as HTMLElement;
   const saveBtn = $("dr-p-save") as HTMLButtonElement;
 
@@ -135,6 +142,7 @@ function wirePlayerDrawer() {
       rec.placeholder = `默认：${p.rec_default}`;
       loop.checked = !!p.default_loop;
       force.checked = !!p.default_force_bridge;
+      nic.value = p.default_nic ?? "";
       say("");
     } catch (e) {
       say(`读取失败：${e}`, "err");
@@ -170,6 +178,7 @@ function wirePlayerDrawer() {
         recDir: rec.value.trim(),
         defaultLoop: loop.checked,
         defaultForceBridge: force.checked,
+        defaultNic: nic.value,
       });
       snap.value = p.snap_custom ?? "";
       rec.value = p.rec_custom ?? "";
@@ -187,6 +196,7 @@ function wirePlayerDrawer() {
     rec.value = "";
     loop.checked = false;
     force.checked = false;
+    nic.value = "";
     saveBtn.click();
   });
 }

@@ -2009,6 +2009,7 @@ pub fn player_settings_get() -> serde_json::Value {
         "rec_custom": custom_dir("out_rec_dir").map(|p| p.to_string_lossy().to_string()),
         "default_loop": vqa_core::config::shared_get_or("player.default_loop", false),
         "default_force_bridge": vqa_core::config::shared_get_or("player.default_force_bridge", false),
+        "default_nic": vqa_core::config::shared_get_or("player.default_nic", String::new()),
     })
 }
 
@@ -2019,6 +2020,7 @@ pub fn player_settings_set(
     rec_dir: String,
     default_loop: bool,
     default_force_bridge: bool,
+    default_nic: String,
     st: State<PlayerState>,
 ) -> Result<serde_json::Value, String> {
     let snap = if snap_dir.trim().is_empty() {
@@ -2048,6 +2050,8 @@ pub fn player_settings_set(
         serde_json::json!(default_force_bridge),
     )
     .map_err(|e| format!("写配置失败：{e}"))?;
+    vqa_core::config::shared_set("player.default_nic", serde_json::json!(default_nic.trim()))
+        .map_err(|e| format!("写配置失败：{e}"))?;
     // 默认循环立刻作用于当前播放器（mpv 未起时只记状态）
     *st.loop_file.lock().unwrap() = default_loop;
     if let Some(m) = st.mpv.lock().unwrap().as_ref() {
