@@ -5,7 +5,7 @@
     "platforms":  {
                       "windows-x86_64":  {
                                              "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW1tM0lDdUdpSE56MFcxQlVNOXZwWnMvUFArSXFiTmRRTVBzME85bjFJbEw4aStlYWNGSzdzVDAyVXJMTVdzRkI4RjhIMXErNEtjWjRvSTNlMGxpV2dJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDQ5MzcxCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4yOF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjI4CmpjakdGbUVzbkNrc2lRelp6Qm9vREZtK1V3U0V0ZUlINTFHUUw1SVYva2pCSmU2L1YzU3dUYXdiNnBiNDByL0JLaGc3WFRrczN0clZwOHpBT0FiTUFnPT0K",
-                                             "url":  "https://gitee.com/meng587/video-analysis-toolkit-rs/releases/download/v0.2.28/vqa-workbench-0.2.28-setup.exe"
+                                             "url":  "https://gitee.com/meng587/video-analysis-toolkit-rs/releases/download/v0.2.28/vqa-workbench-0.2.28-signed-setup.exe"
                                          }
                   }
 }
