@@ -190,8 +190,9 @@ function renderPeaks(r: AvSyncResult | null) {
 
 /** 跑一条来源，直到后端落地结果；focus=false 时只跑不刷页面指标（并发从属任务）。 */
 async function runOnce(src: string, job = "main", focus = true): Promise<AvSyncResult | null> {
-  const secs = Number($<HTMLInputElement>("av-secs")?.value || 20) || 20;
-  const search = Number($<HTMLInputElement>("av-search")?.value || 800) || 800;
+  const p = readPrefs();
+  const secs = p.secs;
+  const search = p.search;
   const st = (k: "idle" | "running" | "error", t: string) => focus && setState(k, t);
   if (focus) {
     renderKpi(null, 0);
@@ -201,7 +202,10 @@ async function runOnce(src: string, job = "main", focus = true): Promise<AvSyncR
   }
   st("running", "启动中…");
   try {
-    await api.avsyncStart({ source: src, secs, search_ms: search, fps: 25 }, job);
+    await api.avsyncStart(
+      { source: src, secs, search_ms: search, fps: p.fps, nic_ip: p.nic },
+      job,
+    );
   } catch (e: any) {
     st("error", String(e));
     return null;
@@ -249,7 +253,7 @@ function previewChannel(ch: Channel) {
   lastName = ch.name || "频道";
   const tag = $<HTMLElement>("av-prevtag");
   if (tag) tag.textContent = `${ch.name || "频道"} · ${ch.url}`;
-  api.previewStart("av", ch.url).catch(() => {});
+  api.previewStart("av", ch.url, readPrefs().nic).catch(() => {});
   if (prevTimer) return;
   prevTimer = window.setInterval(async () => {
     try {
@@ -294,39 +298,43 @@ async function stop() {
   } catch {}
 }
 
-// ── 本页设置（时长 / 搜索），存 shared 配置 ──
+// ── 本页设置（网卡 / 时长 / 搜索范围 / 采样帧率），存 shared 配置 ──
 interface AvPrefs {
+  nic: string;
   secs: number;
   search: number;
+  fps: number;
 }
 
+const DEFAULT_AV_PREFS: AvPrefs = { nic: "", secs: 20, search: 800, fps: 25 };
 const AV_PREF_KEY = "avsync.prefs";
-let saveTimer = 0;
+let prefs: AvPrefs = { ...DEFAULT_AV_PREFS };
 
-function readPrefs(): AvPrefs {
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+function normalizePrefs(raw: any): AvPrefs {
+  if (!raw || typeof raw !== "object") return { ...DEFAULT_AV_PREFS };
+  const secs = Number(raw.secs);
+  const search = Number(raw.search);
+  const fps = Number(raw.fps);
   return {
-    secs: Number($<HTMLInputElement>("av-secs")?.value || 20) || 20,
-    search: Number($<HTMLInputElement>("av-search")?.value || 800) || 800,
+    nic: typeof raw.nic === "string" ? raw.nic : "",
+    secs: Number.isFinite(secs) ? clamp(secs, 3, 600) : DEFAULT_AV_PREFS.secs,
+    search: Number.isFinite(search) ? clamp(search, 40, 5000) : DEFAULT_AV_PREFS.search,
+    fps: Number.isFinite(fps) ? clamp(fps, 10, 60) : DEFAULT_AV_PREFS.fps,
   };
 }
 
-function queueSave() {
-  if (saveTimer) window.clearTimeout(saveTimer);
-  saveTimer = window.setTimeout(() => {
-    api.uiSet(AV_PREF_KEY, readPrefs()).catch(() => {});
-  }, 300);
+function readPrefs(): AvPrefs {
+  return { ...prefs };
 }
 
 async function loadPrefs() {
   try {
-    const p: any = await api.uiGet(AV_PREF_KEY);
-    if (!p || typeof p !== "object") return;
-    const secs = $<HTMLInputElement>("av-secs");
-    const search = $<HTMLInputElement>("av-search");
-    if (secs && Number.isFinite(p.secs)) secs.value = String(p.secs);
-    if (search && Number.isFinite(p.search)) search.value = String(p.search);
+    const p = await api.uiGet(AV_PREF_KEY);
+    prefs = normalizePrefs(p);
   } catch {
-    /* 设置读不到就用默认值 */
+    prefs = { ...DEFAULT_AV_PREFS };
   } finally {
     board?.refreshFootnote();
   }
@@ -345,12 +353,7 @@ export function initAvSync() {
   const s = $<HTMLButtonElement>("av-stop");
   if (s) s.innerHTML = `${icon("square", 15)}<span class="btxt">停止检测</span>`;
   s?.addEventListener("click", stop);
-  ["av-secs", "av-search"].forEach((id) =>
-    $<HTMLInputElement>(id)?.addEventListener("change", () => {
-      queueSave();
-      board?.refreshFootnote();
-    }),
-  );
+  window.addEventListener("avsync-prefs-changed", () => loadPrefs());
 
   const host = $<HTMLElement>("av-chboard");
   if (host) {

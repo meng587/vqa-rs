@@ -5,7 +5,7 @@
 //!   合规   → compliance.nic
 //! 抽屉不切换页面，改完立刻对新截图/录像/导出生效。
 
-import { api } from "./api";
+import { api, NicRow } from "./api";
 import { icon } from "./icons";
 import { drawerHold } from "./drawer";
 import { setForceBridge } from "./flags";
@@ -17,6 +17,7 @@ export function initSettings() {
   wirePlayerDrawer();
   wireAnalysisDrawer();
   wireComplianceDrawer();
+  wireAvSyncDrawer();
 }
 
 // ═══════════════════ 抽屉骨架 ═══════════════════
@@ -103,11 +104,45 @@ function buildDrawers() {
       <button class="gradbtn" id="dr-k-save">保存</button>
       <button class="md-export" id="dr-k-reset">恢复默认</button>
     </div>
+  </aside>
+
+  <aside class="drawer" id="dr-avsync" hidden>
+    <div class="drhead"><b>音画同步设置</b><button class="iconbtn drx txtbtn" id="dr-v-x" title="关闭"></button></div>
+    <div class="drbody">
+      <div class="drsec">网络</div>
+      <div class="setrow">
+        <span class="k">组播网卡</span>
+        <select id="v-nic"><option value="">自动</option></select>
+      </div>
+      <div class="drhint">自动 = 按系统路由选择；检测和画面预览收 UDP / RTP 组播流时绑定该网卡。找不到该网卡时回到自动。</div>
+      <div class="drsec">检测参数</div>
+      <div class="setrow">
+        <span class="k">分析时长</span>
+        <input id="v-secs" class="drnum" type="number" min="3" max="600" step="1" value="20" />
+        <span class="drunit">秒</span>
+      </div>
+      <div class="setrow">
+        <span class="k">搜索范围</span>
+        <input id="v-search" class="drnum" type="number" min="40" max="5000" step="20" value="800" />
+        <span class="drunit">±ms</span>
+      </div>
+      <div class="setrow">
+        <span class="k">采样帧率</span>
+        <input id="v-fps" class="drnum" type="number" min="10" max="60" step="1" value="25" />
+        <span class="drunit">fps</span>
+      </div>
+      <div class="drhint">分析时长决定每次采样多长；实时流建议 20–60 秒。搜索范围决定允许的最大音画偏移；采样帧率越高，时间分辨率越细，但 CPU 占用也更高。</div>
+      <div class="setmsg" id="dr-v-msg"></div>
+    </div>
+    <div class="drfoot">
+      <button class="gradbtn" id="dr-v-save">保存</button>
+      <button class="md-export" id="dr-v-reset">恢复默认</button>
+    </div>
   </aside>`;
   while (frag.firstElementChild) document.body.appendChild(frag.firstElementChild);
 
   // 关闭按钮与遮罩装配图标
-  for (const id of ["dr-p-x", "dr-a-x", "dr-k-x"]) $(id).innerHTML = `${icon("x", 14)}<span class="btxt">关闭</span>`;
+  for (const id of ["dr-p-x", "dr-a-x", "dr-k-x", "dr-v-x"]) $(id).innerHTML = `${icon("x", 14)}<span class="btxt">关闭</span>`;
   for (const id of ["dr-p-snapb", "dr-p-recb", "dr-a-reportb"]) $(id).innerHTML = `${icon("folder", 14)}<span class="btxt">选择</span>`;
   $("dr-mask").addEventListener("click", () => closeAll());
   window.addEventListener("keydown", (e) => {
@@ -129,8 +164,9 @@ function closeAll() {
   drawerHold("dr-player", false);
   drawerHold("dr-analysis", false);
   drawerHold("dr-compliance", false);
+  drawerHold("dr-avsync", false);
   $("dr-mask").hidden = true;
-  for (const id of ["dr-player", "dr-analysis", "dr-compliance"]) {
+  for (const id of ["dr-player", "dr-analysis", "dr-compliance", "dr-avsync"]) {
     const d = $(id);
     d.classList.remove("on");
     d.hidden = true;
@@ -341,6 +377,104 @@ function wireComplianceDrawer() {
 
   $("dr-k-reset").addEventListener("click", () => {
     nic.value = "";
+    saveBtn.click();
+  });
+}
+
+// ═══════════════════ 音画同步 ═══════════════════
+
+const AV_PREF_KEY = "avsync.prefs";
+const AV_DEFAULTS = { nic: "", secs: 20, search: 800, fps: 25 };
+
+function wireAvSyncDrawer() {
+  const nic = $("v-nic") as HTMLSelectElement;
+  const secs = $("v-secs") as HTMLInputElement;
+  const search = $("v-search") as HTMLInputElement;
+  const fps = $("v-fps") as HTMLInputElement;
+  const msg = $("dr-v-msg") as HTMLElement;
+  const saveBtn = $("dr-v-save") as HTMLButtonElement;
+
+  const say = (t: string, kind: "" | "ok" | "err" = "") => {
+    msg.textContent = t;
+    msg.className = `setmsg${kind ? ` ${kind}` : ""}`;
+  };
+
+  const num = (v: unknown, fallback: number, lo: number, hi: number) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : fallback;
+  };
+
+  const label = (n: NicRow) =>
+    `${n.ip} · ${n.desc || n.name}${n.up ? "" : "（未连接）"}`;
+
+  const fillNics = (list: NicRow[], selected: string) => {
+    const opts = [`<option value="">自动</option>`].concat(
+      list.map((n) => `<option value="${n.ip}">${label(n)}</option>`),
+    );
+    if (selected && !list.some((n) => n.ip === selected)) {
+      opts.push(`<option value="${selected}">${selected}（未找到）</option>`);
+    }
+    nic.innerHTML = opts.join("");
+    nic.value = selected;
+  };
+
+  $("av-set").addEventListener("click", () => {
+    open("dr-avsync");
+    load();
+  });
+  $("dr-v-x").addEventListener("click", closeAll);
+
+  async function load() {
+    say("读取中…");
+    try {
+      const [raw, nics] = await Promise.all([
+        api.uiGet(AV_PREF_KEY).catch(() => null),
+        api.listNics().catch(() => [] as NicRow[]),
+      ]);
+      const p: any = raw && typeof raw === "object" ? raw : {};
+      const selected = typeof p.nic === "string" ? p.nic : "";
+      fillNics(nics, selected);
+      secs.value = String(num(p.secs, AV_DEFAULTS.secs, 3, 600));
+      search.value = String(num(p.search, AV_DEFAULTS.search, 40, 5000));
+      fps.value = String(num(p.fps, AV_DEFAULTS.fps, 10, 60));
+      say("");
+    } catch (e) {
+      say(`读取失败：${e}`, "err");
+    }
+  }
+
+  saveBtn.addEventListener("click", async () => {
+    saveBtn.disabled = true;
+    say("保存中…");
+    try {
+      const value = {
+        nic: nic.value,
+        secs: num(secs.value, AV_DEFAULTS.secs, 3, 600),
+        search: num(search.value, AV_DEFAULTS.search, 40, 5000),
+        fps: num(fps.value, AV_DEFAULTS.fps, 10, 60),
+      };
+      await api.uiSet(AV_PREF_KEY, value);
+      secs.value = String(value.secs);
+      search.value = String(value.search);
+      fps.value = String(value.fps);
+      window.dispatchEvent(new CustomEvent("avsync-prefs-changed"));
+      say(
+        `已保存 · 网卡 → ${nic.selectedOptions[0]?.textContent || "自动"} · ` +
+          `时长 ${value.secs} 秒 · 范围 ±${value.search} ms · ${value.fps} fps`,
+        "ok",
+      );
+    } catch (e) {
+      say(String(e), "err");
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  $("dr-v-reset").addEventListener("click", () => {
+    nic.value = "";
+    secs.value = String(AV_DEFAULTS.secs);
+    search.value = String(AV_DEFAULTS.search);
+    fps.value = String(AV_DEFAULTS.fps);
     saveBtn.click();
   });
 }

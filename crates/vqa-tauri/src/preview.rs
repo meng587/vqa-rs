@@ -45,7 +45,7 @@ impl Slot {
     }
 
     /// 重新起一路预览；同槽位已有任务时先停旧的。
-    pub fn start(&self, src: &str) -> Result<(), String> {
+    pub fn start(&self, src: &str, nic_ip: &str) -> Result<(), String> {
         let src = src.trim();
         if src.is_empty() {
             return Err("预览来源为空".into());
@@ -59,6 +59,7 @@ impl Slot {
 
         let mut cmd = vqa_core::ffmpeg::hidden(&ff);
         cmd.args(["-hide_banner", "-nostdin", "-loglevel", "error"])
+            .args(vqa_core::netif::bind_args(src, nic_ip))
             .args(["-i", src])
             .args([
                 "-an",

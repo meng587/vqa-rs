@@ -266,9 +266,14 @@ pub fn ui_pref_set(key: String, value: serde_json::Value) -> Result<(), String> 
 // ═════════ 检测画面预览 ═════════
 
 #[tauri::command]
-pub fn preview_start(st: tauri::State<'_, crate::preview::Preview>, owner: String, src: String) -> Result<(), String> {
+pub fn preview_start(
+    st: tauri::State<'_, crate::preview::Preview>,
+    owner: String,
+    src: String,
+    nic_ip: String,
+) -> Result<(), String> {
     let slot = st.slot(&owner).ok_or_else(|| format!("未知预览槽位 {owner}"))?;
-    slot.start(&src)
+    slot.start(&src, &nic_ip)
 }
 
 #[tauri::command]

@@ -267,7 +267,8 @@ export const api = {
   channelsGet: () => invoke<Channel[]>("channels_get"),
   channelsSave: (list: Channel[]) => invoke<void>("channels_save", { list }),
   // 检测画面预览
-  previewStart: (owner: string, src: string) => invoke<void>("preview_start", { owner, src }),
+  previewStart: (owner: string, src: string, nicIp = "") =>
+    invoke<void>("preview_start", { owner, src, nicIp }),
   previewStop: (owner: string) => invoke<void>("preview_stop", { owner }),
   previewFrame: (owner: string) => invoke<string | null>("preview_frame", { owner }),
   // 告警处理 / 证据录像 / 存储设置
@@ -335,6 +336,7 @@ export interface AvSyncCfg {
   secs: number;
   search_ms: number;
   fps: number;
+  nic_ip: string;
 }
 
 export interface LagPeak {

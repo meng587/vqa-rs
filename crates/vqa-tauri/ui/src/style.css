@@ -498,6 +498,8 @@ table.dt tr:hover td { background: rgba(168, 121, 58, 0.05); }
 .drchk { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 6px 2px; color: var(--text); }
 .drchk input { accent-color: var(--acc); }
 .drhint { margin-top: 12px; font-size: 11.5px; color: var(--faint); line-height: 1.75; }
+.setrow .drnum { flex: 0 0 96px; text-align: right; font-family: var(--mono); }
+.setrow .drunit { flex: none; min-width: 30px; font-size: 11.5px; color: var(--faint); }
 .drfoot { display: flex; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--border); }
 
 /* ══════════ 媒体信息抽屉 ══════════ */
