@@ -439,9 +439,23 @@ impl Mpv {
     /// 播放/暂停这种需要“按真实状态切换”的操作不能只依赖快照缓存。
     pub fn get_bool(&self, name: &str) -> Result<bool, String> {
         let r = self.command(json!(["get_property", name]))?;
-        r.get("data")
+        let v = r
+            .get("data")
             .and_then(Value::as_bool)
-            .ok_or_else(|| format!("属性 {name} 不是布尔值"))
+            .ok_or_else(|| format!("属性 {name} 不是布尔值"))?;
+        // 把直接查询到的真实值回写观察缓存，轮询里的 snapshot() 才能
+        // 立刻跟上（否则 pause 后 UI 仍可能显示“暂停”）。
+        let id = match name {
+            "pause" => Some(obs::PAUSE),
+            "idle-active" => Some(obs::IDLE_ACTIVE),
+            "seekable" => Some(obs::SEEKABLE),
+            "mute" => Some(obs::MUTE),
+            _ => None,
+        };
+        if let Some(id) = id {
+            self.props.lock().unwrap().insert(id, Value::Bool(v));
+        }
+        Ok(v)
     }
     /// 原子切换暂停：mpv 自己按当前真实状态取反，避免前端拿到旧快照后
     /// 反复 set_pause(true) 导致“暂停后按播放仍是暂停”。
