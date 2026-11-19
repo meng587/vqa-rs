@@ -1157,6 +1157,17 @@ body[data-page="analysis"] #p-chips, body[data-page="about"] #p-chips { display:
 .chgroupfilter select:focus { border-color: var(--acc); }
 .chgroupfilter select:disabled { opacity: .4; }
 
+/* 频道搜索：与分组同一行，按名称/地址/分组即时过滤 */
+.chsearch { display: inline-flex; align-items: center; min-width: 0; }
+.chsearch input {
+  width: 100%; height: 24px; min-width: 0; padding: 0 8px;
+  background: var(--field); border: 1px solid var(--border); border-radius: 7px;
+  color: var(--text); font: 11px var(--sans); outline: none;
+}
+.chsearch input::placeholder { color: var(--faint); }
+.chsearch input:focus { border-color: var(--acc); }
+.chsearch input:disabled { opacity: .4; }
+
 /* ============================================================
    一致性比对（分组版） / 告警处理 —— 2026-11 页面重做
    只在本页作用域内使用 cg- / al- 前缀，避免与旧页样式冲突。
@@ -2539,10 +2550,12 @@ body.side-collapsed .side-meta .side-collapse .btxt{display:none}
 :is(.av-side, .bst-side) .chbar.is-compact .chsub {
   display: flex; flex-wrap: wrap; align-items: center; gap: 5px 8px; width: 100%;
 }
-:is(.av-side, .bst-side) .chbar.is-compact .chsub .chgroupfilter { flex: 1 1 100%; min-width: 0; }
+:is(.av-side, .bst-side) .chbar.is-compact .chsub .chgroupfilter { flex: 0 1 104px; min-width: 0; }
 :is(.av-side, .bst-side) .chbar.is-compact .chsub .chgroupfilter select {
-  flex: 1 1 auto; width: auto; min-width: 0; max-width: none;
+  flex: 1 1 auto; width: 100%; min-width: 0; max-width: none;
 }
+:is(.av-side, .bst-side) .chbar.is-compact .chsub .chsearch { flex: 1 1 88px; min-width: 0; }
+:is(.av-side, .bst-side) .chbar.is-compact .chsub .chsearch input { height: 26px; font-size: 11.5px; }
 :is(.av-side, .bst-side) .chbar.is-compact .chacts {
   display: flex; flex-wrap: wrap; gap: 5px; width: 100%;
 }

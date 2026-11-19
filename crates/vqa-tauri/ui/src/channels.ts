@@ -87,6 +87,7 @@ export class ChannelBoard {
   private editMode: "none" | "add" | "import" = "none";
   private conc = 1;
   private groupFilter = ALL_GROUPS;
+  private search = "";
   private groups: string[] = [DEFAULT_GROUP];
   private host: HTMLElement;
   private hooks: ChannelHooks;
@@ -157,6 +158,9 @@ export class ChannelBoard {
           ${concCtl}
           <label class="chgroupfilter" title="只显示并轮询当前分组">
             分组 <select data-role="group"></select>
+          </label>
+          <label class="chsearch" title="按频道名、地址或分组搜索">
+            <input type="search" data-role="search" value="${esc(this.search)}" placeholder="搜索频道" />
           </label>
         </div>
         <div class="chacts">
@@ -257,6 +261,13 @@ export class ChannelBoard {
       this.hooks.onSelect?.(null);
       this.renderRows();
     });
+    const search = this.q<HTMLInputElement>('[data-role="search"]');
+    search?.addEventListener("input", () => {
+      this.search = search.value;
+      this.sel = -1;
+      this.hooks.onSelect?.(null);
+      this.renderRows();
+    });
     const conc = this.q<HTMLInputElement>('[data-role="conc"]');
     conc?.addEventListener("change", () => {
       this.conc = clampConc(Number(conc.value) || 1);
@@ -343,15 +354,24 @@ export class ChannelBoard {
   }
 
   private visibleRows(): { ch: Channel; i: number }[] {
+    const q = this.search.trim().toLowerCase();
     return this.chans
       .map((ch, i) => ({ ch, i }))
-      .filter(({ ch }) => groupMatches(ch, this.groupFilter));
+      .filter(({ ch }) => {
+        if (!groupMatches(ch, this.groupFilter)) return false;
+        if (!q) return true;
+        return `${ch.name} ${ch.url} ${groupOf(ch)}`.toLowerCase().includes(q);
+      });
   }
 
   private updateCount(list = this.visibleRows()) {
     const cnt = this.q<HTMLElement>(".chcount");
     if (!cnt) return;
     const on = list.filter(({ ch }) => ch.enabled).length;
+    if (this.search.trim()) {
+      cnt.textContent = `匹配 ${list.length} 个 / 启用 ${on}`;
+      return;
+    }
     cnt.textContent =
       this.groupFilter === ALL_GROUPS
         ? `${this.chans.length} 个 / 启用 ${on}`
@@ -393,7 +413,13 @@ export class ChannelBoard {
             );
           })
           .join("")
-      : `<div class="ch-empty">${this.chans.length ? "当前分组暂无频道" : "还没有频道，点「编辑列表」添加"}</div>`;
+      : `<div class="ch-empty">${
+          this.chans.length
+            ? this.search.trim()
+              ? `没有匹配“${esc(this.search.trim())}”的频道`
+              : "当前分组暂无频道"
+            : "还没有频道，点「编辑列表」添加"
+        }</div>`;
     this.updateCount(list);
     const allbox = this.q<HTMLInputElement>('[data-a="allbox"]');
     if (allbox) {
