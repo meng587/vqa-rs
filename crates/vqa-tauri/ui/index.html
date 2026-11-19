@@ -187,7 +187,7 @@
         <div class="icogroup">
           <button class="iconbtn ghost txtbtn tb-browse" id="a-browse" title="浏览本地文件…" type="button"><span data-ic="folder"></span><span class="btxt">浏览</span></button>
           <div class="expbox">
-            <button class="iconbtn ghost txtbtn tb-set" id="a-export" title="导出报告（Markdown / Word / HTML）" type="button"><span data-ic="download"></span><span class="btxt">导出报告</span></button>
+            <button class="iconbtn ghost txtbtn tb-set" id="a-export" title="导出（Markdown / Word / HTML）" type="button"><span data-ic="download"></span><span class="btxt">导出</span></button>
             <div class="histpop exppop" id="a-exppop" hidden>
               <button class="hi" data-fmt="md" type="button">Markdown 报告 <span>.md</span></button>
               <button class="hi" data-fmt="docx" type="button">Word 文档 <span>.docx</span></button>
@@ -260,8 +260,8 @@
               <button class="hi" data-fmt="html" type="button">HTML 网页报告 <span>.html</span></button>
             </div>
           </div>
-          <button class="iconbtn ghost txtbtn tb-set" id="k-set" title="合规检测设置" type="button"><span data-ic="settings"></span><span class="btxt">设置</span></button>
           <button class="iconbtn ghost txtbtn tb-info" id="k-kdoc" title="合规说明（检测依据与判定口径）" type="button"><span data-ic="bookopen"></span><span class="btxt">说明</span></button>
+          <button class="iconbtn ghost txtbtn tb-set" id="k-set" title="合规检测设置" type="button"><span data-ic="settings"></span><span class="btxt">设置</span></button>
         </div>
       </div>
 
@@ -471,15 +471,16 @@
       <div class="bst-srcbar">
         <span class="bst-label">频道地址</span>
         <div class="bst-srcbox">
-          <input class="bst-src" id="b-url" placeholder="udp://@239.x.x.x:port 或 udp://127.0.0.1:5000" spellcheck="false" />
+          <input class="bst-src" id="b-url" placeholder="udp://@239.x.x.x:port、udp://127.0.0.1:5000 或本地 TS 文件" spellcheck="false" />
         </div>
         <div class="bst-current" id="b-current">
           <span class="bst-current-mark"></span>
           <span id="b-current-name">手动来源</span>
         </div>
         <div class="bst-actions">
-          <button class="txtbtn tb-set" id="b-settings" type="button"><span data-ic="settings"></span><span class="btxt">参数设置</span></button>
           <button class="gradbtn bst-start" id="b-act" type="button"><span data-ic="activity"></span><span class="btxt">开始检测</span></button>
+          <button class="txtbtn tb-browse" id="b-browse" type="button" title="选择本地媒体文件"><span data-ic="folder"></span><span class="btxt">浏览</span></button>
+          <button class="txtbtn tb-set" id="b-settings" type="button" title="微突发检测设置"><span data-ic="settings"></span><span class="btxt">设置</span></button>
           <button class="txtbtn bst-stop" id="b-stop" type="button" hidden><span data-ic="square"></span><span class="btxt">停止</span></button>
         </div>
       </div>
@@ -535,7 +536,7 @@
         <div class="bst-mask" data-bst-close></div>
         <div class="bst-dialog" role="dialog" aria-modal="true" aria-labelledby="b-set-title">
           <div class="bst-dialog-head">
-            <div><b id="b-set-title">参数设置</b><span>只影响下一次检测；检测中不可修改</span></div>
+            <div><b id="b-set-title">微突发检测设置</b><span>只影响下一次检测；检测中不可修改</span></div>
             <button class="bst-x" id="b-set-x" type="button" aria-label="关闭">关闭</button>
           </div>
           <div class="bst-dialog-body">
@@ -578,8 +579,8 @@
         <span class="lbl">来源</span>
         <div class="srcbox">
           <input class="src" id="av-src" placeholder="本地文件 / udp://@239.x.x.x:port / rtsp://…" spellcheck="false" />
-          <button class="iconbtn ghost histbtn txtbtn tb-browse" id="av-browse" title="浏览本地文件…" type="button"><span data-ic="folder"></span><span class="btxt">浏览</span></button>
         </div>
+        <button class="iconbtn ghost txtbtn tb-browse" id="av-browse" title="浏览本地文件…" type="button"><span data-ic="folder"></span><span class="btxt">浏览</span></button>
         <button class="iconbtn ghost txtbtn tb-set" id="av-set" type="button" title="音画同步设置"><span data-ic="settings"></span><span class="btxt">设置</span></button>
         <div class="vsep"></div>
         <button class="gradbtn" id="av-act"><span data-ic="audiolines"></span>开始检测</button>
@@ -634,7 +635,9 @@
         <div class="cg-acts" id="cg-acts-compare">
           <button class="cg-ghost" id="cg-new">新建分组</button>
           <button class="cg-ghost" id="cg-import">导入频道</button>
+          <button class="cg-ghost" id="cg-editlist">编辑列表</button>
           <button class="cg-grad" id="cg-all">开始轮询</button>
+          <button class="cg-ghost" id="cg-param">参数设置</button>
         </div>
         <div class="cg-acts" id="cg-acts-alarm" hidden>
           <button class="al-ghost" id="al-export">导出记录</button>
@@ -649,17 +652,21 @@
         <span class="cg-chip">阈值 <b id="cg-chip-thr">0.75</b></span>
         <span class="cg-chip">台标 <b id="cg-chip-logo">整帧</b></span>
         <span class="cg-chip">并发 <b id="cg-chip-conc">2</b></span>
-        <button class="cg-btnset" id="cg-param">参数设置</button>
         <span class="cg-runinfo" id="cg-runinfo">待机</span>
       </div>
       <div class="cg-grid" id="cg-grid">
         <aside class="cg-card cg-left" id="cg-left">
-          <div class="cg-lhead"><b>待检测分组</b><span id="cg-count">0 组 / 0 源</span><button id="cg-collapse">收起</button></div>
+          <div class="cg-lhead"><b>比对频道</b><span id="cg-count">0 组 / 0 对</span><button id="cg-collapse">收起</button></div>
+          <div class="cg-filterbar">
+            <label class="cg-gselect">分组<select id="cg-groupfilter"><option value="all">全部</option></select></label>
+            <label class="cg-search"><input id="cg-search" placeholder="搜索频道 / 来源 / 地址" /></label>
+            <label class="cg-allbox" title="勾选当前列表里的全部比对对"><input type="checkbox" id="cg-allbox" /><span>全选</span></label>
+          </div>
           <div class="cg-list" id="cg-list"></div>
           <div class="cg-rail" id="cg-rail" hidden></div>
           <div class="cg-gfoot" id="cg-gfoot">
             <button class="cg-primary" id="cg-runpair">比对当前对</button>
-            <button id="cg-rungroup" hidden>检测本组全部对</button>
+            <button id="cg-rungroup" hidden>轮询选中</button>
             <button class="cg-stop" id="cg-stop" hidden>停止</button>
           </div>
         </aside>

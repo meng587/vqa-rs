@@ -3,8 +3,12 @@
 //! 交换机缓冲不足时，这类突发会先在接收端表现为抖动与丢包。
 //!
 //! 只统计到达时刻与字节数，不解 TS、不解码，开销极小。
+//! 本地文件会先由 ffmpeg 按原速回放到管道，再按同样的时间窗统计。
 
+use std::io::Read;
 use std::net::UdpSocket;
+use std::path::PathBuf;
+use std::process::{Child, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -67,16 +71,71 @@ pub struct BurstSession {
     running: Arc<AtomicBool>,
     started: Instant,
     window_ms: u64,
+    /// 本地文件回放子进程；UDP 实时流为 None
+    relay: Option<Arc<Mutex<Child>>>,
     pub url: String,
+}
+
+/// 识别本地媒体路径（兼容浏览按钮返回的 Windows 路径和 file:// 前缀）。
+fn local_file(url: &str) -> Option<PathBuf> {
+    let raw = url.trim();
+    let raw = raw.strip_prefix("file://").unwrap_or(raw);
+    let path = PathBuf::from(raw);
+    if path.is_file() {
+        Some(path)
+    } else {
+        None
+    }
+}
+
+/// 把一个读取到的数据块计入当前时间窗，并判断上一窗是否构成微突发。
+fn record_window(
+    inner: &Arc<Mutex<Inner>>,
+    t0: Instant,
+    window_ms: u64,
+    ratio: f64,
+    n: usize,
+    packet_count: u64,
+) {
+    let ms = t0.elapsed().as_millis() as u64;
+    let window_idx = ms / window_ms;
+    if let Ok(mut g) = inner.lock() {
+        g.packets += packet_count;
+        g.bytes += n as u64;
+        let mut new_window = false;
+        match g.buckets.last_mut() {
+            Some((idx, b)) if *idx == window_idx => *b += n as u64,
+            _ => {
+                new_window = true;
+                g.buckets.push((window_idx, n as u64));
+            }
+        }
+        if new_window {
+            // 上一个窗口已结束：按当时的均值判断是否算一次微突发
+            if g.buckets.len() >= 2 {
+                let (_, prev) = g.buckets[g.buckets.len() - 2];
+                let elapsed_ms = ms.max(1) as f64;
+                let avg_bpm = g.bytes as f64 / elapsed_ms;
+                let threshold = avg_bpm * window_ms as f64 * ratio;
+                if avg_bpm > 0.0 && prev as f64 >= threshold {
+                    g.burst_cnt += 1;
+                }
+            }
+            // 只保留最近窗口，长时间跑不吃内存
+            if g.buckets.len() > SERIES_N * 4 {
+                let drop_n = g.buckets.len() - SERIES_N * 2;
+                g.buckets.drain(..drop_n);
+            }
+        }
+        let last = *g.buckets.last().map(|(_, b)| b).unwrap_or(&0);
+        if last > g.peak {
+            g.peak = last;
+        }
+    }
 }
 
 impl BurstSession {
     pub fn start(cfg: &BurstCfg) -> anyhow::Result<Self> {
-        let (host, port, _scheme) = crate::live::parse_udp_url(&cfg.url)?;
-        let sock = crate::live::open_socket(&host, port, &cfg.nic_ip)
-            .map_err(|e| anyhow::anyhow!("Socket 绑定失败：{e}"))?;
-        let _ = sock.set_read_timeout(Some(Duration::from_millis(300)));
-
         let inner = Arc::new(Mutex::new(Inner {
             packets: 0,
             bytes: 0,
@@ -85,67 +144,87 @@ impl BurstSession {
             burst_cnt: 0,
         }));
         let running = Arc::new(AtomicBool::new(true));
-        let th_in = Arc::clone(&inner);
-        let th_run = Arc::clone(&running);
         let ratio = cfg.ratio.max(1.05);
         let window_ms = cfg.window_ms.clamp(1, 1000);
+        let t0 = Instant::now();
+        let mut relay: Option<Arc<Mutex<Child>>> = None;
 
-        std::thread::Builder::new()
-            .name("vqa-burst-recv".into())
-            .spawn(move || {
-                let mut pkt = [0u8; 65535];
-                let t0 = Instant::now();
-                while th_run.load(Ordering::Relaxed) {
-                    let n = match sock.recv_from(&mut pkt) {
-                        Ok((n, _)) => n,
-                        Err(_) => continue, // 超时：回到循环检查停止标志
-                    };
-                    if n == 0 {
-                        continue;
-                    }
-                    let ms = t0.elapsed().as_millis() as u64;
-                    let window_idx = ms / window_ms;
-                    if let Ok(mut g) = th_in.lock() {
-                        g.packets += 1;
-                        g.bytes += n as u64;
-                        let mut new_window = false;
-                        match g.buckets.last_mut() {
-                            Some((idx, b)) if *idx == window_idx => *b += n as u64,
-                            _ => {
-                                new_window = true;
-                                g.buckets.push((window_idx, n as u64));
+        if let Some(path) = local_file(&cfg.url) {
+            // 本地文件没有网络到达时刻：用 ffmpeg -re 按原速回放成 MPEG-TS 管道，
+            // 再用管道读取时刻统计窗口字节量，等价于一次本机回放检测。
+            let ffmpeg = crate::tools::find_ffmpeg()
+                .ok_or_else(|| anyhow::anyhow!("未找到 ffmpeg，无法回放本地文件"))?;
+            let mut cmd = crate::ffmpeg::hidden(&ffmpeg);
+            cmd.args(["-hide_banner", "-loglevel", "error", "-nostdin", "-re", "-i"])
+                .arg(&path)
+                .args(["-map", "0", "-c", "copy", "-f", "mpegts", "pipe:1"])
+                .stdin(Stdio::null())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null());
+            let mut child = cmd
+                .spawn()
+                .map_err(|e| anyhow::anyhow!("本地文件回放启动失败：{e}"))?;
+            let mut out = child
+                .stdout
+                .take()
+                .ok_or_else(|| anyhow::anyhow!("无法读取本地文件回放输出"))?;
+            let child = Arc::new(Mutex::new(child));
+            relay = Some(Arc::clone(&child));
+
+            let th_in = Arc::clone(&inner);
+            let th_run = Arc::clone(&running);
+            std::thread::Builder::new()
+                .name("vqa-burst-file".into())
+                .spawn(move || {
+                    let mut buf = [0u8; 65535];
+                    while th_run.load(Ordering::Relaxed) {
+                        match out.read(&mut buf) {
+                            Ok(0) => break,
+                            Ok(n) if n > 0 => {
+                                // MPEG-TS 固定 188 字节/包；管道边界可能截断，按 chunk 近似计数
+                                let pkt_cnt = (n / 188).max(1) as u64;
+                                record_window(&th_in, t0, window_ms, ratio, n, pkt_cnt)
                             }
-                        }
-                        if new_window {
-                            // 上一个窗口已结束：按当时的均值判断是否算一次微突发
-                            if g.buckets.len() >= 2 {
-                                let (_, prev) = g.buckets[g.buckets.len() - 2];
-                                let elapsed_ms = ms.max(1) as f64;
-                                let avg_bpm = g.bytes as f64 / elapsed_ms;
-                                let threshold = avg_bpm * window_ms as f64 * ratio;
-                                if avg_bpm > 0.0 && prev as f64 >= threshold {
-                                    g.burst_cnt += 1;
-                                }
-                            }
-                            // 只保留最近窗口，长时间跑不吃内存
-                            if g.buckets.len() > SERIES_N * 4 {
-                                let drop_n = g.buckets.len() - SERIES_N * 2;
-                                g.buckets.drain(..drop_n);
-                            }
-                        }
-                        let last = *g.buckets.last().map(|(_, b)| b).unwrap_or(&0);
-                        if last > g.peak {
-                            g.peak = last;
+                            Ok(_) => {}
+                            Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+                            Err(_) => break,
                         }
                     }
-                }
-            })?;
+                    th_run.store(false, Ordering::Relaxed);
+                    if let Ok(mut c) = child.lock() {
+                        let _ = c.kill();
+                        let _ = c.wait();
+                    }
+                })?;
+        } else {
+            let (host, port, _scheme) = crate::live::parse_udp_url(&cfg.url)?;
+            let sock = crate::live::open_socket(&host, port, &cfg.nic_ip)
+                .map_err(|e| anyhow::anyhow!("Socket 绑定失败：{e}"))?;
+            let _ = sock.set_read_timeout(Some(Duration::from_millis(300)));
+
+            let th_in = Arc::clone(&inner);
+            let th_run = Arc::clone(&running);
+            std::thread::Builder::new()
+                .name("vqa-burst-recv".into())
+                .spawn(move || {
+                    let mut pkt = [0u8; 65535];
+                    while th_run.load(Ordering::Relaxed) {
+                        match sock.recv_from(&mut pkt) {
+                            Ok((n, _)) if n > 0 => {
+                                record_window(&th_in, t0, window_ms, ratio, n, 1)
+                            }
+                            _ => continue, // 超时/空包：回到循环检查停止标志
+                        }
+                    }
+                })?;
+        }
 
         Ok(Self {
             inner,
             running,
-            started: Instant::now(),
+            started: t0,
             window_ms,
+            relay,
             url: cfg.url.clone(),
         })
     }
@@ -215,6 +294,12 @@ impl BurstSession {
 
     pub fn stop(&self) {
         self.running.store(false, Ordering::Relaxed);
+        if let Some(child) = &self.relay {
+            if let Ok(mut c) = child.lock() {
+                let _ = c.kill();
+                let _ = c.wait();
+            }
+        }
     }
 }
 

@@ -4,6 +4,7 @@
 //! 每次比对复用后端 consist 任务槽，全部轮询按并发路数调度，任务 id 为 all-1…all-8。
 
 import { api, AlarmRecord, Channel, ConsistResult } from "./api";
+import { openConsistEditor } from "./consist-editor";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -14,20 +15,20 @@ const esc = (s: string) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
-interface CSource {
+export interface CSource {
   id: string;
   name: string;
   url: string;
   base: boolean;
   enabled: boolean;
 }
-interface CChannel {
+export interface CChannel {
   id: string;
   name: string;
   mode: "base" | "pairwise";
   sources: CSource[];
 }
-interface CGroup {
+export interface CGroup {
   id: string;
   name: string;
   channels: CChannel[];
@@ -76,6 +77,10 @@ let runningAll = false;
 let running = false;
 let stopRequested = false;
 let collapsed = false;
+let cgGroupFilter = "all";
+let cgQuery = "";
+let selectedPairs = new Set<string>();
+let selectionReady = false;
 let editGid = "";
 let editCid = "";
 let groupDeleteArmed = false;
@@ -282,12 +287,136 @@ function clearGroupResults(g: CGroup) {
   for (const k of [...results.keys()]) if (k.startsWith(prefix)) results.delete(k);
 }
 
+// ═════════════ 分组 / 比对对列表 ═════════════
+
+function seedPairSelection() {
+  if (selectionReady) return;
+  selectedPairs.clear();
+  for (const p of allPairs()) selectedPairs.add(resultKey(p));
+  selectionReady = true;
+}
+
+function groupMatchesFilter(g: CGroup): boolean {
+  return cgGroupFilter === "all" || cgGroupFilter === g.id;
+}
+
+function pairMatchesSearch(p: Pair): boolean {
+  const q = cgQuery.trim().toLowerCase();
+  if (!q) return true;
+  return `${p.g.name} ${p.ch.name} ${p.ref.name} ${p.ref.url} ${p.tgt.name} ${p.tgt.url}`.toLowerCase().includes(q);
+}
+
+function unpairedMatchesSearch(g: CGroup, ch: CChannel): boolean {
+  const q = cgQuery.trim().toLowerCase();
+  if (!q) return true;
+  const urls = enabledSources(ch).map((s) => `${s.name} ${s.url}`).join(" ");
+  return `${g.name} ${ch.name} ${urls}`.toLowerCase().includes(q);
+}
+
+function visiblePairs(): Pair[] {
+  return groups.filter(groupMatchesFilter).flatMap((g) => groupPairs(g).filter(pairMatchesSearch));
+}
+
+function pairStatus(p: Pair): GroupState {
+  const rr = pairState(p);
+  if (rr) {
+    if (!rr.r.ok) return { text: "失败", cls: "bad", summary: (rr.r.err || "比对失败").slice(0, 24) };
+    const sim = (rr.r.mean_sim * 100).toFixed(1);
+    const off = rr.r.best_offset_ms ? `${rr.r.best_offset_ms > 0 ? "+" : ""}${rr.r.best_offset_ms}ms` : "对齐";
+    if (rr.r.bad_count > 0) return { text: "差异", cls: "warn", summary: `${sim}% · ${rr.r.bad_count} 段` };
+    if (Math.abs(rr.r.best_offset_ms) >= 200) return { text: "不同步", cls: "warn", summary: `${sim}% · ${off}` };
+    return { text: "通过", cls: "ok", summary: `${sim}% · ${off}` };
+  }
+  const cs = channelState(p.g, p.ch);
+  if (cs.text === "检测中") return cs;
+  return { text: "待检", cls: "idle", summary: "—" };
+}
+
+function renderGroupFilter() {
+  const sel = $<HTMLSelectElement>("cg-groupfilter");
+  if (!sel) return;
+  if (cgGroupFilter !== "all" && !groups.some((g) => g.id === cgGroupFilter)) cgGroupFilter = "all";
+  sel.innerHTML =
+    `<option value="all">全部（${groups.length} 组）</option>` +
+    groups.map((g) => `<option value="${g.id}">${esc(g.name)}（${groupPairs(g).length} 对）</option>`).join("");
+  sel.value = cgGroupFilter;
+}
+
+function syncSelectionUi() {
+  const box = $<HTMLInputElement>("cg-allbox");
+  if (!box) return;
+  const list = visiblePairs();
+  const picked = list.filter((p) => selectedPairs.has(resultKey(p))).length;
+  box.checked = list.length > 0 && picked === list.length;
+  box.indeterminate = picked > 0 && picked < list.length;
+  const rg = $<HTMLButtonElement>("cg-rungroup");
+  if (rg) rg.hidden = allPairs().length === 0;
+}
+
+function pairRowHtml(p: Pair): string {
+  const key = resultKey(p);
+  const cp = activePair();
+  const active = !!cp && resultKey(cp) === key;
+  const checked = selectedPairs.has(key);
+  const st = pairStatus(p);
+  const siblings = channelPairs(p.ch, p.g);
+  const index = siblings.findIndex((x) => resultKey(x) === key) + 1;
+  return `<div class="cg-prow${active ? " sel" : ""}${checked ? "" : " off"}" data-g="${p.g.id}" data-c="${p.ch.id}" data-t="${p.tgt.id}" data-pkey="${key}">
+    <label class="cg-pchk" title="勾选后参与轮询"><input type="checkbox" data-pick="${key}" ${checked ? "checked" : ""} /></label>
+    <div class="cg-pmain">
+      <div class="cg-ptop">
+        <b class="cg-pname" title="${esc(p.ch.name)}">${esc(p.ch.name)}</b>
+        ${siblings.length > 1 ? `<span class="cg-pidx">${index}/${siblings.length}</span>` : ""}
+        <span class="cg-pstate ${st.cls}" title="${esc(st.summary)}">${esc(st.text)}</span>
+        <button class="cg-pedit" data-cedit="${p.g.id}:${p.ch.id}" title="频道设置">⋯</button>
+      </div>
+      <div class="cg-pduo">
+        <span class="cg-prole ref">基准</span><span class="cg-psname" title="${esc(p.ref.name)}">${esc(p.ref.name)}</span>
+        <span class="cg-parrow">→</span>
+        <span class="cg-prole tgt">待比</span><span class="cg-psname" title="${esc(p.tgt.name)}">${esc(p.tgt.name)}</span>
+      </div>
+      <div class="cg-pmeta">
+        <span class="cg-purls"><span title="${esc(p.ref.url)}">${esc(p.ref.url || "未填地址")}</span><span title="${esc(p.tgt.url)}">${esc(p.tgt.url || "未填地址")}</span></span>
+        <span class="cg-pres">${esc(st.summary)}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function unpairedRowHtml(g: CGroup, ch: CChannel): string {
+  const on = enabledSources(ch);
+  const base = baseOf(ch);
+  return `<div class="cg-prow unpaired" data-g="${g.id}" data-c="${ch.id}">
+    <span class="cg-pchk-off" title="至少需要 2 路启用来源才能配对"></span>
+    <div class="cg-pmain">
+      <div class="cg-ptop">
+        <b class="cg-pname" title="${esc(ch.name)}">${esc(ch.name)}</b>
+        <span class="cg-pstate idle">未配对</span>
+        <button class="cg-pedit" data-cedit="${g.id}:${ch.id}" title="频道设置">⋯</button>
+      </div>
+      <div class="cg-pduo">
+        <span class="cg-prole ref">基准</span><span class="cg-psname" title="${esc(base?.name || "未配置")}">${esc(base?.name || "未配置")}</span>
+        <span class="cg-parrow">→</span>
+        <span class="cg-prole tgt">待比</span><span class="cg-psname muted">未配置</span>
+      </div>
+      <div class="cg-pmeta">
+        <span class="cg-purls">${base ? `<span title="${esc(base.url)}">${esc(base.url || "未填地址")}</span>` : `<span>至少需要 2 路启用来源</span>`}</span>
+        <span class="cg-pres">${on.length} 路启用</span>
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderGroups() {
   const host = $("cg-list");
   if (!host) return;
-  const totalChannels = groups.reduce((n, g) => n + g.channels.length, 0);
+  renderGroupFilter();
+  const all = allPairs();
   const cnt = $("cg-count");
-  if (cnt) cnt.textContent = `${groups.length} 组 / ${totalChannels} 频道`;
+  if (cnt) {
+    const matched = visiblePairs().length;
+    cnt.textContent = cgQuery.trim() ? `${groups.length} 组 / ${all.length} 对 · 匹配 ${matched}` : `${groups.length} 组 / ${all.length} 对`;
+  }
   if (!groups.length) {
     host.innerHTML = `<div class="cg-seg-empty" style="padding:22px 14px;line-height:1.7">还没有分组。点右上角「＋ 新建分组」，再点分组里的「＋ 新建频道」添加频道。</div>`;
     const rp = $<HTMLButtonElement>("cg-runpair");
@@ -295,83 +424,52 @@ function renderGroups() {
     const rg = $<HTMLButtonElement>("cg-rungroup");
     if (rg) rg.hidden = true;
     renderRail();
+    syncSelectionUi();
     stopPreview();
     renderPair(null);
     return;
-  }
+    }
   if (!activeGroup()) activeGid = groups[0].id;
   activeChannel();
 
+  const searching = cgQuery.trim().length > 0;
   host.innerHTML = groups
+    .filter(groupMatchesFilter)
     .map((g) => {
+      const pairs = groupPairs(g).filter(pairMatchesSearch);
+      const unpaired = g.channels.filter((ch) => enabledSources(ch).length < 2 && unpairedMatchesSearch(g, ch));
+      if (searching && !pairs.length && !unpaired.length) return "";
       const active = g.id === activeGid;
-      const open = active && !closedGroups.has(g.id);
+      const open = !closedGroups.has(g.id) || searching;
       const st = groupState(g);
-      const chRows = g.channels
-        .map((ch) => {
-          const chActive = open && ch.id === activeCid;
-          const on = enabledSources(ch);
-          const cst = channelState(g, ch);
-          const p = chActive ? pairOf(ch, activeTgt, g) : null;
-          const pr = p ? pairState(p) : null;
-          const srcRows = chActive
-            ? ch.sources
-                .map((s) => {
-                  const isPair = p && s.id === p.tgt.id;
-                  const isBase = s.id === (baseOf(ch)?.id || "");
-                  const rowRes =
-                    isPair && pr
-                      ? `<b>${(pr.r.mean_sim * 100).toFixed(1)}%</b>${pr.r.best_offset_ms ? ` · ${pr.r.best_offset_ms > 0 ? "+" : ""}${pr.r.best_offset_ms}ms` : ""}`
-                      : isBase
-                        ? `<b>基准</b>`
-                        : s.enabled
-                          ? "待比"
-                          : "已停用";
-                  return `<div class="cg-src-row${isPair ? " sel" : ""}" data-g="${g.id}" data-c="${ch.id}" data-s="${s.id}">
-                    <span class="cg-radio${isPair || isBase ? " on" : ""}"></span>
-                    <div class="cg-sm"><div class="cg-sn"><span>${esc(s.name || "未命名来源")}</span><span class="cg-tag ${isBase ? "base" : s.enabled ? "cmp" : "off"}">${isBase ? "基准" : s.enabled ? "待比" : "停用"}</span></div>
-                    <span class="cg-sa">${esc(s.url || "未填地址")}</span></div>
-                    <span class="cg-sr">${rowRes}</span>
-                  </div>`;
-                })
-                .join("") +
-              `<button class="cg-addsrc" data-addsrc="${g.id}:${ch.id}">＋ 添加来源（如备份链路）</button>`
-            : "";
-          return `<div class="cg-channel${chActive ? " active" : ""}" data-cid="${ch.id}">
-            <div class="cg-chhead" data-g="${g.id}" data-c="${ch.id}">
-              <span class="cg-caret">${chActive ? "▾" : "▸"}</span>
-              <div class="cg-chname"><b>${esc(ch.name)}</b><span class="cg-pair">${on.length} 源 · ${channelPairs(ch, g).length} 对</span></div>
-              <span class="cg-chst ${cst.cls}">${esc(cst.text)}</span>
-              <button class="cg-gbtn" data-cedit="${g.id}:${ch.id}" title="频道设置">⋯</button>
-            </div>
-            ${chActive ? `<div class="cg-srcs">${srcRows}</div>` : ""}
-          </div>`;
-        })
-        .join("");
+      const rows =
+        pairs.map(pairRowHtml).join("") +
+        unpaired.map((ch) => unpairedRowHtml(g, ch)).join("");
       return `<div class="cg-group${active ? " active" : ""}" data-gid="${g.id}">
         <div class="cg-ghead" data-g="${g.id}">
           <span class="cg-caret">${open ? "▾" : "▸"}</span>
           <div class="cg-gname"><b>${esc(g.name)}</b><span class="cg-pair">${g.channels.length} 频道 · ${groupPairs(g).length} 对</span></div>
           <span class="cg-gst ${st.cls}">${esc(st.text)}</span>
-          <span class="cg-grs">${esc(st.summary)}</span>
           <button class="cg-gbtn" data-gedit="${g.id}" title="分组设置">⋯</button>
         </div>
-        ${open ? `<div class="cg-chlist">${chRows || `<div class="cg-ch-empty">这个分组下还没有频道</div>`}<button class="cg-addch" data-addch="${g.id}">＋ 新建频道</button></div>` : ""}
+        ${open ? `<div class="cg-plist">${rows || `<div class="cg-ch-empty">这个分组下还没有可比对的频道；至少需要 2 路启用来源。</div>`}<button class="cg-addch" data-addch="${g.id}">＋ 新建频道</button></div>` : ""}
       </div>`;
     })
     .join("");
+  if (!host.innerHTML.trim()) {
+    host.innerHTML = `<div class="cg-seg-empty" style="padding:22px 14px;line-height:1.7">没有匹配的频道。换个关键词，或把分组筛选切回「全部」。</div>`;
+  }
   bindGroupClicks(host);
   const cp = activePair();
   if (!cp) stopPreview();
   renderPair(cp);
   renderRail();
+  syncSelectionUi();
   const rp = $<HTMLButtonElement>("cg-runpair");
   if (rp) rp.disabled = running || !cp;
   const rg = $<HTMLButtonElement>("cg-rungroup");
   if (rg) {
-    const g = activeGroup();
-    const count = g ? groupPairs(g).length : 0;
-    rg.hidden = count <= 1;
+    rg.hidden = all.length === 0;
     rg.disabled = running;
   }
 }
@@ -398,34 +496,18 @@ function bindGroupClicks(host: HTMLElement) {
       openChannel(addch.dataset.addch!, "");
       return;
     }
-    const addsrc = t.closest<HTMLElement>("[data-addsrc]");
-    if (addsrc) {
-      e.stopPropagation();
-      const [gid, cid] = (addsrc.dataset.addsrc || "").split(":");
-      openChannel(gid, cid);
+    if (t.closest(".cg-pchk") || t.closest(".cg-pchk-off")) return;
+    const unpaired = t.closest<HTMLElement>(".cg-prow.unpaired");
+    if (unpaired) {
+      openChannel(unpaired.dataset.g!, unpaired.dataset.c!);
       return;
     }
-    const src = t.closest<HTMLElement>(".cg-src-row");
-    if (src) {
-      activeGid = src.dataset.g!;
-      activeCid = src.dataset.c!;
-      activeTgt = src.dataset.s!;
-      const ch = activeChannel();
-      const p = ch ? pairOf(ch) : null;
-      // 点基准行时不要把基准当待比，保持当前待比或选第一条非基准
-      if (p && activeTgt === p.ref.id) {
-        const first = enabledSources(ch!).find((s) => s.id !== p.ref.id);
-        activeTgt = first?.id || "";
-      }
-      renderGroups();
-      startPreview(activePair());
-      return;
-    }
-    const chead = t.closest<HTMLElement>(".cg-chhead");
-    if (chead) {
-      activeGid = chead.dataset.g!;
-      activeCid = chead.dataset.c!;
-      activeTgt = "";
+    const row = t.closest<HTMLElement>(".cg-prow");
+    if (row) {
+      activeGid = row.dataset.g!;
+      activeCid = row.dataset.c!;
+      activeTgt = row.dataset.t!;
+      closedGroups.delete(activeGid);
       renderGroups();
       startPreview(activePair());
       return;
@@ -439,13 +521,21 @@ function bindGroupClicks(host: HTMLElement) {
         activeCid = g?.channels[0]?.id || "";
         activeTgt = "";
         closedGroups.delete(id);
-      } else if (activeGroup()?.channels.length) {
-        if (closedGroups.has(id)) closedGroups.delete(id);
-        else closedGroups.add(id);
-      }
+      } else if (closedGroups.has(id)) closedGroups.delete(id);
+      else closedGroups.add(id);
       renderGroups();
       startPreview(activePair());
     }
+  };
+  host.onchange = (e) => {
+    const box = (e.target as HTMLElement).closest<HTMLInputElement>("input[data-pick]");
+    if (!box) return;
+    const key = box.dataset.pick || "";
+    if (!key) return;
+    if (box.checked) selectedPairs.add(key);
+    else selectedPairs.delete(key);
+    box.closest<HTMLElement>(".cg-prow")?.classList.toggle("off", !box.checked);
+    syncSelectionUi();
   };
 }
 
@@ -921,6 +1011,54 @@ async function runGroup() {
   renderGroups();
 }
 
+async function runSelected() {
+  if (running) return;
+  const pairs = allPairs().filter((p) => selectedPairs.has(resultKey(p)));
+  if (!pairs.length) {
+    setRunInfo("先在左侧勾选要比对的频道", "err");
+    return;
+  }
+  stopRequested = false;
+  const cleared = new Set<string>();
+  for (const p of pairs) {
+    if (!cleared.has(p.g.id)) {
+      clearGroupResults(p.g);
+      cleared.add(p.g.id);
+    }
+  }
+  markGroupsRunning(pairs);
+  renderGroups();
+  setRunning(true);
+  const conc = Math.max(1, Math.min(8, Math.round(cfg.conc) || 1, pairs.length));
+  setRunInfo(`选中 ${pairs.length} 对 · 并发 ${conc}`, "run");
+  let cursor = 0;
+  const workers = Array.from({ length: conc }, async (_, i) => {
+    while (!stopRequested) {
+      const idx = cursor++;
+      if (idx >= pairs.length) return;
+      await runPair(pairs[idx], `sel-${i}`, false);
+    }
+  });
+  await Promise.all(workers);
+  if (stopRequested) {
+    for (const p of pairs) {
+      channelStates.delete(chKey(p.g, p.ch));
+      channelErrors.delete(chKey(p.g, p.ch));
+    }
+    for (const g of groups) {
+      if (groupStates.get(g.id)?.text === "检测中") groupStates.delete(g.id);
+      refreshGroupState(g);
+    }
+    setRunInfo("已停止");
+  } else {
+    const bad = [...groupStates.values()].filter((s) => s.cls === "warn" || s.cls === "bad").length;
+    setRunInfo(bad ? `选中完成 · ${pairs.length} 对 · ${bad} 组异常` : `选中完成 · ${pairs.length} 对 · 未发现异常`, bad ? "err" : "");
+  }
+  setRunning(false);
+  stopRequested = false;
+  renderGroups();
+}
+
 async function runAll() {
   if (running) return;
   const pairs = allPairs();
@@ -1301,6 +1439,7 @@ function saveChannel() {
     clearChannelResults(g, ch);
     if (wasActive || idx < 0) setRunInfo("待机");
   }
+  if (selectionReady) channelPairs(ch, g).forEach((p) => selectedPairs.add(resultKey(p)));
   activeGid = g.id;
   activeCid = ch.id;
   activeTgt = "";
@@ -1380,6 +1519,9 @@ async function importChannels() {
       addedSrc += 1;
     }
     if (!ch.sources.some((s) => s.base) && ch.sources[0]) ch.sources[0].base = true;
+  }
+  if (selectionReady) {
+    for (const ch of g.channels) channelPairs(ch, g).forEach((p) => selectedPairs.add(resultKey(p)));
   }
   if (!activeCid || !g.channels.some((c) => c.id === activeCid)) activeCid = g.channels[0]?.id || "";
   activeTgt = "";
@@ -1478,10 +1620,34 @@ async function loadGroups() {
   if (g && (!activeCid || !g.channels.some((c) => c.id === activeCid))) activeCid = g.channels[0]?.id || "";
   const firstPair = activePair();
   activeTgt = firstPair?.tgt.id || "";
+  seedPairSelection();
   persistGroups();
 }
 
 // ═════════════ 初始化 ═════════════
+
+function openListEditor() {
+  openConsistEditor(groups, async (next) => {
+    await api.uiSet(G_KEY, next);
+    groups = next;
+    results.clear();
+    groupStates.clear();
+    channelStates.clear();
+    channelErrors.clear();
+    closedGroups.clear();
+    if (cgGroupFilter !== "all" && !groups.some((g) => g.id === cgGroupFilter)) cgGroupFilter = "all";
+    if (!groups.some((g) => g.id === activeGid)) activeGid = groups[0]?.id || "";
+    const g = activeGroup();
+    if (!g || !g.channels.some((c) => c.id === activeCid)) activeCid = g?.channels[0]?.id || "";
+    activeTgt = "";
+    selectedPairs.clear();
+    for (const p of allPairs()) selectedPairs.add(resultKey(p));
+    selectionReady = true;
+    renderGroups();
+    startPreview(activePair());
+    setRunInfo("列表已保存");
+  });
+}
 
 export function initConsist() {
   $("cg-param")?.addEventListener("click", openParam);
@@ -1518,10 +1684,35 @@ export function initConsist() {
 
   $("cg-new")?.addEventListener("click", () => openGroupMeta());
   $("cg-import")?.addEventListener("click", importChannels);
+  $("cg-editlist")?.addEventListener("click", openListEditor);
   $("cg-all")?.addEventListener("click", runAll);
   $("cg-runpair")?.addEventListener("click", runCurrent);
-  $("cg-rungroup")?.addEventListener("click", runGroup);
+  $("cg-rungroup")?.addEventListener("click", runSelected);
   $("cg-stop")?.addEventListener("click", stopAll);
+  $("cg-groupfilter")?.addEventListener("change", (e) => {
+    cgGroupFilter = ($<HTMLSelectElement>("cg-groupfilter")?.value || "all");
+    if (cgGroupFilter !== "all") {
+      activeGid = cgGroupFilter;
+      const g = activeGroup();
+      activeCid = g?.channels[0]?.id || "";
+      activeTgt = "";
+      closedGroups.delete(cgGroupFilter);
+    }
+    renderGroups();
+  });
+  $("cg-search")?.addEventListener("input", (e) => {
+    cgQuery = ($<HTMLInputElement>("cg-search")?.value || "");
+    renderGroups();
+  });
+  $("cg-allbox")?.addEventListener("change", (e) => {
+    const box = e.target as HTMLInputElement;
+    for (const p of visiblePairs()) {
+      const key = resultKey(p);
+      if (box.checked) selectedPairs.add(key);
+      else selectedPairs.delete(key);
+    }
+    renderGroups();
+  });
   $("cg-collapse")?.addEventListener("click", () => {
     collapsed = !collapsed;
     $("cg-grid")?.classList.toggle("collapsed", collapsed);
