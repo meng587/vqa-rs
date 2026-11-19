@@ -2397,8 +2397,8 @@ main{padding:8px 24px; gap:8px; min-width:0}
 }
 .srcbar .lbl-src{
   font-family:"VQA Seal","KaiTi","STKaiti","SimSun","Songti SC",serif;
-  font-size:21px; font-weight:400; font-synthesis:none;
-  letter-spacing:.06em; color:var(--ink);
+  font-size:24px; font-weight:400; font-synthesis:none;
+  letter-spacing:.02em; color:var(--ink);
 }
 /* 山峦与海浪：山海经意象的小印 */
 .srcbox::before{
