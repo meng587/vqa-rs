@@ -1,11 +1,11 @@
 {
-    "version":  "0.2.48",
-    "notes":  "音画同步新增设置抽屉：网卡、分析时长、搜索范围和采样帧率集中设置，检测与预览按保存的网卡收流。",
-    "pub_date":  "2026-11-19T12:49:43Z",
-    "platforms":  {
-                      "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWhDQUo1eU9LUjk2T0F1YUZaRHlCUU1FbEVmNHlVaTVybDE2RHZ0UnNPK3JZNVNvbm00YVZJWnB5dk1nZndUNnNabnEvZVlxVnhzd05FNHA4cUtIT2dVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDkyNTgzCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi40OF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjQ4ClhwQm1ZM0RUaVNkdEl3elVPcStNcTVjRnJqdXVacThYbWJMNXBtU0drVmZzM2w3YnZHRzFwR2ZBRFc2eHk4Z1E2OTFZTVZzSktXYk5FK09wSVJDOERnPT0K",
-                                             "url":  "https://github.com/meng587/vqa-rs/releases/download/v0.2.48/vqa-workbench-0.2.48-setup.exe"
-                                         }
-                  }
+  "version": "0.2.49",
+  "notes": "一致性比对重做频道列表：按“基准 ↔ 待比”成对展示，支持分组筛选、频道/来源/地址搜索、全选与轮询选中；新增独立“编辑列表”页，可统一编辑分组、频道、比对方式和多路来源。微突发检测优化地址栏与工具栏，新增本地文件浏览；频道列表增加分组搜索，音画同步与一致性比对按钮位置统一。视频分析、合规检测的导出与设置入口同步调整。",
+  "pub_date": "2026-11-19T13:59:40Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW9xenVrTUhCUWpoallZam90d0VXZUo3aDFmR3ZxM2pqc091WHlvZkQxdXUwbVlPemZXSndyckN3Z21MbTBvN2pickRDQ1ozNmRVM05raDJxWmI5ZGdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDk2NzgwCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi40OV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjQ5CnMzcFNYM0pnVXVhQTd2ZzVJUnJHeFM4Wk8yMnRxajF6NTl5QXI0NzJ2NVNPaDdTbGxSTTV5SVZZV3hBMy8ralhJdEN5Q1MramEwSWsvQ0lxbHd1TkFBPT0K",
+      "url": "https://github.com/meng587/vqa-rs/releases/download/v0.2.49/vqa-workbench-0.2.49-setup.exe"
+    }
+  }
 }
