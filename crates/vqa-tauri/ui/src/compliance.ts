@@ -16,56 +16,17 @@ import {
 } from "./api";
 import { setNavLamp, nicLabel } from "./main";
 import { renderComplianceDoc } from "./compliance-doc";
+import {
+  VERDICT_TXT,
+  reportRows,
+} from "./compliance-meta";
+import {
+  buildComplianceDocx,
+  buildComplianceHtml,
+  buildComplianceMarkdown,
+} from "./compliance-report";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
-
-/** 检测项归组（key → 类别名），顺序即表格里的固定分组 */
-const GROUP: Record<string, string> = {
-  res: "节目技术质量",
-  fps: "节目技术质量",
-  codec: "节目技术质量",
-  profile: "节目技术质量",
-  bits: "节目技术质量",
-  colorspace: "节目技术质量",
-  transfer: "节目技术质量",
-  vbitrate: "节目技术质量",
-  acodec: "节目技术质量",
-  asr: "节目技术质量",
-  abr: "节目技术质量",
-  jitter: "网络传输质量",
-  loss: "网络传输质量",
-  df: "网络传输质量",
-  mlr: "网络传输质量",
-  qam: "有线 RF 指标",
-  mer: "有线 RF 指标",
-  ber: "有线 RF 指标",
-  catv_df: "IP 信号指标",
-  catv_mlr: "IP 信号指标",
-  ev_pid: "音视频质量（事件类）",
-  ev_decode: "音视频质量（事件类）",
-  ev_audio: "音视频质量（事件类）",
-  ev_video: "音视频质量（事件类）",
-};
-
-/** 原文序号（表 2 序号 1~22；表 1 用同一套号码，另加 16/17 的 RF 与 IP 信号项）。
- *  序号 7~10 是"视频编码类和级"的四档并列要求，本程序合成一行显示。 */
-const NO_IPTV: Record<string, string> = {
-  res: "1", fps: "2", colorspace: "3", bits: "4", transfer: "5", codec: "6",
-  profile: "7~10", vbitrate: "11", acodec: "12", asr: "13", abr: "14",
-  jitter: "15", loss: "16", df: "17", mlr: "18",
-  ev_pid: "19", ev_decode: "20", ev_audio: "21", ev_video: "22",
-};
-const NO_CATV: Record<string, string> = {
-  res: "1", fps: "2", colorspace: "3", bits: "4", transfer: "5", codec: "6",
-  profile: "7~10", vbitrate: "11", acodec: "12", asr: "13", abr: "14",
-  ev_pid: "15", qam: "16", mer: "16", ber: "16", catv_df: "17", catv_mlr: "17",
-};
-
-const VERDICT_TXT: Record<string, string> = {
-  pass: "✓ 合格",
-  fail: "✗ 不合格",
-  unknown: "— 未标注",
-};
 
 let last: ComplianceResult | null = null;
 let pollTimer: number | null = null;
@@ -99,22 +60,21 @@ function render(r: ComplianceResult) {
   $("k-foot").hidden = false;
 
   // 分组渲染：类别用小标题行，不再每行重复
-  const NO = r.kind.indexOf("有线") >= 0 ? NO_CATV : NO_IPTV;
   let curGrp = "";
   let rows = "";
-  for (const it of r.items || []) {
-    const grp = GROUP[it.key] || "其它";
+  for (const row of reportRows(r)) {
+    const grp = row.group;
     if (grp !== curGrp) {
       curGrp = grp;
       rows += `<div class="ksec">${esc(grp)}</div>`;
     }
-    const no = NO[it.key] ? `<i class="kno">${NO[it.key]}</i>` : "";
+    const no = row.no !== "—" ? `<i class="kno">${row.no}</i>` : "";
     rows += `<div class="krow">
-        <span class="kname">${no}${esc(it.name)}</span>
-        <span class="kstd">${esc(it.standard)}</span>
-        <span class="kact">${esc(it.actual)}</span>
-        <span class="kvd"><span class="vd vd-${it.verdict}">${VERDICT_TXT[it.verdict] || it.verdict}</span></span>
-        <span class="knote">${esc(it.note)}</span>
+        <span class="kname">${no}${esc(row.item.name)}</span>
+        <span class="kstd">${esc(row.item.standard)}</span>
+        <span class="kact">${esc(row.item.actual)}</span>
+        <span class="kvd"><span class="vd vd-${row.item.verdict}">${VERDICT_TXT[row.item.verdict] || row.item.verdict}</span></span>
+        <span class="knote">${esc(row.item.note)}</span>
       </div>`;
   }
   $("k-rows").innerHTML = rows;
@@ -316,19 +276,63 @@ export function initCompliance() {
     if (e.key === "Enter") act.click();
   });
 
-  $("k-export").addEventListener("click", async () => {
+  // 报告导出：一个入口，点开选 Markdown / Word / HTML
+  const exportBtn = $("k-export") as HTMLButtonElement;
+  const exppop = $("k-exppop") as HTMLElement;
+  let exporting = false;
+
+  exportBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
     if (!last) {
       setStatus("还没有检测结果可导出", "err");
       return;
     }
-    const md = toMarkdown(last);
-    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-    try {
-      const p = await api.complianceExport(`合规检测_${stamp}.md`, md);
-      if (p) setStatus(`报告已导出：${p}`, "idle");
-    } catch (e) {
-      setStatus(`导出失败：${e}`, "err");
+    exppop.hidden = !exppop.hidden;
+  });
+  document.addEventListener("click", (e) => {
+    if (!(e.target as HTMLElement).closest(".expbox")) exppop.hidden = true;
+  });
+
+  async function doExport(fmt: "md" | "docx" | "html") {
+    const r = last;
+    if (!r) {
+      setStatus("还没有检测结果可导出", "err");
+      return;
     }
+    if (exporting) return;
+    exporting = true;
+    exportBtn.disabled = true;
+    const stamp = new Date()
+      .toLocaleString("sv-SE", { hour12: false })
+      .replace(/[-: ]/g, (m) => (m === " " ? "_" : m))
+      .slice(0, 17);
+    const base = `合规检测_${stamp}`;
+    try {
+      if (fmt === "md") {
+        const p = await api.reportExport(`${base}.md`, buildComplianceMarkdown(r), "md");
+        if (p) setStatus(`Markdown 报告已导出：${p}`, "idle");
+      } else if (fmt === "docx") {
+        const b64 = await buildComplianceDocx(r);
+        const p = await api.reportExportB64(`${base}.docx`, b64, "docx");
+        if (p) setStatus(`Word 报告已导出：${p}`, "idle");
+      } else {
+        const p = await api.reportExport(`${base}.html`, buildComplianceHtml(r), "html");
+        if (p) setStatus(`HTML 报告已导出：${p}（可直接用浏览器打开/发邮件）`, "idle");
+      }
+    } catch (e) {
+      const text = String(e);
+      if (!text.includes("已取消")) setStatus(`导出失败：${text}`, "err");
+    } finally {
+      exporting = false;
+      exportBtn.disabled = false;
+    }
+  }
+
+  exppop.addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest("[data-fmt]") as HTMLButtonElement | null;
+    if (!b) return;
+    exppop.hidden = true;
+    void doExport((b.dataset.fmt || "md") as "md" | "docx" | "html");
   });
 
   // 从别的页切回来时把收流状态补上
@@ -337,42 +341,6 @@ export function initCompliance() {
       pollTimer = window.setInterval(tick, 1000);
     }
   });
-}
-
-/** 导出用的 Markdown（与页面上表同序，含判定符号）。 */
-function toMarkdown(r: ComplianceResult): string {
-  const lines: string[] = [];
-  lines.push(`# 合规性检测报告`);
-  lines.push("");
-  lines.push(`- 依据：《广电办发〔2024〕253 号》《广播电视和网络视听节目技术质量监督检测工作方案》${r.kind}`);
-  lines.push(`- 来源：${r.source}`);
-  lines.push(`- 时间：${new Date().toLocaleString("zh-CN")}`);
-  lines.push(
-    `- 结论：${r.summary.ok ? "无不合格项" : "存在不合格项"}（合格 ${r.summary.pass} / 不合格 ${r.summary.fail} / 未标注 ${r.summary.unknown}）`,
-  );
-  if ((r.basis || []).length) {
-    lines.push("");
-    lines.push("## 检测依据");
-    lines.push("");
-    for (const b of r.basis) lines.push(`- ${b.code}《${b.name}》`);
-  }
-  lines.push("");
-  lines.push("| 序号 | 类别 | 检测项 | 标准要求 | 实测值 | 判定 | 说明 |");
-  lines.push("|------|------|--------|----------|--------|------|------|");
-  const NO = r.kind.indexOf("有线") >= 0 ? NO_CATV : NO_IPTV;
-  for (const it of r.items) {
-    const grp = GROUP[it.key] || "其它";
-    lines.push(
-      `| ${NO[it.key] || "—"} | ${grp} | ${it.name} | ${it.standard.replace(/\|/g, "／")} | ${it.actual.replace(/\|/g, "／")} | ${VERDICT_TXT[it.verdict]} | ${it.note.replace(/\|/g, "／")} |`,
-    );
-  }
-  lines.push("");
-  lines.push(
-    r.kind.indexOf("有线") >= 0
-      ? "> 有线表 1 的 QAM 电平 / MER / BER 与画面异常需专用仪表或逐帧解码，本程序不判定；序号 15 已按 TS PID 层实测丢包与无有效净荷。"
-      : "> 表 2 序号 19 / 21 已按 TS PID 层实测（丢包与无有效净荷）；序号 20 / 22 需逐帧解码与参考比对，本程序标「未标注」。",
-  );
-  return lines.join("\n");
 }
 
 /** 供状态栏 / 其它页取用：当前一次合规结论（无结果时 null）。 */

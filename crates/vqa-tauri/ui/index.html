@@ -252,7 +252,14 @@
         <div class="vsep"></div>
         <div class="icogroup">
           <button class="iconbtn ghost txtbtn tb-browse" id="k-browse" title="浏览本地文件…" type="button"><span data-ic="folder"></span><span class="btxt">浏览</span></button>
-          <button class="iconbtn ghost txtbtn tb-set" id="k-export" title="导出合规报告（Markdown）" type="button"><span data-ic="download"></span><span class="btxt">导出</span></button>
+          <div class="expbox">
+            <button class="iconbtn ghost txtbtn tb-set" id="k-export" title="导出合规报告（Markdown / Word / HTML）" type="button"><span data-ic="download"></span><span class="btxt">导出</span></button>
+            <div class="histpop exppop" id="k-exppop" hidden>
+              <button class="hi" data-fmt="md" type="button">Markdown 报告 <span>.md</span></button>
+              <button class="hi" data-fmt="docx" type="button">Word 文档 <span>.docx</span></button>
+              <button class="hi" data-fmt="html" type="button">HTML 网页报告 <span>.html</span></button>
+            </div>
+          </div>
           <button class="iconbtn ghost txtbtn tb-set" id="k-set" title="合规检测设置" type="button"><span data-ic="settings"></span><span class="btxt">设置</span></button>
           <button class="iconbtn ghost txtbtn tb-info" id="k-kdoc" title="合规说明（检测依据与判定口径）" type="button"><span data-ic="bookopen"></span><span class="btxt">说明</span></button>
         </div>
