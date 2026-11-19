@@ -153,8 +153,6 @@ function updateCurrentLabel() {
   const ch = channels.find((c) => c.url === activeUrl);
   if (el) el.textContent = ch ? ch.name || "未命名频道" : activeUrl ? "手动来源" : "未选择";
   box?.classList.toggle("on", !!activeUrl);
-  const add = $<HTMLButtonElement>("b-add-current");
-  if (add) add.disabled = locked() || !activeUrl;
 }
 
 function updateCfgChips() {
@@ -183,13 +181,11 @@ function syncLockUi() {
   const stop = $<HTMLButtonElement>("b-stop");
   const setBtn = $<HTMLButtonElement>("b-settings");
   const pollBtn = $<HTMLButtonElement>("b-poll");
-  const addBtn = $<HTMLButtonElement>("b-add-current");
   const editBtn = $<HTMLButtonElement>("b-edit-list");
   const all = $<HTMLInputElement>("b-ch-all");
   if (act) act.disabled = isLocked;
   if (setBtn) setBtn.disabled = isLocked;
   if (pollBtn) pollBtn.disabled = isLocked;
-  if (addBtn) addBtn.disabled = isLocked || !currentUrl();
   if (editBtn) editBtn.disabled = isLocked;
   if (all) all.disabled = isLocked;
   const group = $<HTMLSelectElement>("b-ch-group");
@@ -497,7 +493,7 @@ function renderChannels() {
   if (!list.length) {
     rowsEl.innerHTML = channels.length
       ? `<div class="bst-chempty">「${esc(groupFilter)}」分组暂无频道 · 点「编辑列表」调整分组</div>`
-      : `<div class="bst-chempty">还没有频道 · 在上方填好地址后点「加入当前」</div>`;
+      : `<div class="bst-chempty">还没有频道 · 点「编辑列表」添加频道</div>`;
   } else {
     rowsEl.innerHTML = list
       .map((i) => {
@@ -929,31 +925,6 @@ async function pollSelected() {
   }
 }
 
-function addCurrentChannel() {
-  if (locked()) return;
-  const url = currentUrl();
-  if (!url) {
-    setStatus("error", "先填写频道地址");
-    return;
-  }
-  const exists = channels.find((c) => c.url.trim().toLowerCase() === url.toLowerCase());
-  if (exists) {
-    exists.enabled = true;
-    activateChannel(channels.indexOf(exists));
-  } else {
-    channels.push({
-      name: `频道${channels.length + 1}`,
-      url,
-      group: groupFilter === ALL_GROUPS ? DEFAULT_GROUP : groupFilter,
-      enabled: true,
-    });
-    activeUrl = url;
-    renderChannels();
-  }
-  persistChannels();
-  setStatus("idle", "已加入频道列表");
-}
-
 function bindModal() {
   const modal = $<HTMLElement>("b-set-modal");
   if (!modal) return;
@@ -975,7 +946,6 @@ export function initBurst() {
   $<HTMLButtonElement>("b-act")?.addEventListener("click", () => void startContinuous());
   $<HTMLButtonElement>("b-stop")?.addEventListener("click", () => void stopSession());
   $<HTMLButtonElement>("b-settings")?.addEventListener("click", openSettings);
-  $<HTMLButtonElement>("b-add-current")?.addEventListener("click", addCurrentChannel);
   $<HTMLButtonElement>("b-edit-list")?.addEventListener("click", () => void openChannelEditor());
   $<HTMLButtonElement>("b-poll")?.addEventListener("click", () => void pollSelected());
   $<HTMLButtonElement>("b-ch-toggle")?.addEventListener("click", () =>

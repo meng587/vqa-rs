@@ -478,14 +478,14 @@
         <aside class="bst-side">
           <div class="bst-chcard" id="b-chcard">
             <div class="bst-chhead">
-              <button class="bst-chtoggle" id="b-ch-toggle" type="button" aria-expanded="true">
-                <span data-ic="chevrondown"></span><b>频道列表</b><span class="bst-chtoggle-hint">收起</span>
-              </button>
+              <span class="bst-chtitle"><span data-ic="chevrondown"></span><b>频道列表</b></span>
               <span class="bst-chcount" id="b-ch-count">0 个 / 启用 0</span>
               <label class="bst-chall"><input type="checkbox" id="b-ch-all" /><span>全选</span></label>
+              <button class="bst-chcollapse" id="b-ch-toggle" type="button" aria-expanded="true" title="收起频道列表">
+                <span data-ic="chevronleft"></span><span class="btxt">收起</span>
+              </button>
               <div class="bst-chtools">
                 <button class="txtbtn bst-tool" id="b-edit-list" type="button">编辑列表</button>
-                <button class="txtbtn bst-tool" id="b-add-current" type="button">加入当前</button>
                 <button class="txtbtn tb-browse bst-tool" id="b-poll" type="button"><span data-ic="repeat"></span><span class="btxt">轮询选中</span></button>
               </div>
             </div>
