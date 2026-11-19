@@ -2384,6 +2384,7 @@ main{padding:8px 24px; gap:8px; min-width:0}
 .srcbox input.src{padding-right:72px}
 /* 音画同步的浏览按钮已移到输入框外，不再预留右侧内嵌按钮空间 */
 #av-src{padding-right:12px}
+#b-url{padding-right:12px}
 .srcbar .icogroup .txtbtn{height:34px; padding:0 10px; gap:5px}
 .srcbar .icogroup .txtbtn .btxt{font-size:11.5px}
 .srcbar .icogroup .txtbtn svg{width:13px; height:13px}
