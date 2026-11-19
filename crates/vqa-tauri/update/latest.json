@@ -1,10 +1,10 @@
 {
     "version":  "0.2.32",
     "notes":  "0.2.32：修复播放器控制条播放/暂停不生效——改为直接读取 mpv 真实状态并用 cycle pause 切换，避免旧快照导致暂停后无法恢复；控制条点击改为模块级事件委托，拖放/浮层等可选集成异常不再影响按钮；失败时给出明确提示。",
-    "pub_date":  "2026-11-19T04:19:58Z",
+    "pub_date":  "2026-11-19T04:26:27Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWtTKzFLZHlJL3psZVJiS1ZXd0RRMU03YU5XMHJQaC9Tb0dzMjM1NDcwMEhvK1Y1NFBlUGlqTy9VbG02c0ZyRnE0bm1qeDNodjFVMUx0TUdhLzlBS1FjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDYxOTk4CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4zMl94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjMyCmtibW83dUM1d2x6UDhJR2xIOUF2L0FWeXNURVhzS2NRSWNZNWJPWHIxK05QZUYwQitQblNnSElnSGFJbUJ1Ui9ob1dJTnAwbnA4bFZvclpHNGF2eERBPT0K",
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXR3K0dtSWQxZ1dnYzVqTG5vMU1DR3NUQkRUdjFqMjF0NUY0aStCM2NkeWJ0V3dCT1JVR2o5d0M1OTBQWUpsbjB5MHdJMlNUSm5xUE5SeGhvWk9vUWdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDYyMzg3CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4zMl94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjMyClFZZ0lybmNSTjRUeEx6VXRVTWFCK0JXaWx4ZG45TmFBWjMyck4wRnZmd2x1OUFFdS95MzB1dWdsWDU1dUxJQlByUzZUam05azFoOTZ3dzVLeG5hMUFBPT0K",
                                              "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.32/vqa-workbench-0.2.32-setup.exe"
                                          }
                   }
