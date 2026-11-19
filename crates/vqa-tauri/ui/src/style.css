@@ -2375,6 +2375,13 @@ main{padding:8px 24px; gap:8px; min-width:0}
 .srcbox .histbtn.txtbtn:hover{border-color:rgba(53,95,77,.42); color:var(--ink); background:var(--field)}
 .srcbox .histbtn.txtbtn .btxt{font:11px var(--sans); white-space:nowrap}
 .srcbox .histbtn.txtbtn svg{width:12px; height:12px}
+/* 隶书：仅接管中文字形，英文地址继续用无衬线 */
+@font-face{
+  font-family:"VQA Lishu";
+  src:local("LiSu"), local("隶书"), local("STLiti"), local("华文隶书"), local("FZLiShu-S01");
+  unicode-range:U+3400-4DBF, U+4E00-9FFF, U+3000-303F;
+  font-display:swap;
+}
 /* 地址输入：一体化输入壳，历史作为右侧分段，不再套第二层胶囊 */
 .srcbox{
   position:relative;
@@ -2383,6 +2390,10 @@ main{padding:8px 24px; gap:8px; min-width:0}
   background:linear-gradient(180deg,#FFFEFB,var(--paper));
   box-shadow:inset 0 1px 0 rgba(255,255,255,.7), inset 0 0 0 1px rgba(168,121,58,.07), 0 1px 2px rgba(33,28,20,.03);
   transition:border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+.srcbar .lbl{
+  font-family:"VQA Lishu","LiSu","STLiti","KaiTi","STKaiti",serif;
+  font-size:13.5px; font-weight:400; letter-spacing:.12em;
 }
 /* 山峦与海浪：山海经意象的小印 */
 .srcbox::before{
@@ -2411,7 +2422,7 @@ main{padding:8px 24px; gap:8px; min-width:0}
   flex:1 1 auto; width:auto; min-width:0; height:34px;
   padding:0 6px 0 0; border:0; border-radius:0;
   background:transparent; color:var(--ink);
-  font:13.5px/1.4 "Segoe UI Variable Text","Segoe UI","Songti SC","SimSun",serif;
+  font:13.5px/1.4 "VQA Lishu","Segoe UI Variable Text","Segoe UI","Songti SC","SimSun",serif;
   letter-spacing:.02em; font-variant-numeric:tabular-nums;
 }
 .srcbox input.src:focus{border-color:transparent; box-shadow:none}
@@ -2428,6 +2439,10 @@ main{padding:8px 24px; gap:8px; min-width:0}
 .srcbox .histbtn.txtbtn:hover{
   border-color:var(--line);
   background:var(--acc-soft-h); color:var(--ink);
+}
+.srcbox .histbtn.txtbtn .btxt{
+  font:12px "VQA Lishu","LiSu","STLiti","KaiTi",serif;
+  letter-spacing:.08em;
 }
 .srcbox .histpop{top:40px; left:0}
 #av-src{padding-right:0}
