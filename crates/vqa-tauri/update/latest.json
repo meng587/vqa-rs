@@ -1,11 +1,11 @@
 {
-    "version":  "0.2.35",
-    "notes":  "0.2.35：程序图标更换为 B 纹样环（大尺寸完整纹样，小尺寸简化适配）；地址输入框支持中文标点自动转半角；微突发/音画同步频道列表移至左侧并新增频道列表编辑页。",
-    "pub_date":  "2026-11-19T07:33:32Z",
+    "version":  "0.2.36",
+    "notes":  "0.2.36：频道列表支持分组编辑、按组筛选与轮巡、整体收起；微突发与音画同步布局优化；更新源切换至 GitHub。",
+    "pub_date":  "2026-11-19T08:52:59Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWdaOFR4MkRvTFU5b2lPNm5jdHpST1Z6SWNYTW56MXR5Zm1sZ1NBS3p4aHlra3lWZmJlUFR1SEl3YVprWVpYQ2NjTTBXbld2SmRQMUhIMng0Tm5pRGd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDczNjEyCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4zNV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjM1CjdGUERlc0xMTEp4dUVuZERhVGFmZUgzaHpWVjdsUHV2SUxlOGJza1VzMUxJd3FhUkhhUzdpSUpvYnQvcFAwUnJ1YXpERW5XTnBrSmw1YjF5QzI1T0NnPT0K",
-                                             "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.35/vqa-workbench-0.2.35-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXZqRGRSWUpMbFJJNXd4Mk5FYkRURnlMTzd5Slp6TVlRMkF1dFVmZjlaVDREZ2p0VEVDMGxRVGZWclhaamxlVzQ3TzNhcUxsVDFrYU5rMDdReUJ5eGdNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDc4Mzc5CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4zNl94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjM2CnUyeTA0YTNyMG1YUjZKejEzOW5UOTBRNDdHNHowYVZUaGFRU1lhN1FObDFrU25admdDekRYTC9QNGptSW1xNVZrcjQrdDRZek5hc2MrT1BEV1YxUkRBPT0K",
+                                             "url":  "https://github.com/meng587/vqa-rs/releases/download/v0.2.36/vqa-workbench-0.2.36-setup.exe"
                                          }
                   }
 }

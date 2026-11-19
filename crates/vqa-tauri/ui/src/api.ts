@@ -322,6 +322,8 @@ export const api = {
 export interface Channel {
   name: string;
   url: string;
+  /** 所属分组；旧数据留空时按“未分组”处理 */
+  group?: string;
   enabled: boolean;
 }
 

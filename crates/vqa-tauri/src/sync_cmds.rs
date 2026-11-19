@@ -230,6 +230,9 @@ pub struct Channel {
     pub name: String,
     #[serde(default)]
     pub url: String,
+    /// 所属分组；旧配置没有此字段时按“未分组”处理
+    #[serde(default)]
+    pub group: String,
     #[serde(default = "ch_default_on")]
     pub enabled: bool,
 }

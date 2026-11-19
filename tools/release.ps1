@@ -80,7 +80,7 @@ $doc = [ordered]@{
   platforms = [ordered]@{
     'windows-x86_64' = [ordered]@{
       signature = $sig
-      url       = "https://gitee.com/meng587/vqa-rs/releases/download/v$ver/vqa-workbench-$ver-setup.exe"
+      url       = "https://github.com/meng587/vqa-rs/releases/download/v$ver/vqa-workbench-$ver-setup.exe"
     }
   }
 }

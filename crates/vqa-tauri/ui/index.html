@@ -69,7 +69,7 @@
     <path d="M8.4 17.1 7 21h2.4l1.1-2.8M15.6 17.1 17 21h-2.4l-1.1-2.8M12 18.2V21"/>
   </symbol></defs></svg>
   <div class="brand tb-brand">
-    <span class="logo" data-ic="circledot"></span>
+    <span class="logo" aria-hidden="true"><img class="brand-mark" src="./src/assets/brand-icon.png" alt="" /></span>
     <div class="btxt"><b>视听质量检测</b><small>VQA WORKBENCH / 3.0</small></div>
   </div>
   <div class="side-label"><span>工作台</span><span>WORKBENCH</span></div>
@@ -474,12 +474,12 @@
         </div>
       </div>
 
-      <div class="bst-body">
+      <div class="bst-body" id="b-body">
         <aside class="bst-side">
           <div class="bst-chcard" id="b-chcard">
             <div class="bst-chhead">
               <button class="bst-chtoggle" id="b-ch-toggle" type="button" aria-expanded="true">
-                <span data-ic="chevrondown"></span><b>频道列表</b>
+                <span data-ic="chevrondown"></span><b>频道列表</b><span class="bst-chtoggle-hint">收起</span>
               </button>
               <span class="bst-chcount" id="b-ch-count">0 个 / 启用 0</span>
               <label class="bst-chall"><input type="checkbox" id="b-ch-all" /><span>全选</span></label>
@@ -489,12 +489,21 @@
                 <button class="txtbtn tb-browse bst-tool" id="b-poll" type="button"><span data-ic="repeat"></span><span class="btxt">轮询选中</span></button>
               </div>
             </div>
+            <div class="bst-chfilter">
+              <label class="bst-groupsel">分组
+                <select id="b-ch-group"></select>
+              </label>
+              <span class="bst-chgroupstat" id="b-ch-groupstat"></span>
+            </div>
             <div class="bst-chbody" id="b-chbody">
               <div class="bst-chrows" id="b-ch-rows"></div>
             </div>
             <div class="bst-chfoot">轮询时每路采样 8 s · 名称和地址可在「编辑列表」里修改</div>
           </div>
         </aside>
+        <button class="bst-chrail" id="b-ch-rail" type="button" title="展开频道列表" aria-label="展开频道列表">
+          <span data-ic="chevronright"></span><span class="bst-chrail-t">频道列表</span>
+        </button>
 
         <div class="bst-main">
           <div class="bst-status" id="b-status">
@@ -591,10 +600,13 @@
         <button class="iconbtn ghost txtbtn bst-stop" id="av-stop" title="停止" type="button" hidden><span data-ic="square"></span><span class="btxt">停止检测</span></button>
       </div>
 
-      <div class="av-body">
+      <div class="av-body" id="av-body">
         <aside class="av-side">
           <div class="chboard" id="av-chboard"></div>
         </aside>
+        <button class="av-chrail" id="av-ch-rail" type="button" title="展开频道列表" aria-label="展开频道列表">
+          <span data-ic="chevronright"></span><span class="av-chrail-t">频道列表</span>
+        </button>
 
         <div class="av-main">
           <div class="prevbox av-prevbox">
@@ -800,7 +812,7 @@
     <!-- ══════════ 关于页 ══════════ -->
     <section class="pg about" data-page="about" hidden>
       <div class="hero">
-        <span class="hero-logo" data-ic="circledot"></span>
+        <span class="hero-logo" aria-hidden="true"><img class="brand-mark" src="./src/assets/brand-icon.png" alt="" /></span>
         <div class="hero-txt">
           <b>视听质量检测工作站<span class="ver" id="ab-ver">v0.2.8</span></b>
           <p>Tauri / Web UI · vqa-core（TS 解析 · TR101 290 · PCR 双环 PLL）</p>
@@ -816,7 +828,7 @@
           <div class="orow"><span class="k">状态</span><span class="v" id="up-status">尚未检查 · 点「检查更新」</span></div>
           <div class="upbar" id="up-bar" hidden><div class="upbar-fill" id="up-fill"></div></div>
           <div class="upmeta" id="up-meta" hidden></div>
-          <div class="orow"><span class="k">更新源</span><span class="v mono">gitee.com/meng587/vqa-rs · releases</span></div>
+          <div class="orow"><span class="k">更新源</span><span class="v mono">github.com/meng587/vqa-rs · releases</span></div>
           <div class="orow"><span class="k">校验</span><span class="v">minisign 公钥（私钥离线保存）</span></div>
           <div class="ohint" id="up-hint">检测到新版时此处显示版本号与更新说明。</div>
           <div style="margin-top:10px"><button class="gradbtn" id="up-install" hidden><span data-ic="check"></span>下载并安装</button></div>

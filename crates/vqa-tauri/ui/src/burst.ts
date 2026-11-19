@@ -8,6 +8,14 @@
 
 import { api, BurstStats, Channel, NicRow } from "./api";
 import { openChannelEditor } from "./channel-editor";
+import {
+  ALL_GROUPS,
+  DEFAULT_GROUP,
+  groupMatches,
+  groupNames,
+  groupOf,
+  normalizeGroup,
+} from "./channel-groups";
 
 const $ = <T extends HTMLElement>(id: string): T | null =>
   document.getElementById(id) as T | null;
@@ -52,6 +60,8 @@ interface RowMeta {
 
 let settings: Settings = { nic: "", ratio: 2, window_ms: 1 };
 let channels: Channel[] = [];
+let groupFilter = ALL_GROUPS;
+let groups: string[] = [DEFAULT_GROUP];
 let nics: NicRow[] = [];
 let activeUrl = "";
 let snapshot: BurstStats = { ...EMPTY };
@@ -182,6 +192,8 @@ function syncLockUi() {
   if (addBtn) addBtn.disabled = isLocked || !currentUrl();
   if (editBtn) editBtn.disabled = isLocked;
   if (all) all.disabled = isLocked;
+  const group = $<HTMLSelectElement>("b-ch-group");
+  if (group) group.disabled = isLocked;
   if (stop) stop.hidden = !(running || polling);
   document.querySelectorAll<HTMLInputElement>("#b-ch-rows input[type=checkbox]").forEach((c) => {
     c.disabled = isLocked;
@@ -441,27 +453,61 @@ function summaryOf(s: BurstStats): RowMeta {
   return { state: s.burst_cnt > 0 ? "warn" : "ok", text };
 }
 
+function visibleIndexes(): number[] {
+  return channels
+    .map((ch, i) => (groupMatches(ch, groupFilter) ? i : -1))
+    .filter((i) => i >= 0);
+}
+
+function renderGroupSelect() {
+  const sel = $<HTMLSelectElement>("b-ch-group");
+  if (!sel) return;
+  groups = groupNames(channels, groups);
+  if (groupFilter !== ALL_GROUPS && !groups.includes(groupFilter)) groupFilter = ALL_GROUPS;
+  sel.innerHTML =
+    `<option value="${ALL_GROUPS}">全部分组</option>` +
+    groups.map((g) => `<option value="${esc(g)}">${esc(g)}</option>`).join("");
+  sel.value = groupFilter;
+  const stat = $<HTMLElement>("b-ch-groupstat");
+  if (stat) {
+    const n = visibleIndexes().length;
+    stat.textContent =
+      groupFilter === ALL_GROUPS ? `${groups.length} 个分组` : `${n} 个频道 · ${groupFilter}`;
+  }
+}
+
+function updateChannelCount() {
+  const count = $<HTMLElement>("b-ch-count");
+  if (!count) return;
+  const list = visibleIndexes();
+  const on = list.filter((i) => channels[i]?.enabled).length;
+  count.textContent =
+    groupFilter === ALL_GROUPS
+      ? `${channels.length} 个 / 启用 ${on}`
+      : `${list.length} 个 · ${groupFilter} / 启用 ${on}`;
+}
+
 function renderChannels() {
   const rowsEl = $<HTMLElement>("b-ch-rows");
   if (!rowsEl) return;
-  const count = $<HTMLElement>("b-ch-count");
-  if (count) {
-    const on = channels.filter((c) => c.enabled).length;
-    count.textContent = `${channels.length} 个 / 启用 ${on}`;
-  }
+  renderGroupSelect();
+  updateChannelCount();
 
-  if (!channels.length) {
-    rowsEl.innerHTML =
-      `<div class="bst-chempty">还没有频道 · 在上方填好地址后点「加入当前」</div>`;
+  const list = visibleIndexes();
+  if (!list.length) {
+    rowsEl.innerHTML = channels.length
+      ? `<div class="bst-chempty">「${esc(groupFilter)}」分组暂无频道 · 点「编辑列表」调整分组</div>`
+      : `<div class="bst-chempty">还没有频道 · 在上方填好地址后点「加入当前」</div>`;
   } else {
-    rowsEl.innerHTML = channels
-      .map((c, i) => {
+    rowsEl.innerHTML = list
+      .map((i) => {
+        const c = channels[i];
         const meta = getRowMeta(c.url);
         const active = c.url === activeUrl;
         return (
           `<div class="bst-chrow${active ? " sel" : ""}${c.enabled ? "" : " off"}" data-i="${i}">` +
           `<label class="bst-chk"><input type="checkbox" data-i="${i}" ${c.enabled ? "checked" : ""} /></label>` +
-          `<span class="bst-chname" title="${esc(c.name || "未命名频道")}">${esc(c.name || "未命名频道")}</span>` +
+          `<span class="bst-chname" title="${esc(c.name || "未命名频道")} · ${esc(groupOf(c))}"><span class="bst-chname-t">${esc(c.name || "未命名频道")}</span><i class="bst-chgroup">${esc(groupOf(c))}</i></span>` +
           `<span class="bst-churl mono" title="${esc(c.url)}">${esc(c.url)}</span>` +
           `<span class="bst-chst ${meta.state}">${esc(rowStateText(meta.state))}</span>` +
           `<span class="bst-chsum mono" title="${esc(meta.text)}">${esc(meta.text)}</span>` +
@@ -479,11 +525,7 @@ function renderChannels() {
         box.closest(".bst-chrow")?.classList.toggle("off", !box.checked);
         persistChannels();
         updateAllBox();
-        const countEl = $<HTMLElement>("b-ch-count");
-        if (countEl) {
-          const on = channels.filter((c) => c.enabled).length;
-          countEl.textContent = `${channels.length} 个 / 启用 ${on}`;
-        }
+        updateChannelCount();
       });
     });
 
@@ -504,10 +546,10 @@ function renderChannels() {
 function updateAllBox() {
   const all = $<HTMLInputElement>("b-ch-all");
   if (!all) return;
-  const n = channels.length;
-  const on = channels.filter((c) => c.enabled).length;
-  all.checked = n > 0 && on === n;
-  all.indeterminate = on > 0 && on < n;
+  const list = visibleIndexes();
+  const on = list.filter((i) => channels[i]?.enabled).length;
+  all.checked = list.length > 0 && on === list.length;
+  all.indeterminate = on > 0 && on < list.length;
 }
 
 function activateChannel(i: number) {
@@ -533,11 +575,15 @@ function persistChannels() {
 
 function setChannelCollapsed(on: boolean, persist = true) {
   collapsed = on;
+  const body = $<HTMLElement>("b-body");
   const card = $<HTMLElement>("b-chcard");
   const btn = $<HTMLButtonElement>("b-ch-toggle");
+  const rail = $<HTMLButtonElement>("b-ch-rail");
+  body?.classList.toggle("is-ch-collapsed", on);
   card?.classList.toggle("collapsed", on);
   if (btn) btn.setAttribute("aria-expanded", String(!on));
   if (btn) btn.title = on ? "展开频道列表" : "收起频道列表";
+  if (rail) rail.setAttribute("aria-expanded", String(!on));
   if (persist) api.uiSet(COLLAPSED_KEY, on).catch(() => {});
   window.setTimeout(() => drawSpark(snapshot), 30);
 }
@@ -550,6 +596,7 @@ async function loadChannels() {
       .map((c) => ({
         name: c.name || "",
         url: c.url || "",
+        group: normalizeGroup(c.group),
         enabled: c.enabled !== false,
       }))
       .filter((c) => {
@@ -558,6 +605,7 @@ async function loadChannels() {
         seen.add(k);
         return true;
       });
+    groups = groupNames(channels, groups);
   } catch {
     channels = [];
   }
@@ -804,11 +852,11 @@ async function stopSession(showStatus = true) {
 
 async function pollSelected() {
   if (locked()) return;
-  const list = channels
-    .map((c, i) => (c.enabled && c.url ? i : -1))
+  const list = visibleIndexes()
+    .map((i) => (channels[i]?.enabled && channels[i]?.url ? i : -1))
     .filter((i) => i >= 0);
   if (!list.length) {
-    setStatus("error", "没有勾选可轮询的频道");
+    setStatus("error", groupFilter === ALL_GROUPS ? "没有勾选可轮询的频道" : `分组「${groupFilter}」没有启用频道`);
     return;
   }
 
@@ -896,6 +944,7 @@ function addCurrentChannel() {
     channels.push({
       name: `频道${channels.length + 1}`,
       url,
+      group: groupFilter === ALL_GROUPS ? DEFAULT_GROUP : groupFilter,
       enabled: true,
     });
     activeUrl = url;
@@ -932,6 +981,9 @@ export function initBurst() {
   $<HTMLButtonElement>("b-ch-toggle")?.addEventListener("click", () =>
     setChannelCollapsed(!collapsed),
   );
+  $<HTMLButtonElement>("b-ch-rail")?.addEventListener("click", () =>
+    setChannelCollapsed(false),
+  );
 
   $<HTMLInputElement>("b-url")?.addEventListener("input", () => {
     activeUrl = currentUrl();
@@ -941,8 +993,15 @@ export function initBurst() {
 
   $<HTMLInputElement>("b-ch-all")?.addEventListener("change", (ev) => {
     const on = (ev.target as HTMLInputElement).checked;
-    channels.forEach((c) => (c.enabled = on));
+    visibleIndexes().forEach((i) => {
+      if (channels[i]) channels[i].enabled = on;
+    });
     persistChannels();
+    renderChannels();
+  });
+
+  $<HTMLSelectElement>("b-ch-group")?.addEventListener("change", (ev) => {
+    groupFilter = (ev.target as HTMLSelectElement).value || ALL_GROUPS;
     renderChannels();
   });
 

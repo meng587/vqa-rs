@@ -5,13 +5,26 @@
 
 import { api, Channel } from "./api";
 import { normalizeAddressText } from "./address";
+import {
+  ALL_GROUPS,
+  DEFAULT_GROUP,
+  countInGroup,
+  groupMatches,
+  groupNames,
+  groupOf,
+  normalizeGroup,
+} from "./channel-groups";
 
 const $ = <T extends HTMLElement>(id: string): T | null =>
   document.getElementById(id) as T | null;
 
+const GROUPS_KEY = "channels.groups";
+
 let built = false;
 let draft: Channel[] = [];
+let groups: string[] = [DEFAULT_GROUP];
 let filter = "";
+let groupFilter = ALL_GROUPS;
 let importOpen = false;
 let msgTimer = 0;
 
@@ -47,6 +60,26 @@ function ensure() {
         <button class="che-mini" id="che-importbtn" type="button">批量导入</button>
         <button class="che-mini" id="che-addbtn" type="button">新增频道</button>
       </div>
+      <div class="che-groupbar">
+        <label class="che-groupsel">分组
+          <select id="che-group-filter"></select>
+        </label>
+        <button class="che-mini" id="che-group-newbtn" type="button">新建分组</button>
+        <button class="che-mini" id="che-group-managebtn" type="button">管理分组</button>
+        <span class="che-groupcount" id="che-group-count"></span>
+      </div>
+      <div class="che-groupmanage" id="che-groupmanage" hidden>
+        <div class="che-groupmanage-head">
+          <b>分组管理</b>
+          <span>改名会同步到该组所有频道；删除后频道移到「${DEFAULT_GROUP}」</span>
+        </div>
+        <div class="che-groupmanage-cols"><span>分组名称</span><span>频道数</span><span></span><span>操作</span></div>
+        <div class="che-groupmanage-list" id="che-groupmanage-list"></div>
+        <div class="che-groupmanage-add">
+          <input id="che-group-new" placeholder="新分组名称" maxlength="24" spellcheck="false" />
+          <button class="che-mini on" id="che-group-newadd" type="button">添加</button>
+        </div>
+      </div>
       <div class="che-import" id="che-import" hidden>
         <textarea id="che-import-text" spellcheck="false" placeholder="每行一个频道：名称,地址&#10;例如：CCTV-1 综合,udp://@239.1.1.1:5000&#10;只填地址也可以，名称自动补"></textarea>
         <div class="che-importacts">
@@ -60,6 +93,7 @@ function ensure() {
           <thead>
             <tr>
               <th class="che-chkcol"><input type="checkbox" id="che-allbox" /></th>
+              <th>分组</th>
               <th>频道名称</th>
               <th>地址</th>
               <th class="che-stcol">启用</th>
@@ -88,13 +122,33 @@ function ensure() {
   $("che-import-ok")?.addEventListener("click", importRows);
   $("che-all")?.addEventListener("click", () => setAll(true));
   $("che-none")?.addEventListener("click", () => setAll(false));
+  $("che-group-filter")?.addEventListener("change", () => {
+    groupFilter = $<HTMLSelectElement>("che-group-filter")?.value || ALL_GROUPS;
+    render();
+  });
+  $("che-group-managebtn")?.addEventListener("click", () => toggleGroupManage());
+  $("che-group-newbtn")?.addEventListener("click", () => {
+    toggleGroupManage(true);
+    $<HTMLInputElement>("che-group-new")?.focus();
+  });
+  $("che-group-newadd")?.addEventListener("click", addGroup);
+  $("che-group-new")?.addEventListener("keydown", (ev) => {
+    if ((ev as KeyboardEvent).key === "Enter") addGroup();
+  });
+  $("che-groupmanage-list")?.addEventListener("click", (ev) => {
+    const btn = (ev.target as HTMLElement).closest("button") as HTMLButtonElement | null;
+    if (!btn) return;
+    const name = btn.dataset.group || "";
+    if (btn.dataset.act === "group-rename") renameGroup(name, btn);
+    if (btn.dataset.act === "group-del") deleteGroup(name);
+  });
   $("che-search")?.addEventListener("input", () => {
     filter = ($<HTMLInputElement>("che-search")?.value || "").trim();
     render();
   });
   $("che-allbox")?.addEventListener("change", (ev) => {
     const on = (ev.target as HTMLInputElement).checked;
-    setAll(on);
+    setAll(on, true);
   });
   $("che-overlay")?.addEventListener("click", (ev) => {
     if ((ev.target as HTMLElement).id === "che-overlay") close();
@@ -111,12 +165,16 @@ function ensure() {
     if (t.dataset.field === "url") draft[i].url = t.value;
   });
   $("che-rows")?.addEventListener("change", (ev) => {
-    const t = ev.target as HTMLInputElement;
+    const t = ev.target as HTMLInputElement | HTMLSelectElement;
     if (!t.dataset.i) return;
     const i = Number(t.dataset.i);
     if (!draft[i]) return;
     if (t.dataset.field === "enabled") {
-      draft[i].enabled = t.checked;
+      draft[i].enabled = (t as HTMLInputElement).checked;
+      render();
+    }
+    if (t.dataset.field === "group") {
+      draft[i].group = t.value;
       render();
     }
   });
@@ -145,6 +203,108 @@ function updateCount() {
   if (!el) return;
   const on = draft.filter((c) => c.enabled).length;
   el.textContent = `${draft.length} 个 / 启用 ${on}`;
+  const gc = $<HTMLElement>("che-group-count");
+  if (gc) gc.textContent = `共 ${groups.length} 个分组`;
+}
+
+function ensureGroups() {
+  groups = groupNames(draft, groups);
+}
+
+function renderGroupFilter() {
+  const sel = $<HTMLSelectElement>("che-group-filter");
+  if (!sel) return;
+  ensureGroups();
+  if (groupFilter !== ALL_GROUPS && !groups.includes(groupFilter)) groupFilter = ALL_GROUPS;
+  sel.innerHTML =
+    `<option value="${ALL_GROUPS}">全部分组（${draft.length}）</option>` +
+    groups.map((g) => `<option value="${esc(g)}">${esc(g)}（${countInGroup(draft, g)}）</option>`).join("");
+  sel.value = groupFilter;
+}
+
+function renderGroupManager() {
+  const list = $<HTMLElement>("che-groupmanage-list");
+  if (!list) return;
+  ensureGroups();
+  list.innerHTML = groups
+    .map((g) => {
+      const fixed = g === DEFAULT_GROUP;
+      const actions = fixed
+        ? `<span class="che-groupfixed">默认</span><span></span>`
+        : `<button class="che-mini" data-act="group-rename" data-group="${esc(g)}" type="button">保存</button>` +
+          `<button class="che-del" data-act="group-del" data-group="${esc(g)}" type="button">删除</button>`;
+      return (
+        `<div class="che-groupitem" data-group="${esc(g)}">` +
+        `<input class="che-groupname" value="${esc(g)}" maxlength="24" spellcheck="false" ${fixed ? "readonly" : ""} />` +
+        `<span class="che-groupstat">${countInGroup(draft, g)} 个频道</span>` +
+        actions +
+        `</div>`
+      );
+    })
+    .join("");
+}
+
+function toggleGroupManage(force?: boolean) {
+  const panel = $<HTMLElement>("che-groupmanage");
+  if (!panel) return;
+  const show = force === undefined ? panel.hidden : force;
+  panel.hidden = !show;
+  const btn = $<HTMLButtonElement>("che-group-managebtn");
+  if (btn) {
+    btn.classList.toggle("on", show);
+    btn.textContent = show ? "收起分组" : "管理分组";
+  }
+  if (show) renderGroupManager();
+}
+
+function addGroup() {
+  const input = $<HTMLInputElement>("che-group-new");
+  if (!input) return;
+  if (!input.value.trim()) {
+    setMsg("请输入分组名称", true);
+    return;
+  }
+  const name = normalizeGroup(input.value);
+  if (name === DEFAULT_GROUP || groups.includes(name)) {
+    setMsg(`分组「${name}」已存在`, true);
+    return;
+  }
+  groups.push(name);
+  input.value = "";
+  render();
+  setMsg(`已添加分组「${name}」，保存后生效`);
+}
+
+function renameGroup(oldName: string, btn: HTMLButtonElement) {
+  if (!oldName || oldName === DEFAULT_GROUP) return;
+  const item = btn.closest<HTMLElement>(".che-groupitem");
+  const input = item?.querySelector<HTMLInputElement>(".che-groupname");
+  const next = normalizeGroup(input?.value);
+  if (next === oldName) return;
+  if (next === DEFAULT_GROUP || groups.includes(next)) {
+    setMsg(`分组「${next}」已存在`, true);
+    renderGroupManager();
+    return;
+  }
+  groups = groups.map((g) => (g === oldName ? next : g));
+  draft.forEach((c) => {
+    if (groupOf(c) === oldName) c.group = next;
+  });
+  if (groupFilter === oldName) groupFilter = next;
+  render();
+  setMsg(`分组「${oldName}」已改名为「${next}」`);
+}
+
+function deleteGroup(name: string) {
+  if (!name || name === DEFAULT_GROUP) return;
+  const moved = countInGroup(draft, name);
+  draft.forEach((c) => {
+    if (groupOf(c) === name) c.group = DEFAULT_GROUP;
+  });
+  groups = groups.filter((g) => g !== name);
+  if (groupFilter === name) groupFilter = ALL_GROUPS;
+  render();
+  setMsg(`已删除分组「${name}」，${moved} 个频道移到「${DEFAULT_GROUP}」`);
 }
 
 function toggleImport(on: boolean) {
@@ -155,7 +315,12 @@ function toggleImport(on: boolean) {
 }
 
 function addRow() {
-  draft.push({ name: "", url: "", enabled: true });
+  draft.push({
+    name: "",
+    url: "",
+    group: groupFilter === ALL_GROUPS ? DEFAULT_GROUP : groupFilter,
+    enabled: true,
+  });
   filter = "";
   const search = $<HTMLInputElement>("che-search");
   if (search) search.value = "";
@@ -182,7 +347,12 @@ function importRows() {
     }
     if (!url || seen.has(url.toLowerCase())) continue;
     seen.add(url.toLowerCase());
-    draft.push({ name: name || `频道${draft.length + 1}`, url, enabled: true });
+    draft.push({
+      name: name || `频道${draft.length + 1}`,
+      url,
+      group: groupFilter === ALL_GROUPS ? DEFAULT_GROUP : groupFilter,
+      enabled: true,
+    });
     added += 1;
   }
   if (ta) ta.value = "";
@@ -194,8 +364,9 @@ function importRows() {
   setMsg(added ? `已导入 ${added} 个频道，记得保存` : "没有新增频道（可能地址已存在）", !added);
 }
 
-function setAll(on: boolean) {
-  draft.forEach((c) => (c.enabled = on));
+function setAll(on: boolean, onlyVisible = false) {
+  const list = onlyVisible ? visibleRows().map(({ ch }) => ch) : draft;
+  list.forEach((c) => (c.enabled = on));
   render();
 }
 
@@ -203,10 +374,19 @@ function visibleRows(): { ch: Channel; i: number }[] {
   const q = filter.toLowerCase();
   return draft
     .map((ch, i) => ({ ch, i }))
-    .filter(({ ch }) => !q || `${ch.name} ${ch.url}`.toLowerCase().includes(q));
+    .filter(({ ch }) => groupMatches(ch, groupFilter) && (!q || `${ch.name} ${ch.url}`.toLowerCase().includes(q)));
+}
+
+function groupOptions(selected: string): string {
+  ensureGroups();
+  return groups
+    .map((g) => `<option value="${esc(g)}"${g === selected ? " selected" : ""}>${esc(g)}</option>`)
+    .join("");
 }
 
 function render() {
+  renderGroupFilter();
+  renderGroupManager();
   updateCount();
   const rows = $<HTMLElement>("che-rows");
   const empty = $<HTMLElement>("che-empty");
@@ -217,7 +397,9 @@ function render() {
     if (empty) {
       empty.hidden = false;
       empty.textContent = draft.length
-        ? "没有匹配的频道，换个关键词试试。"
+        ? groupFilter === ALL_GROUPS
+          ? "没有匹配的频道，换个关键词试试。"
+          : `「${groupFilter}」分组暂无频道。`
         : "还没有频道。点右上角「新增频道」或「批量导入」开始。";
     }
   } else {
@@ -227,6 +409,7 @@ function render() {
         ({ ch, i }) =>
           `<tr data-i="${i}">` +
           `<td class="che-chkcol"><input type="checkbox" data-i="${i}" data-field="enabled" ${ch.enabled ? "checked" : ""} /></td>` +
+          `<td><select class="che-gselect" data-i="${i}" data-field="group" title="修改所属分组">${groupOptions(groupOf(ch))}</select></td>` +
           `<td><input class="che-name" data-i="${i}" data-field="name" value="${esc(ch.name)}" placeholder="频道名称" spellcheck="false" /></td>` +
           `<td><input class="che-url mono" data-i="${i}" data-field="url" value="${esc(ch.url)}" placeholder="udp://@239.x.x.x:port 或本地文件" spellcheck="false" /></td>` +
           `<td class="che-stcol"><span class="che-state ${ch.enabled ? "on" : "off"}">${ch.enabled ? "启用" : "停用"}</span></td>` +
@@ -237,31 +420,49 @@ function render() {
   }
   const all = $<HTMLInputElement>("che-allbox");
   if (all) {
-    const on = draft.filter((c) => c.enabled).length;
-    all.checked = draft.length > 0 && on === draft.length;
-    all.indeterminate = on > 0 && on < draft.length;
+    const on = list.filter(({ ch }) => ch.enabled).length;
+    all.checked = list.length > 0 && on === list.length;
+    all.indeterminate = on > 0 && on < list.length;
   }
 }
 
 async function loadDraft() {
+  let list: Channel[] = [];
+  let savedGroups: unknown = null;
   try {
-    const list = await api.channelsGet();
-    const seen = new Set<string>();
-    draft = (list || [])
-      .map((c) => ({ name: c.name || "", url: normalizeAddressText(c.url || ""), enabled: c.enabled !== false }))
-      .filter((c) => {
-        const k = c.url.trim().toLowerCase();
-        if (!k || seen.has(k)) return false;
-        seen.add(k);
-        return true;
-      });
+    list = await api.channelsGet();
   } catch {
-    draft = [];
+    list = [];
   }
+  try {
+    savedGroups = await api.uiGet(GROUPS_KEY);
+  } catch {
+    savedGroups = null;
+  }
+  const seen = new Set<string>();
+  draft = (list || [])
+    .map((c) => ({
+      name: c.name || "",
+      url: normalizeAddressText(c.url || ""),
+      group: normalizeGroup(c.group),
+      enabled: c.enabled !== false,
+    }))
+    .filter((c) => {
+      const k = c.url.trim().toLowerCase();
+      if (!k || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  const saved = Array.isArray(savedGroups)
+    ? savedGroups.filter((g): g is string => typeof g === "string")
+    : [];
+  groups = groupNames(draft, saved);
+  groupFilter = ALL_GROUPS;
   filter = "";
   const search = $<HTMLInputElement>("che-search");
   if (search) search.value = "";
   toggleImport(false);
+  toggleGroupManage(false);
   setMsg("");
   render();
 }
@@ -292,17 +493,29 @@ async function save() {
     cleaned.push({
       name: c.name.trim() || `频道${cleaned.length + 1}`,
       url,
+      group: normalizeGroup(c.group),
       enabled: c.enabled !== false,
     });
   }
+  groups = groupNames(cleaned, groups);
   try {
     await api.channelsSave(cleaned);
   } catch (e: any) {
     setMsg(`保存失败：${String(e)}`, true);
     return;
   }
+  let groupSaveFailed = false;
+  try {
+    await api.uiSet(GROUPS_KEY, groups);
+  } catch {
+    groupSaveFailed = true;
+  }
   draft = cleaned;
   window.dispatchEvent(new CustomEvent("channels-changed"));
-  setMsg(`已保存 ${cleaned.length} 个频道`);
+  if (groupSaveFailed) {
+    setMsg("频道已保存，但分组清单保存失败", true);
+  } else {
+    setMsg(`已保存 ${cleaned.length} 个频道 · ${groups.length} 个分组`);
+  }
   window.setTimeout(close, 450);
 }

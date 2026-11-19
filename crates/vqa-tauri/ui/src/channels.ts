@@ -5,6 +5,14 @@
 
 import { api, Channel } from "./api";
 import { normalizeAddressText } from "./address";
+import {
+  ALL_GROUPS,
+  DEFAULT_GROUP,
+  groupMatches,
+  groupNames,
+  groupOf,
+  normalizeGroup,
+} from "./channel-groups";
 import { openChannelEditor } from "./channel-editor";
 
 export interface RunOutcome {
@@ -24,6 +32,8 @@ export interface ChannelHooks {
   conc?: number;
   /** 左侧窄栏模式：只保留编辑/预览/检测，增删改走列表编辑页 */
   compact?: boolean;
+  /** 窄栏模式下收起整个频道栏 */
+  onCollapse?: () => void;
   /** 并发度变化时回调（页面负责持久化） */
   onConc?: (n: number) => void;
   /** 额外动作（如一致性页的「设为参考」） */
@@ -55,6 +65,8 @@ export class ChannelBoard {
   private stopFlag = false;
   private editMode: "none" | "add" | "import" = "none";
   private conc = 1;
+  private groupFilter = ALL_GROUPS;
+  private groups: string[] = [DEFAULT_GROUP];
   private host: HTMLElement;
   private hooks: ChannelHooks;
 
@@ -84,6 +96,7 @@ export class ChannelBoard {
         .map((c) => ({
           name: c.name || "",
           url: c.url || "",
+          group: normalizeGroup(c.group),
           enabled: c.enabled !== false,
         }))
         .filter((c) => {
@@ -92,8 +105,10 @@ export class ChannelBoard {
           seen.add(k);
           return true;
         });
+      this.groups = groupNames(this.chans);
     } catch {
       this.chans = [];
+      this.groups = [DEFAULT_GROUP];
     }
     this.build();
   }
@@ -103,10 +118,13 @@ export class ChannelBoard {
     const toolbar = compact
       ? `
       <div class="chbar is-compact">
-        <div class="chttlrow"><b class="chttl">${this.hooks.title || "频道列表"}</b><span class="chcount">0</span></div>
+        <div class="chttlrow"><b class="chttl">${this.hooks.title || "频道列表"}</b><span class="chcount">0</span>${this.hooks.onCollapse ? `<button class="chcollapse" data-a="collapse" type="button" title="收起频道列表">收起 <span aria-hidden="true">›</span></button>` : ""}</div>
         <div class="chsub">
           <label class="chconc" title="同时检测的频道数；1 = 逐条，检测时预览框跟第一个开跑的频道">
             并发 <input type="number" min="1" max="8" step="1" data-role="conc" value="${this.conc}" />
+          </label>
+          <label class="chgroupfilter" title="只显示并轮巡当前分组">
+            分组 <select data-role="group"></select>
           </label>
         </div>
         <div class="chacts">
@@ -120,6 +138,9 @@ export class ChannelBoard {
       <div class="chbar">
         <b class="chttl">${this.hooks.title || "频道列表"}</b>
         <span class="chcount">0</span>
+        <label class="chgroupfilter" title="只显示并轮巡当前分组">
+          分组 <select data-role="group"></select>
+        </label>
         <label class="chconc" title="同时检测的频道数；1 = 逐条，检测时预览框跟第一个开跑的频道">
           并发
           <input type="number" min="1" max="8" step="1" data-role="conc" value="${this.conc}" />
@@ -184,13 +205,20 @@ export class ChannelBoard {
       else if (a === "all") this.runAll();
       else if (a === "stop") this.stopAll();
       else if (a === "extra") this.extraSelected();
+      else if (a === "collapse") this.hooks.onCollapse?.();
     });
     const allbox = this.q<HTMLInputElement>('[data-a="allbox"]');
     allbox?.addEventListener("change", () => {
       const on = allbox.checked;
-      this.chans.forEach((c, i) => this.toggleEnabled(i, on, false));
+      this.visibleRows().forEach(({ i }) => this.toggleEnabled(i, on, false));
       this.renderRows();
       this.persist();
+    });
+    const group = this.q<HTMLSelectElement>('[data-role="group"]');
+    group?.addEventListener("change", () => {
+      this.groupFilter = group.value || ALL_GROUPS;
+      this.sel = -1;
+      this.renderRows();
     });
     const conc = this.q<HTMLInputElement>('[data-role="conc"]');
     conc?.addEventListener("change", () => {
@@ -214,7 +242,12 @@ export class ChannelBoard {
     const name = (this.q<HTMLInputElement>('[data-role="name"]')?.value || "").trim();
     const url = normalizeAddressText((this.q<HTMLInputElement>('[data-role="url"]')?.value || "").trim());
     if (!url || this.hasUrl(url)) return;
-    this.chans.push({ name: name || `频道${this.chans.length + 1}`, url, enabled: true });
+    this.chans.push({
+      name: name || `频道${this.chans.length + 1}`,
+      url,
+      group: this.groupFilter === ALL_GROUPS ? DEFAULT_GROUP : this.groupFilter,
+      enabled: true,
+    });
     if (this.q<HTMLInputElement>('[data-role="name"]')) this.q<HTMLInputElement>('[data-role="name"]')!.value = "";
     if (this.q<HTMLInputElement>('[data-role="url"]')) this.q<HTMLInputElement>('[data-role="url"]')!.value = "";
     this.showEdit("none");
@@ -239,7 +272,12 @@ export class ChannelBoard {
         url = normalizeAddressText(url);
       }
       if (!url || this.hasUrl(url)) continue;
-      this.chans.push({ name: name || `频道${this.chans.length + 1}`, url, enabled: true });
+      this.chans.push({
+        name: name || `频道${this.chans.length + 1}`,
+        url,
+        group: this.groupFilter === ALL_GROUPS ? DEFAULT_GROUP : this.groupFilter,
+        enabled: true,
+      });
       added += 1;
     }
     if (ta) ta.value = "";
@@ -267,41 +305,70 @@ export class ChannelBoard {
     if (rerender) this.renderRows();
   }
 
+  private visibleRows(): { ch: Channel; i: number }[] {
+    return this.chans
+      .map((ch, i) => ({ ch, i }))
+      .filter(({ ch }) => groupMatches(ch, this.groupFilter));
+  }
+
+  private updateCount(list = this.visibleRows()) {
+    const cnt = this.q<HTMLElement>(".chcount");
+    if (!cnt) return;
+    const on = list.filter(({ ch }) => ch.enabled).length;
+    cnt.textContent =
+      this.groupFilter === ALL_GROUPS
+        ? `${this.chans.length} 个 / 启用 ${on}`
+        : `${list.length} 个 · ${this.groupFilter} / 启用 ${on}`;
+  }
+
+  private renderGroupSelect() {
+    const sel = this.q<HTMLSelectElement>('[data-role="group"]');
+    if (!sel) return;
+    this.groups = groupNames(this.chans, this.groups);
+    if (this.groupFilter !== ALL_GROUPS && !this.groups.includes(this.groupFilter)) {
+      this.groupFilter = ALL_GROUPS;
+    }
+    sel.innerHTML =
+      `<option value="${ALL_GROUPS}">全部分组</option>` +
+      this.groups.map((g) => `<option value="${esc(g)}">${esc(g)}</option>`).join("");
+    sel.value = this.groupFilter;
+  }
+
   private renderRows() {
     const rows = this.q<HTMLElement>('[data-role="rows"]');
     if (!rows) return;
-    rows.innerHTML = this.chans
-      .map((c, i) => {
-        const st: RowState = "idle";
-        return (
-          `<div class="chrow${i === this.sel ? " sel" : ""}" data-i="${i}">` +
-          `<label class="chk"><input type="checkbox" data-i="${i}" ${c.enabled ? "checked" : ""} /></label>` +
-          `<span class="chname" title="${esc(c.name)}">${esc(c.name || "未命名")}</span>` +
-          `<span class="churl mono" title="${esc(c.url)}">${esc(c.url)}</span>` +
-          `<span class="chst ${st}">${STATE_TEXT[st]}</span>` +
-          `<span class="chsum mono">—</span>` +
-          `</div>`
-        );
-      })
-      .join("");
-    const cnt = this.q<HTMLElement>(".chcount");
-    if (cnt) {
-      const on = this.chans.filter((c) => c.enabled).length;
-      cnt.textContent = `${this.chans.length} 个 / 启用 ${on}`;
-    }
+    this.renderGroupSelect();
+    const list = this.visibleRows();
+    rows.innerHTML = list.length
+      ? list
+          .map(({ ch: c, i }) => {
+            const st: RowState = "idle";
+            return (
+              `<div class="chrow${i === this.sel ? " sel" : ""}" data-i="${i}">` +
+              `<label class="chk"><input type="checkbox" data-i="${i}" ${c.enabled ? "checked" : ""} /></label>` +
+              `<span class="chname" title="${esc(c.name)} · ${esc(groupOf(c))}"><span class="chname-t">${esc(c.name || "未命名")}</span><i class="chgroup">${esc(groupOf(c))}</i></span>` +
+              `<span class="churl mono" title="${esc(c.url)}">${esc(c.url)}</span>` +
+              `<span class="chst ${st}">${STATE_TEXT[st]}</span>` +
+              `<span class="chsum mono">—</span>` +
+              `</div>`
+            );
+          })
+          .join("")
+      : `<div class="ch-empty">${this.chans.length ? "当前分组暂无频道" : "还没有频道，点「编辑列表」添加"}</div>`;
+    this.updateCount(list);
     const allbox = this.q<HTMLInputElement>('[data-a="allbox"]');
-    if (allbox) allbox.checked = this.chans.length > 0 && this.chans.every((c) => c.enabled);
+    if (allbox) {
+      const on = list.filter(({ ch }) => ch.enabled).length;
+      allbox.checked = list.length > 0 && on === list.length;
+      allbox.indeterminate = on > 0 && on < list.length;
+    }
 
     rows.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((box) => {
       box.addEventListener("change", (ev) => {
         ev.stopPropagation();
         const i = Number(box.dataset.i);
         this.toggleEnabled(i, box.checked, false);
-        const cntEl = this.q<HTMLElement>(".chcount");
-        if (cntEl) {
-          const on = this.chans.filter((c) => c.enabled).length;
-          cntEl.textContent = `${this.chans.length} 个 / 启用 ${on}`;
-        }
+        this.updateCount();
         this.persist();
       });
     });
@@ -333,6 +400,8 @@ export class ChannelBoard {
     });
     const conc = this.q<HTMLInputElement>('[data-role="conc"]');
     if (conc) conc.disabled = this.busy;
+    const group = this.q<HTMLSelectElement>('[data-role="group"]');
+    if (group) group.disabled = this.busy;
   }
 
   private select(i: number, preview: boolean) {
@@ -359,7 +428,9 @@ export class ChannelBoard {
 
   async runAll() {
     if (this.busy) return;
-    const list = this.chans.map((c, i) => (c.enabled && c.url ? i : -1)).filter((i) => i >= 0);
+    const list = this.visibleRows()
+      .map(({ ch, i }) => (ch.enabled && ch.url ? i : -1))
+      .filter((i) => i >= 0);
     if (!list.length) return;
     await this.runIndex(list);
   }

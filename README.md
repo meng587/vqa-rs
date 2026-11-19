@@ -3,6 +3,12 @@
 原 Python 版（`D:\音视频工具\dev`，约 2.3 万行 PyQt6）的 Rust 重写。
 第一期交付：**工作区骨架 + vqa-core 核心库 + 播放器页 + 视频分析页**。
 
+## 下载
+
+Windows x64 安装包与更新清单统一发布在 GitHub：
+
+<https://github.com/meng587/vqa-rs/releases>
+
 ## 构建与运行
 
 ```bash
@@ -91,11 +97,12 @@ TAURI_SIGNING_PRIVATE_KEY=keys/tauri.key npx --prefix ui tauri build
 
 ### 在线更新
 
-- `tauri-plugin-updater`：检查 `update/latest.json`（Gitee raw，双路径兼容旧版
-  endpoint）→ 下载 Release 附件 → minisign 验签 → 静默替换 → 自动重启。
+- `tauri-plugin-updater`：检查 `update/latest.json`（GitHub raw）→ 下载
+  Release 附件 → minisign 验签 → 静默替换 → 自动重启。
 - 发版流程：bump `crates/vqa-tauri/Cargo.toml version`（单一来源）→ build →
   更新 `crates/vqa-tauri/update/latest.json`（version/URL/签名）→ 提交推送 →
-  Gitee 建同名 Release 并挂 setup.exe 附件。
+  GitHub 建同名 Release 并挂 setup.exe 附件。
+- Gitee / AtomGit 仅作代码备份，不作为安装包分发入口。
 - 私钥 `keys/tauri.key` 离线保存（已 gitignore）；丢失则历史版本无法再升级。
 
 ### 诊断日志

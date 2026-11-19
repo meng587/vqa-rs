@@ -11,6 +11,28 @@ let board: ChannelBoard | null = null;
 let prevTimer = 0;
 let prevKey = "";
 let lastName = "";
+let lastResult: AvSyncResult | null = null;
+let chCollapsed = false;
+const AV_CH_COLLAPSED_KEY = "avsync.ch.collapsed";
+
+function setChannelCollapsed(on: boolean, persist = true) {
+  chCollapsed = on;
+  const body = document.getElementById("av-body");
+  const rail = document.getElementById("av-ch-rail") as HTMLButtonElement | null;
+  body?.classList.toggle("is-ch-collapsed", on);
+  if (rail) rail.setAttribute("aria-expanded", String(!on));
+  if (persist) api.uiSet(AV_CH_COLLAPSED_KEY, on).catch(() => {});
+  window.setTimeout(() => drawCurve(lastResult), 30);
+}
+
+async function loadChannelCollapsed() {
+  try {
+    const v = await api.uiGet(AV_CH_COLLAPSED_KEY);
+    setChannelCollapsed(!!v, false);
+  } catch {
+    /* 默认展开 */
+  }
+}
 
 function setState(kind: "idle" | "running" | "error", text: string) {
   const dot = $<HTMLElement>("av-dot");
@@ -175,6 +197,7 @@ async function runOnce(src: string, job = "main", focus = true): Promise<AvSyncR
     renderKpi(null, 0);
     drawCurve(null);
     renderPeaks(null);
+    lastResult = null;
   }
   st("running", "启动中…");
   try {
@@ -206,6 +229,7 @@ async function runOnce(src: string, job = "main", focus = true): Promise<AvSyncR
       if (r.ok) st("idle", "检测完成");
       else st("error", r.err || "检测失败");
       if (focus) {
+        lastResult = r;
         renderKpi(r, 0);
         drawCurve(r);
         renderPeaks(r);
@@ -333,6 +357,7 @@ export function initAvSync() {
       title: "频道列表",
       conc: 1,
       compact: true,
+      onCollapse: () => setChannelCollapsed(true),
       onConc: queueSave,
       runOne: async (ch, job, focus): Promise<RunOutcome> => {
         if (focus) {
@@ -363,7 +388,17 @@ export function initAvSync() {
     });
     board.load();
     loadPrefs();
+    loadChannelCollapsed();
   }
+
+  $<HTMLButtonElement>("av-ch-rail")?.addEventListener("click", () =>
+    setChannelCollapsed(false),
+  );
+  window.addEventListener("page-changed", (ev) => {
+    if ((ev as CustomEvent).detail === "avsync") {
+      window.setTimeout(() => drawCurve(lastResult), 30);
+    }
+  });
 
   renderKpi(null, 0);
   drawCurve(null);
