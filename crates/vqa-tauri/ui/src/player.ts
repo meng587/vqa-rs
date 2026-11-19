@@ -8,6 +8,7 @@ import { icon } from "./icons";
 import { SPEEDS } from "./constants";
 import { setNavLamp, setEngineLamp, nicLabel } from "./main";
 import { flags } from "./flags";
+import { initChannelPicker } from "./channel-picker";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -172,6 +173,15 @@ export function initPlayer() {
   const histPop = $("p-histpop") as HTMLElement;
   const progSel = $("p-prog") as HTMLSelectElement;
   const progLbl = $("p-proglbl") as HTMLElement;
+
+  initChannelPicker({
+    page: "player",
+    hostId: "p-chboard",
+    bodyId: "p-body",
+    railId: "p-ch-rail",
+    inputId: "p-url",
+    collapsedKey: "player.ch.collapsed",
+  });
 
   // 网卡下拉：值 = IP（取流绑定用），显示「IP · 网卡名」，断开的标注出来
   api.listNics().then((list: NicRow[]) => {

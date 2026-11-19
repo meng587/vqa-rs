@@ -134,7 +134,15 @@
         </div>
       </div>
 
-      <div class="noteline" id="p-note"></div>
+      <div class="bst-body tool-body" id="p-body">
+        <aside class="bst-side tool-side">
+          <div class="chboard is-compact is-picker" id="p-chboard"></div>
+        </aside>
+        <button class="bst-chrail" id="p-ch-rail" type="button" title="展开频道列表" aria-label="展开频道列表" aria-expanded="true">
+          <span data-ic="chevronright"></span><span class="bst-chrail-t">频道列表</span>
+        </button>
+        <div class="bst-main tool-main">
+          <div class="noteline" id="p-note"></div>
 
       <div class="vcard" id="vcard">
         <div id="v-rect" style="position:absolute;left:0;top:0;right:0;bottom:52px;pointer-events:none;"></div>
@@ -170,6 +178,8 @@
           </div>
         </div>
       </div>
+      </div>
+      </div>
     </section>
 
     <!-- ══════════ 视频分析页 ══════════ -->
@@ -198,7 +208,15 @@
         </div>
       </div>
 
-      <div class="statusline" id="a-status">
+      <div class="bst-body tool-body" id="a-body">
+        <aside class="bst-side tool-side">
+          <div class="chboard is-compact is-picker" id="a-chboard"></div>
+        </aside>
+        <button class="bst-chrail" id="a-ch-rail" type="button" title="展开频道列表" aria-label="展开频道列表" aria-expanded="true">
+          <span data-ic="chevronright"></span><span class="bst-chrail-t">频道列表</span>
+        </button>
+        <div class="bst-main tool-main">
+          <div class="statusline" id="a-status">
         <span class="dot" id="a-dot"></span><span class="txt" id="a-status-text">待机</span>
       </div>
 
@@ -229,6 +247,8 @@
         <div data-panel="packets" hidden style="flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;"></div>
         <div data-panel="tr290" hidden class="tblwrap" style="flex:1"></div>
         <div data-panel="logs" hidden style="flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+      </div>
       </div>
     </section>
 
@@ -265,7 +285,15 @@
         </div>
       </div>
 
-      <div class="statusline" id="k-status">
+      <div class="bst-body tool-body" id="k-body">
+        <aside class="bst-side tool-side">
+          <div class="chboard is-compact is-picker" id="k-chboard"></div>
+        </aside>
+        <button class="bst-chrail" id="k-ch-rail" type="button" title="展开频道列表" aria-label="展开频道列表" aria-expanded="true">
+          <span data-ic="chevronright"></span><span class="bst-chrail-t">频道列表</span>
+        </button>
+        <div class="bst-main tool-main">
+          <div class="statusline" id="k-status">
         <span class="dot" id="k-dot"></span>
         <span class="txt" id="k-status-text">待机</span>
         <span class="chips" id="k-sum"></span>
@@ -291,6 +319,8 @@
 
       <!-- 合规说明：页内视图（点顶栏书本图标或页脚链接打开） -->
       <div class="docwrap" id="k-doc" hidden></div>
+      </div>
+      </div>
     </section>
 
     <!-- ══════════ 直播转码页 ══════════ -->

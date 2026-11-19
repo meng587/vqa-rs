@@ -35,6 +35,8 @@ export interface ChannelHooks {
   sequential?: boolean;
   /** 左侧窄栏模式：只保留编辑/预览/检测，增删改走列表编辑页 */
   compact?: boolean;
+  /** 仅选择频道：不显示勾选、状态和检测按钮，点一行只回填来源地址 */
+  picker?: boolean;
   /** 窄栏模式下收起整个频道栏 */
   onCollapse?: () => void;
   /** 并发度变化时回调（页面负责持久化） */
@@ -95,6 +97,7 @@ export class ChannelBoard {
   constructor(host: HTMLElement, hooks: ChannelHooks) {
     this.host = host;
     this.hooks = hooks;
+    this.host.classList.toggle("is-picker", hooks.picker === true);
     this.conc = hooks.sequential ? 1 : clampConc(hooks.conc ?? 1);
     window.addEventListener("channels-changed", () => void this.load());
   }
@@ -143,14 +146,31 @@ export class ChannelBoard {
   }
 
   private build() {
-    const compact = this.hooks.compact === true;
+    const picker = this.hooks.picker === true;
+    const compact = this.hooks.compact === true || picker;
     const concCtl = this.hooks.sequential
       ? ""
       : `<label class="chconc" title="同时检测的频道数；1 = 逐条，检测时预览框跟第一个开跑的频道">并发 <input type="number" min="1" max="8" step="1" data-role="conc" value="${this.conc}" /></label>`;
     const detectLabel = this.hooks.detectLabel || "检测选中";
     const pollLabel = this.hooks.pollLabel || "轮询选中";
     const allBox = `<label class="chall" title="勾选或取消当前分组里的全部频道"><input type="checkbox" data-a="allbox" /><span>全选</span></label>`;
-    const toolbar = compact
+    const toolbar = picker
+      ? `
+      <div class="chbar is-compact is-picker">
+        <div class="chttlrow"><b class="chttl">${this.hooks.title || "频道列表"}</b><span class="chcount">0</span>${this.hooks.onCollapse ? `<button class="chcollapse" data-a="collapse" type="button" title="收起频道列表">收起 <span aria-hidden="true">›</span></button>` : ""}</div>
+        <div class="chsub">
+          <label class="chgroupfilter" title="只显示当前分组">
+            分组 <select data-role="group"></select>
+          </label>
+          <label class="chsearch" title="按频道名、地址或分组搜索">
+            <input type="search" data-role="search" value="${esc(this.search)}" placeholder="搜索频道" />
+          </label>
+        </div>
+        <div class="chacts">
+          <button class="cbtn" data-a="edit">编辑列表</button>
+        </div>
+      </div>`
+      : compact
       ? `
       <div class="chbar is-compact">
         <div class="chttlrow"><b class="chttl">${this.hooks.title || "频道列表"}</b><span class="chcount">0</span>${allBox}${this.hooks.onCollapse ? `<button class="chcollapse" data-a="collapse" type="button" title="收起频道列表">收起 <span aria-hidden="true">›</span></button>` : ""}</div>
@@ -367,6 +387,12 @@ export class ChannelBoard {
   private updateCount(list = this.visibleRows()) {
     const cnt = this.q<HTMLElement>(".chcount");
     if (!cnt) return;
+    if (this.hooks.picker) {
+      cnt.textContent = this.search.trim()
+        ? `匹配 ${list.length} 个`
+        : `${list.length} 个`;
+      return;
+    }
     const on = list.filter(({ ch }) => ch.enabled).length;
     if (this.search.trim()) {
       cnt.textContent = `匹配 ${list.length} 个 / 启用 ${on}`;
@@ -399,6 +425,14 @@ export class ChannelBoard {
     rows.innerHTML = list.length
       ? list
           .map(({ ch: c, i }) => {
+            if (this.hooks.picker) {
+              return (
+                `<div class="chrow chpick${i === this.sel ? " sel" : ""}${c.enabled ? "" : " off"}" data-i="${i}">` +
+                `<span class="chname" title="${esc(c.name)} · ${esc(groupOf(c))}"><span class="chname-t">${esc(c.name || "未命名")}</span><i class="chgroup">${esc(groupOf(c))}</i></span>` +
+                `<span class="churl mono" title="${esc(c.url)}">${esc(c.url)}</span>` +
+                `</div>`
+              );
+            }
             const meta = this.hooks.initialRow?.(c) ?? null;
             const st: RowState = meta?.state || "idle";
             const sum = meta?.text || "—";

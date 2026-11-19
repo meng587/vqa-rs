@@ -6,6 +6,7 @@ import { icon } from "./icons";
 import { setNavLamp, nicLabel } from "./main";
 import { buildDocxReport } from "./report-docx";
 import { buildMarkdownReport } from "./report-markdown";
+import { initChannelPicker } from "./channel-picker";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -55,6 +56,15 @@ export function initAnalysis() {
   const act = $("a-act") as HTMLButtonElement;
   const histBtn = $("a-hist") as HTMLButtonElement;
   const histPop = $("a-histpop") as HTMLElement;
+
+  initChannelPicker({
+    page: "analysis",
+    hostId: "a-chboard",
+    bodyId: "a-body",
+    railId: "a-ch-rail",
+    inputId: "a-url",
+    collapsedKey: "analysis.ch.collapsed",
+  });
 
   // 网卡下拉：值 = IP，显示「IP · 网卡名」；位置在「视频分析设置」抽屉里
   api.listNics().then(async (list: NicRow[]) => {

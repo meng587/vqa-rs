@@ -25,6 +25,7 @@ import {
   buildComplianceHtml,
   buildComplianceMarkdown,
 } from "./compliance-report";
+import { initChannelPicker } from "./channel-picker";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -153,6 +154,15 @@ export function initCompliance() {
   const kind = $("k-kind") as HTMLSelectElement;
   const histBtn = $("k-hist") as HTMLButtonElement;
   const histPop = $("k-histpop") as HTMLElement;
+
+  initChannelPicker({
+    page: "compliance",
+    hostId: "k-chboard",
+    bodyId: "k-body",
+    railId: "k-ch-rail",
+    inputId: "k-url",
+    collapsedKey: "compliance.ch.collapsed",
+  });
 
   // 合规说明是页内视图：顶栏书本图标或页脚链接打开，说明页里点「返回检测」关掉
   const docView = $("k-doc");

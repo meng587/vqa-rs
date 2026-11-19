@@ -2427,6 +2427,30 @@ body.side-collapsed .side-meta .side-collapse .btxt{display:none}
 .bst-side { min-height: 0; display: flex; min-width: 0; }
 .bst-side .chboard { flex: 1 1 auto; min-width: 0; min-height: 0; }
 .bst-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+
+/* 播放器 / 视频分析 / 合规检测：左侧频道列表比检测页略窄，给正文留空间 */
+.tool-body { grid-template-columns: 300px minmax(0, 1fr); }
+.tool-main { overflow: hidden; }
+
+/* 仅选频道模式：没有勾选、状态和检测按钮，点一行只回填来源 */
+.chboard.is-picker .chrow.chpick {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  grid-template-areas: "name" "url";
+  align-items: start;
+  align-content: center;
+  gap: 2px;
+  min-height: 46px;
+  padding: 6px 9px;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+}
+.chboard.is-picker .chrow.chpick.sel {
+  border-left-color: var(--bronze);
+  background: var(--acc-soft);
+}
+.chboard.is-picker .chrow.chpick .chname { grid-area: name; }
+.chboard.is-picker .chrow.chpick .churl { grid-area: url; }
 .bst-chcard {
   flex: 1 1 auto;
   display: flex;
@@ -2960,6 +2984,7 @@ body.side-collapsed .side-meta .side-collapse .btxt{display:none}
 
 @media (max-width: 1180px) {
   .bst-body { grid-template-columns: 244px minmax(0, 1fr); }
+  .tool-body { grid-template-columns: 244px minmax(0, 1fr); }
   .av-body { grid-template-columns: 262px minmax(0, 1fr); }
   .av-prevbox { height: 166px; min-height: 166px; }
   .av-side .chbar.is-compact .chacts .cbtn,
