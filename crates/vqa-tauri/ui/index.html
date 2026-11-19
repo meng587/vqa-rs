@@ -457,45 +457,116 @@
     </section>
 
     <!-- ══════════ 微突发检测页 ══════════ -->
-    <section class="pg" data-page="burst" hidden>
-      <div class="srcbar">
-        <span class="lbl">组播地址</span>
-        <div class="srcbox">
-          <input class="src" id="b-url" placeholder="udp://@239.x.x.x:port 或 udp://127.0.0.1:5000" spellcheck="false" />
+    <section class="pg bst-page" data-page="burst" hidden>
+      <div class="bst-srcbar">
+        <span class="bst-label">频道地址</span>
+        <div class="bst-srcbox">
+          <input class="bst-src" id="b-url" placeholder="udp://@239.x.x.x:port 或 udp://127.0.0.1:5000" spellcheck="false" />
         </div>
-        <span class="lbl">网卡</span>
-        <select class="nic" id="b-nic"></select>
-        <span class="lbl">突发阈值</span>
-        <input class="num" id="b-ratio" value="2.0" title="检测窗口字节量 ≥ 均值 × 该倍率即计一次微突发" />
-        <span class="unit">× 均值</span>
-        <span class="lbl">检测时间</span>
-        <select class="nic winsel" id="b-window" title="检测时间窗：1ms / 10ms / 100ms / 1000ms">
-          <option value="1">1 ms</option>
-          <option value="10">10 ms</option>
-          <option value="100">100 ms</option>
-          <option value="1000">1000 ms</option>
-        </select>
-        <div class="vsep"></div>
-        <button class="gradbtn" id="b-act"><span data-ic="activity"></span>开始检测</button>
-        <button class="iconbtn ghost" id="b-stop" title="停止检测" data-ic="square" hidden></button>
+        <div class="bst-current" id="b-current">
+          <span class="bst-current-mark"></span>
+          <span id="b-current-name">手动来源</span>
+        </div>
+        <div class="bst-actions">
+          <button class="txtbtn tb-set" id="b-settings" type="button"><span data-ic="settings"></span><span class="btxt">参数设置</span></button>
+          <button class="gradbtn bst-start" id="b-act" type="button"><span data-ic="activity"></span><span class="btxt">开始检测</span></button>
+          <button class="txtbtn bst-stop" id="b-stop" type="button" hidden><span data-ic="square"></span><span class="btxt">停止</span></button>
+        </div>
       </div>
 
-      <div class="statusline" id="b-status">
+      <div class="bst-status" id="b-status">
         <span class="dot" id="b-dot"></span>
-        <span class="txt" id="b-status-text">待机</span>
-        <span class="chips" id="b-sum"></span>
+        <span class="bst-status-text" id="b-status-text">待机</span>
+        <span class="bst-chips" id="b-sum"></span>
+        <span class="bst-cfg" id="b-cfg"></span>
       </div>
 
-      <div class="kpiwrap" id="b-kpi"></div>
-
-      <div class="spark">
-        <div class="spark-h"><b id="b-spark-title">最近 240 个 1ms 窗口到达量</b><span class="spark-s" id="b-spark-sub">每根柱 = 1ms 内收到的字节</span></div>
-        <canvas id="b-spark" height="110"></canvas>
+      <div class="bst-chcard" id="b-chcard">
+        <div class="bst-chhead">
+          <button class="bst-chtoggle" id="b-ch-toggle" type="button" aria-expanded="true">
+            <span data-ic="chevrondown"></span><b>频道列表</b>
+          </button>
+          <span class="bst-chcount" id="b-ch-count">0 个 / 启用 0</span>
+          <span class="bst-chhint">轮询时每路采样 8 s</span>
+          <div class="bst-chtools">
+            <button class="txtbtn bst-tool" id="b-add-current" type="button">加入当前</button>
+            <button class="txtbtn tb-browse bst-tool" id="b-poll" type="button"><span data-ic="repeat"></span><span class="btxt">轮询选中</span></button>
+          </div>
+        </div>
+        <div class="bst-chbody" id="b-chbody">
+          <div class="bst-chtable">
+            <div class="bst-chrow bst-chead">
+              <label class="bst-chk"><input type="checkbox" id="b-ch-all" /></label>
+              <span>频道</span><span>地址</span><span>状态</span><span>结果</span>
+            </div>
+            <div class="bst-chrows" id="b-ch-rows"></div>
+          </div>
+        </div>
       </div>
 
-      <div class="kfoot" id="b-foot">
-        <span class="kfoot-note" id="b-foot-note">口径：把到达时间按 1ms 分桶，峰值 = 单窗口字节量换算的瞬时码率；某个窗口 ≥ 均值 × 阈值即计一次微突发。</span>
-        <span class="kfoot-basis">微突发高但平均码率正常，通常说明上游发包不平滑或链路缓冲不足；本机回环测试时 recv 会成批取包，毫秒级突发天然偏多，长链路/真实组播更有参考价值。</span>
+      <div class="bst-kpiwrap" id="b-kpi"></div>
+
+      <div class="bst-chart-card">
+        <div class="bst-chart-head">
+          <div class="bst-chart-title">
+            <b id="b-spark-title">最近 240 个 1ms 窗口到达量</b>
+            <span id="b-spark-sub">每根柱 = 1ms 内收到的字节</span>
+          </div>
+          <div class="bst-legend">
+            <span><i class="lg-normal"></i>正常窗口</span>
+            <span><i class="lg-burst"></i>超阈值</span>
+            <span><i class="lg-thr"></i>阈值线</span>
+            <span class="bst-win-chip" id="b-win-chip">窗口 1 ms</span>
+          </div>
+        </div>
+        <div class="bst-plot" id="b-plot">
+          <div class="bst-yaxis" id="b-yaxis"><span class="bst-yunit">Mbps</span></div>
+          <canvas id="b-spark"></canvas>
+          <div class="bst-xaxis" id="b-xaxis"></div>
+          <div class="bst-empty" id="b-empty">暂无数据 · 开始检测后显示最近 240 个窗口</div>
+          <div class="bst-thr" id="b-thr" hidden></div>
+        </div>
+        <div class="bst-chart-foot">
+          <span id="b-foot-note">口径：把到达时间按 1ms 分桶，峰值 = 单窗口字节量换算的瞬时码率；某个窗口 ≥ 均值 × 阈值即计一次微突发。</span>
+          <span class="bst-foot-basis">毫秒级突发高但平均码率正常，通常说明上游发包不平滑或链路缓冲不足。</span>
+        </div>
+      </div>
+
+      <!-- 参数设置弹窗 -->
+      <div class="bst-modal" id="b-set-modal" hidden>
+        <div class="bst-mask" data-bst-close></div>
+        <div class="bst-dialog" role="dialog" aria-modal="true" aria-labelledby="b-set-title">
+          <div class="bst-dialog-head">
+            <div><b id="b-set-title">参数设置</b><span>只影响下一次检测；检测中不可修改</span></div>
+            <button class="bst-x" id="b-set-x" type="button" aria-label="关闭"><span data-ic="x"></span></button>
+          </div>
+          <div class="bst-dialog-body">
+            <label class="bst-setrow">
+              <span>网卡</span>
+              <select id="b-set-nic"></select>
+            </label>
+            <label class="bst-setrow">
+              <span>突发阈值</span>
+              <div class="bst-inline"><input id="b-set-ratio" type="number" min="1.05" max="20" step="0.05" value="2.0" /><em>× 均值</em></div>
+            </label>
+            <label class="bst-setrow">
+              <span>检测时间</span>
+              <select id="b-set-window">
+                <option value="1">1 ms</option>
+                <option value="10">10 ms</option>
+                <option value="100">100 ms</option>
+                <option value="1000">1000 ms</option>
+              </select>
+            </label>
+            <div class="bst-setnote">
+              检测时间越短，越能看出毫秒级突发；阈值越大，只有更明显的尖峰才会被计为微突发。
+            </div>
+          </div>
+          <div class="bst-dialog-foot">
+            <button class="txtbtn" id="b-set-cancel" type="button">取消</button>
+            <button class="gradbtn" id="b-set-save" type="button">保存参数</button>
+          </div>
+        </div>
       </div>
     </section>
 

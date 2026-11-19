@@ -1,11 +1,11 @@
 {
-    "version":  "0.2.32",
-    "notes":  "0.2.32：修复播放器控制条播放/暂停不生效——改为直接读取 mpv 真实状态并用 cycle pause 切换，避免旧快照导致暂停后无法恢复；控制条点击改为模块级事件委托，拖放/浮层等可选集成异常不再影响按钮；失败时给出明确提示。",
-    "pub_date":  "2026-11-19T04:26:27Z",
+    "version":  "0.2.33",
+    "notes":  "0.2.33：微突发检测页重做——坐标轴改为清晰 HTML 刻度、新增参数设置（网卡/阈值/检测时间）、可收缩频道列表与单路/多路轮询。",
+    "pub_date":  "2026-11-19T05:00:30Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXR3K0dtSWQxZ1dnYzVqTG5vMU1DR3NUQkRUdjFqMjF0NUY0aStCM2NkeWJ0V3dCT1JVR2o5d0M1OTBQWUpsbjB5MHdJMlNUSm5xUE5SeGhvWk9vUWdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDYyMzg3CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4zMl94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjMyClFZZ0lybmNSTjRUeEx6VXRVTWFCK0JXaWx4ZG45TmFBWjMyck4wRnZmd2x1OUFFdS95MzB1dWdsWDU1dUxJQlByUzZUam05azFoOTZ3dzVLeG5hMUFBPT0K",
-                                             "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.32/vqa-workbench-0.2.32-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWpOdlhsL01TaUFzNTJGOE1USXAzb2dGYk5BU3ZDODcycW1hMTNsTzhtMEM1UEF6Z0g0eWpPREovM3RlNFhORmJJTU5SMEM3VTBsWlFScmw3ZkFuamc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDY0NDMwCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4zM194NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjMzCnVrbkNaMjBVSFhmUytsU3hqY3F1K3N1ejhnY3k5ZlR0YzRXcGRPR0xiZ1QvNVpFa3RONnd3b3VmN3U0WU1nb05nMVA1enNqLzFaSzBnTVVzaGpCTUJBPT0K",
+                                             "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.33/vqa-workbench-0.2.33-setup.exe"
                                          }
                   }
 }
