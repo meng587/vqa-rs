@@ -186,8 +186,14 @@
         <div class="vsep"></div>
         <div class="icogroup">
           <button class="iconbtn ghost txtbtn tb-browse" id="a-browse" title="浏览本地文件…" type="button"><span data-ic="folder"></span><span class="btxt">浏览</span></button>
-          <button class="iconbtn ghost txtbtn tb-set" id="a-export" title="导出报告（Markdown）" type="button"><span data-ic="download"></span><span class="btxt">导出报告</span></button>
-          <button class="iconbtn ghost txtbtn tb-set" id="a-export-html" title="导出报告（HTML，可直接打开）" type="button"><span data-ic="download"></span><span class="btxt">网页报告</span></button>
+          <div class="expbox">
+            <button class="iconbtn ghost txtbtn tb-set" id="a-export" title="导出报告（Markdown / Word / HTML）" type="button"><span data-ic="download"></span><span class="btxt">导出报告</span></button>
+            <div class="histpop exppop" id="a-exppop" hidden>
+              <button class="hi" data-fmt="md" type="button">Markdown 报告 <span>.md</span></button>
+              <button class="hi" data-fmt="docx" type="button">Word 文档 <span>.docx</span></button>
+              <button class="hi" data-fmt="html" type="button">HTML 网页报告 <span>.html</span></button>
+            </div>
+          </div>
           <button class="iconbtn ghost txtbtn tb-set" id="a-set" title="视频分析设置" type="button"><span data-ic="settings"></span><span class="btxt">设置</span></button>
         </div>
       </div>

@@ -4,6 +4,8 @@
 import { api, type NicRow, type Res } from "./api";
 import { icon } from "./icons";
 import { setNavLamp, nicLabel } from "./main";
+import { buildDocxReport } from "./report-docx";
+import { buildMarkdownReport } from "./report-markdown";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -139,32 +141,60 @@ export function initAnalysis() {
     }),
   );
 
-  // 报告导出
+  // 报告导出：一个入口，点开选 Markdown / Word / HTML
+  const exportBtn = $("a-export") as HTMLButtonElement;
+  const exppop = $("a-exppop") as HTMLElement;
+  let exporting = false;
+
+  exportBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    exppop.hidden = !exppop.hidden;
+  });
   document.addEventListener("click", (e) => {
-    if ((e.target as HTMLElement).closest("#a-export")) {
-      api
-        .exportReport()
-        .then((p) => {
-          if (p) pushLog(`报告已导出：${p}`);
-        })
-        .catch((err) => pushLog(`导出失败：${String(err)}`));
+    if (!(e.target as HTMLElement).closest(".expbox")) exppop.hidden = true;
+  });
+
+  async function doExport(fmt: "md" | "docx" | "html") {
+    if (!resCache) {
+      pushLog("还没有扫描结果，先扫描再导出");
+      return;
     }
-    if ((e.target as HTMLElement).closest("#a-export-html")) {
-      if (!resCache) {
-        pushLog("还没有扫描结果，先扫描再导出");
-        return;
+    if (exporting) return;
+    exporting = true;
+    exportBtn.disabled = true;
+    const stamp = new Date()
+      .toLocaleString("sv-SE", { hour12: false })
+      .replace(/[-: ]/g, (m) => (m === " " ? "_" : m))
+      .slice(0, 17);
+    const base = `TS流质量检测报告_${stamp}`;
+    try {
+      if (fmt === "md") {
+        const p = await api.reportExport(`${base}.md`, buildMarkdownReport(resCache), "md");
+        if (p) pushLog(`Markdown 报告已导出：${p}`);
+      } else if (fmt === "docx") {
+        const b64 = await buildDocxReport(resCache);
+        const p = await api.reportExportB64(`${base}.docx`, b64, "docx");
+        if (p) pushLog(`Word 报告已导出：${p}`);
+      } else {
+        const p = await api.reportExport(`${base}.html`, buildHtmlReport(resCache), "html");
+        if (p) pushLog(`HTML 报告已导出：${p}（可直接用浏览器打开/发邮件）`);
       }
-      const stamp = new Date()
-        .toLocaleString("sv-SE", { hour12: false })
-        .replace(/[-: ]/g, (m) => (m === " " ? "_" : m))
-        .slice(0, 17);
-      api
-        .reportExport(`TS流质量检测报告_${stamp}.html`, buildHtmlReport(resCache), "html")
-        .then((p) => {
-          if (p) pushLog(`HTML 报告已导出：${p}（可直接用浏览器打开/发邮件）`);
-        })
-        .catch((err) => pushLog(`导出失败：${String(err)}`));
+    } catch (err) {
+      pushLog(`导出失败：${String(err)}`);
+    } finally {
+      exporting = false;
+      exportBtn.disabled = false;
     }
+  }
+
+  exppop.addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest("[data-fmt]") as HTMLButtonElement | null;
+    if (!b) return;
+    exppop.hidden = true;
+    void doExport((b.dataset.fmt || "md") as "md" | "docx" | "html");
+  });
+
+  document.addEventListener("click", (e) => {
     if ((e.target as HTMLElement).closest("#a-pkt-prev")) {
       if (pktPage > 0) {
         pktPage--;

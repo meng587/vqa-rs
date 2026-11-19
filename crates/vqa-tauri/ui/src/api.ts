@@ -203,9 +203,12 @@ export const api = {
     invoke<{ total: number; rows: { idx: number; pid: number; pusi: boolean; afc: number; cc: number; hex: string }[] }>("packet_rows", { start, count }),
   exportReport: (path?: string) =>
     invoke<string | null>("export_report_md", { path: path ?? null }),
-  /** 导出 HTML/CSV 报告（系统保存对话框） */
+  /** 导出 HTML/Markdown/CSV 报告 */
   reportExport: (name: string, content: string, ext: string) =>
     invoke<string | null>("report_export", { name, content, ext }),
+  /** 导出二进制报告（Word .docx），content 为 base64 */
+  reportExportB64: (name: string, contentB64: string, ext: string) =>
+    invoke<string | null>("report_export_b64", { name, contentB64, ext }),
   // 诊断日志
   diagCollect: () => invoke<{ name: string; content: string }>("diag_collect"),
   diagExport: (name: string, content: string) =>

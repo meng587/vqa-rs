@@ -1166,7 +1166,7 @@ pub fn player_set_program(
     Ok(())
 }
 
-/// 导出分析报告（HTML/CSV）：走系统保存对话框，返回落盘路径。
+/// 导出分析报告（Markdown/HTML）：优先落到设置里的报告目录，否则弹系统保存框。
 #[tauri::command]
 pub fn report_export(
     app: tauri::AppHandle,
@@ -1176,18 +1176,60 @@ pub fn report_export(
 ) -> Result<Option<String>, String> {
     use tauri_plugin_dialog::DialogExt;
     let (desc, filter) = match ext.as_str() {
+        "md" => ("Markdown 报告", "md"),
         "csv" => ("CSV 表格", "csv"),
         _ => ("HTML 报告", "html"),
     };
-    let dest = app
-        .dialog()
-        .file()
-        .add_filter(desc, &[filter])
-        .set_file_name(&name)
-        .blocking_save_file()
-        .map(|p| p.to_string())
-        .ok_or_else(|| "已取消".to_string())?;
+    let dest = match report_dir() {
+        Some(d) => {
+            let _ = std::fs::create_dir_all(&d);
+            d.join(&name).to_string_lossy().to_string()
+        }
+        None => app
+            .dialog()
+            .file()
+            .add_filter(desc, &[filter])
+            .set_file_name(&name)
+            .blocking_save_file()
+            .map(|p| p.to_string())
+            .ok_or_else(|| "已取消".to_string())?,
+    };
     std::fs::write(&dest, content).map_err(|e| format!("写文件失败：{e}"))?;
+    Ok(Some(dest))
+}
+
+/// 导出二进制报告（Word .docx）：同样优先落到分析报告目录。
+#[tauri::command]
+pub fn report_export_b64(
+    app: tauri::AppHandle,
+    name: String,
+    content_b64: String,
+    ext: String,
+) -> Result<Option<String>, String> {
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
+    use tauri_plugin_dialog::DialogExt;
+    let bytes = STANDARD
+        .decode(content_b64.as_bytes())
+        .map_err(|e| format!("报告编码无效：{e}"))?;
+    let (desc, filter) = match ext.as_str() {
+        "docx" => ("Word 文档", "docx"),
+        _ => ("二进制文件", "bin"),
+    };
+    let dest = match report_dir() {
+        Some(d) => {
+            let _ = std::fs::create_dir_all(&d);
+            d.join(&name).to_string_lossy().to_string()
+        }
+        None => app
+            .dialog()
+            .file()
+            .add_filter(desc, &[filter])
+            .set_file_name(&name)
+            .blocking_save_file()
+            .map(|p| p.to_string())
+            .ok_or_else(|| "已取消".to_string())?,
+    };
+    std::fs::write(&dest, bytes).map_err(|e| format!("写文件失败：{e}"))?;
     Ok(Some(dest))
 }
 

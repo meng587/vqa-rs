@@ -193,6 +193,7 @@ fn main() {
             commands::player_programs,
             commands::player_set_program,
             commands::report_export,
+            commands::report_export_b64,
             commands::player_snapshot,
             commands::player_snapshot_save,
             commands::player_record_toggle,

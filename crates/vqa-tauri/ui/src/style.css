@@ -159,6 +159,17 @@ main {
 .histpop .hi:hover { background: var(--acc-soft-h); }
 .histpop .hi.clear { color: var(--faint); font-family: var(--sans); }
 
+/* 导出格式菜单：挂在「导出报告」按钮下方，三种格式 */
+.expbox { position: relative; display: inline-flex; }
+.expbox .exppop {
+  top: 38px; right: 0; left: auto; min-width: 208px; padding: 5px;
+}
+.expbox .exppop .hi {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 18px;
+  font-family: var(--sans);
+}
+.expbox .exppop .hi span { color: var(--faint); font: 11px var(--mono); }
+
 /* ---------- 视频卡 ---------- */
 .vcard {
   position: relative; flex: 1; min-height: 0;
