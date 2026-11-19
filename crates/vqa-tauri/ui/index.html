@@ -655,12 +655,17 @@
       </div>
       <div class="cg-grid" id="cg-grid">
         <aside class="cg-card cg-left" id="cg-left">
-          <div class="cg-lhead"><b>待检测分组</b><span id="cg-count">0 组 / 0 源</span><button id="cg-collapse">收起</button></div>
+          <div class="cg-lhead"><b>比对频道</b><span id="cg-count">0 组 / 0 对</span><button id="cg-collapse">收起</button></div>
+          <div class="cg-filterbar">
+            <label class="cg-gselect">分组<select id="cg-groupfilter"><option value="all">全部</option></select></label>
+            <label class="cg-search"><input id="cg-search" placeholder="搜索频道 / 来源 / 地址" /></label>
+            <label class="cg-allbox" title="勾选当前列表里的全部比对对"><input type="checkbox" id="cg-allbox" /><span>全选</span></label>
+          </div>
           <div class="cg-list" id="cg-list"></div>
           <div class="cg-rail" id="cg-rail" hidden></div>
           <div class="cg-gfoot" id="cg-gfoot">
             <button class="cg-primary" id="cg-runpair">比对当前对</button>
-            <button id="cg-rungroup" hidden>检测本组全部对</button>
+            <button id="cg-rungroup" hidden>轮询选中</button>
             <button class="cg-stop" id="cg-stop" hidden>停止</button>
           </div>
         </aside>
