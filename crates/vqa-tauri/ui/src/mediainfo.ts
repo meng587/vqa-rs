@@ -24,15 +24,15 @@ function build() {
   <div class="drmask" id="mi-mask" hidden></div>
   <aside class="drawer" id="mi-drawer" hidden>
     <div class="drhead"><b>媒体信息</b>
-      <button class="iconbtn" id="mi-refresh" title="重新探测"></button>
-      <button class="iconbtn drx" id="mi-x" title="关闭"></button>
+      <button class="iconbtn txtbtn" id="mi-refresh" title="重新探测"></button>
+      <button class="iconbtn drx txtbtn" id="mi-x" title="关闭"></button>
     </div>
     <div class="drbody" id="mi-body"></div>
   </aside>`;
   while (frag.firstElementChild) document.body.appendChild(frag.firstElementChild);
-  $("mi-x").innerHTML = icon("x", 14);
+  $("mi-x").innerHTML = `${icon("x", 14)}<span class="btxt">关闭</span>`;
   $("mi-x").addEventListener("click", close);
-  $("mi-refresh").innerHTML = icon("repeat", 14);
+  $("mi-refresh").innerHTML = `${icon("repeat", 14)}<span class="btxt">刷新</span>`;
   $("mi-refresh").addEventListener("click", () => {
     if (lastPath) probe(lastPath);
   });

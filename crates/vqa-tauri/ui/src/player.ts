@@ -40,7 +40,7 @@ document.addEventListener(
   "click",
   (ev) => {
     const target = ev.target as HTMLElement | null;
-    const hit = target?.closest("#c-play, #v-replay");
+    const hit = target?.closest("#c-play");
     if (!hit) return;
     ev.preventDefault();
     requestPauseToggle();
@@ -821,7 +821,8 @@ function render(st: PlayerStateJson) {
   if (snap) {
     drawVol(snap.mute ? 0 : snap.volume);
     const muteBtn = $("c-mute") as HTMLElement;
-    muteBtn.innerHTML = icon(snap.mute ? "volumex" : "volume");
+    muteBtn.innerHTML = `${icon(snap.mute ? "volumex" : "volume")}<span class="btxt">${snap.mute ? "取消静音" : "静音"}</span>`;
+    muteBtn.title = snap.mute ? "取消静音" : "静音";
     muteBtn.classList.toggle("muted", snap.mute);
     (window as any).__muteCache = snap.mute;
   }
@@ -840,7 +841,7 @@ function render(st: PlayerStateJson) {
   if (snap && snap.speed && Math.abs(snap.speed - lastSpeed) > 0.01) {
     const idx = SPEEDS.findIndex((s) => Math.abs(s - snap.speed) < 0.01);
     if (idx >= 0) {
-      ($("c-speedbtn") as HTMLButtonElement).textContent = `${SPEEDS[idx]}x ▾`;
+      ($("c-speedbtn") as HTMLButtonElement).innerHTML = `<span class="btxt">倍速</span><span id="c-speedval">${SPEEDS[idx]}x</span><span class="caret">▾</span>`;
     }
   }
 

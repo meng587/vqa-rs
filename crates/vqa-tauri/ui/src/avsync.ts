@@ -312,7 +312,7 @@ async function loadPrefs() {
 export function initAvSync() {
   const b = $<HTMLButtonElement>("av-browse");
   if (b) {
-    b.innerHTML = icon("folder", 15);
+    b.innerHTML = `${icon("folder", 15)}<span class="btxt">浏览</span>`;
     b.addEventListener("click", async () => {
       const p = await api.browse();
       if (p && $<HTMLInputElement>("av-src")) $<HTMLInputElement>("av-src")!.value = p;
@@ -320,7 +320,7 @@ export function initAvSync() {
   }
   $<HTMLButtonElement>("av-act")?.addEventListener("click", startManual);
   const s = $<HTMLButtonElement>("av-stop");
-  if (s) s.innerHTML = icon("square", 15);
+  if (s) s.innerHTML = `${icon("square", 15)}<span class="btxt">停止检测</span>`;
   s?.addEventListener("click", stop);
   ["av-secs", "av-search"].forEach((id) =>
     $<HTMLInputElement>(id)?.addEventListener("change", queueSave),
@@ -332,6 +332,7 @@ export function initAvSync() {
       owner: "av",
       title: "频道列表",
       conc: 1,
+      compact: true,
       onConc: queueSave,
       runOne: async (ch, job, focus): Promise<RunOutcome> => {
         if (focus) {

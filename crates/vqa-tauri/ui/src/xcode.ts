@@ -498,7 +498,7 @@ function bindFieldUpdates() {
 export function initXcode() {
   const browse = $<HTMLButtonElement>("x-browse");
   if (browse) {
-    browse.innerHTML = icon("folder", 15);
+    browse.innerHTML = `${icon("folder", 15)}<span class="btxt">浏览</span>`;
     browse.addEventListener("click", async () => {
       const p = await api.browse();
       if (p && inEl()) {

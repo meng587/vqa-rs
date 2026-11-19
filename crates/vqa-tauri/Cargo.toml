@@ -1,7 +1,7 @@
 [package]
 name = "vqa-tauri"
 # 版本单一来源（tauri.conf 不再设 version，updater/关于页都读这里）
-version = "0.2.33"
+version = "0.2.35"
 edition.workspace = true
 description = "视听质量检测工作站 —— Tauri/Web UI 版（vqa-core 复用）"
 
@@ -31,5 +31,6 @@ serde_json.workspace = true
 chrono.workspace = true
 base64 = "0.22"
 windows.workspace = true
+
 
 

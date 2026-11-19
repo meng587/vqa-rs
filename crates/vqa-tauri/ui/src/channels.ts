@@ -4,6 +4,8 @@
 //! 增删、持久化都在这里，避免两页各写一套。
 
 import { api, Channel } from "./api";
+import { normalizeAddressText } from "./address";
+import { openChannelEditor } from "./channel-editor";
 
 export interface RunOutcome {
   ok: boolean;
@@ -20,6 +22,8 @@ export interface ChannelHooks {
   title?: string;
   /** 初始并发度（1 = 逐条） */
   conc?: number;
+  /** 左侧窄栏模式：只保留编辑/预览/检测，增删改走列表编辑页 */
+  compact?: boolean;
   /** 并发度变化时回调（页面负责持久化） */
   onConc?: (n: number) => void;
   /** 额外动作（如一致性页的「设为参考」） */
@@ -71,6 +75,7 @@ export class ChannelBoard {
   }
 
   async load() {
+    this.sel = -1;
     try {
       const list = await api.channelsGet();
       // 老版本重复导入留下的同地址行在这里合并掉
@@ -94,7 +99,24 @@ export class ChannelBoard {
   }
 
   private build() {
-    this.host.innerHTML = `
+    const compact = this.hooks.compact === true;
+    const toolbar = compact
+      ? `
+      <div class="chbar is-compact">
+        <div class="chttlrow"><b class="chttl">${this.hooks.title || "频道列表"}</b><span class="chcount">0</span></div>
+        <div class="chsub">
+          <label class="chconc" title="同时检测的频道数；1 = 逐条，检测时预览框跟第一个开跑的频道">
+            并发 <input type="number" min="1" max="8" step="1" data-role="conc" value="${this.conc}" />
+          </label>
+        </div>
+        <div class="chacts">
+          <button class="cbtn" data-a="edit">编辑列表</button>
+          <button class="cbtn" data-a="one">检测选中</button>
+          <button class="gradbtn csm" data-a="all">轮巡检测</button>
+          <button class="cbtn" data-a="stop" hidden>停止</button>
+        </div>
+      </div>`
+      : `
       <div class="chbar">
         <b class="chttl">${this.hooks.title || "频道列表"}</b>
         <span class="chcount">0</span>
@@ -111,7 +133,9 @@ export class ChannelBoard {
         <button class="cbtn" data-a="one">检测选中</button>
         <button class="gradbtn csm" data-a="all">轮巡检测</button>
         <button class="cbtn" data-a="stop" hidden>停止</button>
-      </div>
+      </div>`;
+    this.host.innerHTML = `
+      ${toolbar}
       <div class="chimp" data-role="import" hidden>
         <textarea class="chta" placeholder="每行一个频道：名称,地址&#10;例如：CCTV-1 综合,udp://@239.1.1.1:5000&#10;只填地址也可以，名称自动补"></textarea>
         <div class="chimpa">
@@ -134,6 +158,7 @@ export class ChannelBoard {
       </div>`;
     this.bindBar();
     this.renderRows();
+    window.addEventListener("channels-changed", () => void this.load());
   }
 
   private q<T extends HTMLElement>(sel: string) {
@@ -153,6 +178,7 @@ export class ChannelBoard {
       else if (a === "add-ok") this.commitAdd();
       else if (a === "import-ok") this.commitImport();
       else if (a === "del") this.deleteSelected();
+      else if (a === "edit") void openChannelEditor();
       else if (a === "prev") this.previewSelected();
       else if (a === "one") this.runSelected();
       else if (a === "all") this.runAll();
@@ -186,7 +212,7 @@ export class ChannelBoard {
 
   private commitAdd() {
     const name = (this.q<HTMLInputElement>('[data-role="name"]')?.value || "").trim();
-    const url = (this.q<HTMLInputElement>('[data-role="url"]')?.value || "").trim();
+    const url = normalizeAddressText((this.q<HTMLInputElement>('[data-role="url"]')?.value || "").trim());
     if (!url || this.hasUrl(url)) return;
     this.chans.push({ name: name || `频道${this.chans.length + 1}`, url, enabled: true });
     if (this.q<HTMLInputElement>('[data-role="name"]')) this.q<HTMLInputElement>('[data-role="name"]')!.value = "";
@@ -208,7 +234,9 @@ export class ChannelBoard {
       const m = line.match(/^(.+?)[,，\t]\s*((?:udp|rtp|rtsp|http|https|file):.*|\S.*)$/);
       if (m) {
         name = m[1].trim();
-        url = m[2].trim();
+        url = normalizeAddressText(m[2].trim());
+      } else {
+        url = normalizeAddressText(url);
       }
       if (!url || this.hasUrl(url)) continue;
       this.chans.push({ name: name || `频道${this.chans.length + 1}`, url, enabled: true });

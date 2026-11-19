@@ -25,7 +25,7 @@ function buildDrawers() {
   <div class="drmask" id="dr-mask" hidden></div>
 
   <aside class="drawer" id="dr-player" hidden>
-    <div class="drhead"><b>播放器设置</b><button class="iconbtn drx" id="dr-p-x" title="关闭"></button></div>
+    <div class="drhead"><b>播放器设置</b><button class="iconbtn drx txtbtn" id="dr-p-x" title="关闭"></button></div>
     <div class="drbody">
       <div class="drsec">网络</div>
       <div class="setrow">
@@ -37,12 +37,12 @@ function buildDrawers() {
       <div class="setrow">
         <span class="k">截图</span>
         <input id="dr-p-snap" spellcheck="false" />
-        <button class="iconbtn" id="dr-p-snapb" title="选择文件夹…"></button>
+        <button class="iconbtn txtbtn" id="dr-p-snapb" title="选择文件夹…"></button>
       </div>
       <div class="setrow">
         <span class="k">录像</span>
         <input id="dr-p-rec" spellcheck="false" />
-        <button class="iconbtn" id="dr-p-recb" title="选择文件夹…"></button>
+        <button class="iconbtn txtbtn" id="dr-p-recb" title="选择文件夹…"></button>
       </div>
       <div class="drsec">播放默认</div>
       <label class="drchk"><input type="checkbox" id="dr-p-loop" /><span>默认开启循环播放</span></label>
@@ -60,13 +60,13 @@ function buildDrawers() {
   </aside>
 
   <aside class="drawer" id="dr-analysis" hidden>
-    <div class="drhead"><b>视频分析设置</b><button class="iconbtn drx" id="dr-a-x" title="关闭"></button></div>
+    <div class="drhead"><b>视频分析设置</b><button class="iconbtn drx txtbtn" id="dr-a-x" title="关闭"></button></div>
     <div class="drbody">
       <div class="drsec">导出</div>
       <div class="setrow">
         <span class="k">报告目录</span>
         <input id="dr-a-report" spellcheck="false" />
-        <button class="iconbtn" id="dr-a-reportb" title="选择文件夹…"></button>
+        <button class="iconbtn txtbtn" id="dr-a-reportb" title="选择文件夹…"></button>
       </div>
       <div class="drhint">
         留空 = 每次点「导出报告」时弹保存对话框。填了目录就直接落盘成
@@ -82,8 +82,8 @@ function buildDrawers() {
   while (frag.firstElementChild) document.body.appendChild(frag.firstElementChild);
 
   // 关闭按钮与遮罩装配图标
-  for (const id of ["dr-p-x", "dr-a-x"]) $(id).innerHTML = icon("x", 14);
-  for (const id of ["dr-p-snapb", "dr-p-recb", "dr-a-reportb"]) $(id).innerHTML = icon("folder", 14);
+  for (const id of ["dr-p-x", "dr-a-x"]) $(id).innerHTML = `${icon("x", 14)}<span class="btxt">关闭</span>`;
+  for (const id of ["dr-p-snapb", "dr-p-recb", "dr-a-reportb"]) $(id).innerHTML = `${icon("folder", 14)}<span class="btxt">选择</span>`;
   $("dr-mask").addEventListener("click", () => closeAll());
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") closeAll();

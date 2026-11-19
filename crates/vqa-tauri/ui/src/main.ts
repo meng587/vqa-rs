@@ -14,6 +14,7 @@ import { initSettings } from "./settings";
 import { initMediaInfo } from "./mediainfo";
 import { api } from "./api";
 import { SPEEDS } from "./constants";
+import { watchAddressInputs } from "./address";
 
 export { SPEEDS };
 export let speedIdx = 2;
@@ -183,7 +184,7 @@ speedMenu.addEventListener("click", (e) => {
   const t = (e.target as HTMLElement).closest("button[data-i]") as HTMLButtonElement | null;
   if (!t) return;
   speedIdx = Number(t.getAttribute("data-i"));
-  speedBtn.textContent = `${SPEEDS[speedIdx]}x ▾`;
+  speedBtn.innerHTML = `<span class="btxt">倍速</span><span id="c-speedval">${SPEEDS[speedIdx]}x</span><span class="caret">▾</span>`;
   speedMenu.hidden = true;
   window.dispatchEvent(new CustomEvent("speed-changed", { detail: SPEEDS[speedIdx] }));
 });
@@ -519,6 +520,7 @@ initAvSync();
 initConsist();
 initAlarm();
 initMediaInfo();
+watchAddressInputs();
 // 空态里的「选择 TS 文件」复用顶栏的浏览动作
 document.getElementById("a-empty-browse")?.addEventListener("click", () =>
   (document.getElementById("a-browse") as HTMLElement | null)?.click(),

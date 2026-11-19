@@ -7,6 +7,7 @@
 //! - 清晰的坐标轴、网格和柱状图。
 
 import { api, BurstStats, Channel, NicRow } from "./api";
+import { openChannelEditor } from "./channel-editor";
 
 const $ = <T extends HTMLElement>(id: string): T | null =>
   document.getElementById(id) as T | null;
@@ -173,11 +174,13 @@ function syncLockUi() {
   const setBtn = $<HTMLButtonElement>("b-settings");
   const pollBtn = $<HTMLButtonElement>("b-poll");
   const addBtn = $<HTMLButtonElement>("b-add-current");
+  const editBtn = $<HTMLButtonElement>("b-edit-list");
   const all = $<HTMLInputElement>("b-ch-all");
   if (act) act.disabled = isLocked;
   if (setBtn) setBtn.disabled = isLocked;
   if (pollBtn) pollBtn.disabled = isLocked;
   if (addBtn) addBtn.disabled = isLocked || !currentUrl();
+  if (editBtn) editBtn.disabled = isLocked;
   if (all) all.disabled = isLocked;
   if (stop) stop.hidden = !(running || polling);
   document.querySelectorAll<HTMLInputElement>("#b-ch-rows input[type=checkbox]").forEach((c) => {
@@ -924,6 +927,7 @@ export function initBurst() {
   $<HTMLButtonElement>("b-stop")?.addEventListener("click", () => void stopSession());
   $<HTMLButtonElement>("b-settings")?.addEventListener("click", openSettings);
   $<HTMLButtonElement>("b-add-current")?.addEventListener("click", addCurrentChannel);
+  $<HTMLButtonElement>("b-edit-list")?.addEventListener("click", () => void openChannelEditor());
   $<HTMLButtonElement>("b-poll")?.addEventListener("click", () => void pollSelected());
   $<HTMLButtonElement>("b-ch-toggle")?.addEventListener("click", () =>
     setChannelCollapsed(!collapsed),
@@ -972,4 +976,5 @@ export function initBurst() {
       window.requestAnimationFrame(() => drawSpark(snapshot));
     }
   });
+  window.addEventListener("channels-changed", () => void loadChannels());
 }

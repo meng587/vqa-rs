@@ -96,7 +96,7 @@
       <svg viewBox="0 0 24 24"><use href="#ding-glyph"/></svg>
     </div>
     <div class="side-status side-engine" title="引擎状态"><span class="dot" id="engine-dot"></span><div><b>引擎就绪</b><small>mpv 0.42</small></div></div>
-    <div class="side-meta"><span id="side-ver">v0.2.27 / LOCAL</span><button class="side-collapse" id="side-collapse" title="收起导航" aria-label="收起导航"><span data-ic="chevronleft"></span></button></div>
+    <div class="side-meta"><span id="side-ver">v0.2.27 / LOCAL</span><button class="side-collapse txtbtn" id="side-collapse" title="收起导航" aria-label="收起导航"><span data-ic="chevronleft"></span><span class="btxt">收起</span></button></div>
   </div>
 </aside>
 
@@ -119,7 +119,7 @@
         <span class="lbl">来源</span>
         <div class="srcbox">
           <input class="src" id="p-url" placeholder="本地文件 / udp://@239.x.x.x:port / rtsp://…" spellcheck="false" />
-          <button class="iconbtn ghost histbtn" id="p-hist" title="历史" data-ic="chevrondown"></button>
+          <button class="iconbtn ghost histbtn txtbtn" id="p-hist" title="历史" type="button"><span data-ic="chevrondown"></span><span class="btxt">历史</span></button>
           <div class="histpop" id="p-histpop" hidden></div>
         </div>
         <span class="lbl" id="p-proglbl" hidden>节目</span>
@@ -143,7 +143,7 @@
         <div class="drophint" id="v-drophint" hidden>松手即播放</div>
         <div class="v-empty" id="v-empty">
           <div class="emptybox">
-            <button class="bigplay" id="v-replay" data-ic="play"></button>
+            <div class="bigplay" aria-hidden="true"><span data-ic="play"></span></div>
             <div class="empty-t" id="v-empty-title">还没有载入媒体</div>
             <div class="empty-s" id="v-hint">支持 TS / MP4 / MKV / FLV 本地文件（也可直接拖入窗口），或 UDP / RTP 组播地址</div>
             <div class="empty-btns">
@@ -158,14 +158,14 @@
           <div class="seek off" id="c-seek"><div class="track"><div class="fill" id="c-seekfill"></div><div class="thumb" id="c-seekthumb"></div></div></div>
           <span class="ctime" id="c-time">00:00:00 / --:--</span>
           <div class="csep"></div>
-          <button class="cbtn" id="c-mute" title="静音" data-ic="volume"></button>
+          <button class="cbtn txtc" id="c-mute" title="静音" type="button"><span data-ic="volume"></span><span class="btxt" id="c-mute-label">静音</span></button>
           <div class="vol" id="c-vol"><div class="track"><div class="fill" id="c-volfill"></div><div class="thumb" id="c-volthumb"></div></div></div>
           <div class="csep"></div>
           <button class="cbtn txtc" id="c-snap" title="快照到图片目录"><span data-ic="camera"></span><span class="btxt">截图</span></button>
           <button class="cbtn txtc" id="c-rec" title="录制（stream-record 直拷）"><span data-ic="circledot"></span><span class="btxt">录制</span></button>
           <button class="cbtn txtc" id="c-loop" title="循环播放（播完自动从头）"><span data-ic="repeat"></span><span class="btxt">循环</span></button>
           <div class="speed">
-            <button id="c-speedbtn">1x ▾</button>
+            <button id="c-speedbtn" type="button"><span class="btxt">倍速</span><span id="c-speedval">1x</span><span class="caret">▾</span></button>
             <div class="menu" id="c-speedmenu" hidden></div>
           </div>
         </div>
@@ -178,7 +178,7 @@
         <span class="lbl">来源</span>
         <div class="srcbox">
           <input class="src" id="a-url" placeholder="TS 文件 / udp://@239.x.x.port / rtp://port" spellcheck="false" />
-          <button class="iconbtn ghost histbtn" id="a-hist" title="历史" data-ic="chevrondown"></button>
+          <button class="iconbtn ghost histbtn txtbtn" id="a-hist" title="历史" type="button"><span data-ic="chevrondown"></span><span class="btxt">历史</span></button>
           <div class="histpop" id="a-histpop" hidden></div>
         </div>
         <span class="lbl">网卡</span>
@@ -187,10 +187,10 @@
         <button class="gradbtn" id="a-act"><span data-ic="search"></span>开始扫描</button>
         <div class="vsep"></div>
         <div class="icogroup">
-          <button class="iconbtn ghost" id="a-browse" title="浏览本地文件…" data-ic="folder"></button>
-          <button class="iconbtn ghost" id="a-export" title="导出报告（Markdown）" data-ic="download"></button>
-          <button class="iconbtn ghost" id="a-export-html" title="导出报告（HTML，可直接打开）" data-ic="download"></button>
-          <button class="iconbtn ghost" id="a-set" title="视频分析设置" data-ic="settings"></button>
+          <button class="iconbtn ghost txtbtn tb-browse" id="a-browse" title="浏览本地文件…" type="button"><span data-ic="folder"></span><span class="btxt">浏览</span></button>
+          <button class="iconbtn ghost txtbtn tb-set" id="a-export" title="导出报告（Markdown）" type="button"><span data-ic="download"></span><span class="btxt">导出报告</span></button>
+          <button class="iconbtn ghost txtbtn tb-set" id="a-export-html" title="导出报告（HTML，可直接打开）" type="button"><span data-ic="download"></span><span class="btxt">网页报告</span></button>
+          <button class="iconbtn ghost txtbtn tb-set" id="a-set" title="视频分析设置" type="button"><span data-ic="settings"></span><span class="btxt">设置</span></button>
         </div>
       </div>
 
@@ -234,7 +234,7 @@
         <span class="lbl">来源</span>
         <div class="srcbox">
           <input class="src" id="k-url" placeholder="TS 文件 / udp://@239.x.x.port（收流可测表 2 网络项）" spellcheck="false" />
-          <button class="iconbtn ghost histbtn" id="k-hist" title="历史" data-ic="chevrondown"></button>
+          <button class="iconbtn ghost histbtn txtbtn" id="k-hist" title="历史" type="button"><span data-ic="chevrondown"></span><span class="btxt">历史</span></button>
           <div class="histpop" id="k-histpop" hidden></div>
         </div>
         <span class="lbl">网卡</span>
@@ -246,12 +246,12 @@
         </select>
         <div class="vsep"></div>
         <button class="gradbtn" id="k-act"><span data-ic="shieldcheck"></span>开始检测</button>
-        <button class="iconbtn ghost" id="k-stop" title="停止收流" data-ic="square" hidden></button>
+        <button class="iconbtn ghost txtbtn bst-stop" id="k-stop" title="停止收流" type="button" hidden><span data-ic="square"></span><span class="btxt">停止</span></button>
         <div class="vsep"></div>
         <div class="icogroup">
-          <button class="iconbtn ghost" id="k-browse" title="浏览本地文件…" data-ic="folder"></button>
-          <button class="iconbtn ghost" id="k-export" title="导出合规报告（Markdown）" data-ic="download"></button>
-          <button class="iconbtn ghost" id="k-kdoc" title="合规说明（检测依据与判定口径）" data-ic="bookopen"></button>
+          <button class="iconbtn ghost txtbtn tb-browse" id="k-browse" title="浏览本地文件…" type="button"><span data-ic="folder"></span><span class="btxt">浏览</span></button>
+          <button class="iconbtn ghost txtbtn tb-set" id="k-export" title="导出合规报告（Markdown）" type="button"><span data-ic="download"></span><span class="btxt">导出</span></button>
+          <button class="iconbtn ghost txtbtn tb-info" id="k-kdoc" title="合规说明（检测依据与判定口径）" type="button"><span data-ic="bookopen"></span><span class="btxt">说明</span></button>
         </div>
       </div>
 
@@ -295,7 +295,7 @@
           <div class="x-top-actions">
             <button class="gradbtn ghostline" id="x-set" title="参数设置"><span data-ic="settings"></span>参数设置</button>
             <button class="gradbtn" id="x-act"><span data-ic="radiotower"></span>开始转码</button>
-            <button class="iconbtn ghost" id="x-stop" title="停止转码" data-ic="square" hidden></button>
+            <button class="iconbtn ghost txtbtn bst-stop" id="x-stop" title="停止转码" type="button" hidden><span data-ic="square"></span><span class="btxt">停止转码</span></button>
           </div>
         </div>
 
@@ -340,9 +340,9 @@
         <div class="x-setup-msg" id="x-setup-msg" hidden></div>
 
         <div class="x-setup-tabs" id="x-tabs">
-          <button class="x-tab on" data-xpage="in"><span>01</span>输入参数</button>
-          <button class="x-tab" data-xpage="code"><span>02</span>转码参数</button>
-          <button class="x-tab" data-xpage="out"><span>03</span>输出参数</button>
+          <button class="x-tab on" data-xpage="in">输入参数</button>
+          <button class="x-tab" data-xpage="code">转码参数</button>
+          <button class="x-tab" data-xpage="out">输出参数</button>
         </div>
 
         <div class="x-pages">
@@ -352,7 +352,7 @@
               <label for="x-in">来源地址 / 本地文件</label>
               <div class="x-inputrow">
                 <input class="x-inp mono" id="x-in" placeholder="udp://@239.x.x.x:port 或本地文件" spellcheck="false" />
-                <button class="iconbtn ghost" id="x-browse" title="浏览本地文件…" data-ic="folder"></button>
+                <button class="iconbtn ghost txtbtn tb-browse" id="x-browse" title="浏览本地文件…" type="button"><span data-ic="folder"></span><span class="btxt">浏览</span></button>
               </div>
               <p class="x-hint">支持 UDP / RTP / HTTP / RTSP / SRT / 本地文件。</p>
             </div>
@@ -474,61 +474,63 @@
         </div>
       </div>
 
-      <div class="bst-status" id="b-status">
-        <span class="dot" id="b-dot"></span>
-        <span class="bst-status-text" id="b-status-text">待机</span>
-        <span class="bst-chips" id="b-sum"></span>
-        <span class="bst-cfg" id="b-cfg"></span>
-      </div>
-
-      <div class="bst-chcard" id="b-chcard">
-        <div class="bst-chhead">
-          <button class="bst-chtoggle" id="b-ch-toggle" type="button" aria-expanded="true">
-            <span data-ic="chevrondown"></span><b>频道列表</b>
-          </button>
-          <span class="bst-chcount" id="b-ch-count">0 个 / 启用 0</span>
-          <span class="bst-chhint">轮询时每路采样 8 s</span>
-          <div class="bst-chtools">
-            <button class="txtbtn bst-tool" id="b-add-current" type="button">加入当前</button>
-            <button class="txtbtn tb-browse bst-tool" id="b-poll" type="button"><span data-ic="repeat"></span><span class="btxt">轮询选中</span></button>
-          </div>
-        </div>
-        <div class="bst-chbody" id="b-chbody">
-          <div class="bst-chtable">
-            <div class="bst-chrow bst-chead">
-              <label class="bst-chk"><input type="checkbox" id="b-ch-all" /></label>
-              <span>频道</span><span>地址</span><span>状态</span><span>结果</span>
+      <div class="bst-body">
+        <aside class="bst-side">
+          <div class="bst-chcard" id="b-chcard">
+            <div class="bst-chhead">
+              <button class="bst-chtoggle" id="b-ch-toggle" type="button" aria-expanded="true">
+                <span data-ic="chevrondown"></span><b>频道列表</b>
+              </button>
+              <span class="bst-chcount" id="b-ch-count">0 个 / 启用 0</span>
+              <label class="bst-chall"><input type="checkbox" id="b-ch-all" /><span>全选</span></label>
+              <div class="bst-chtools">
+                <button class="txtbtn bst-tool" id="b-edit-list" type="button">编辑列表</button>
+                <button class="txtbtn bst-tool" id="b-add-current" type="button">加入当前</button>
+                <button class="txtbtn tb-browse bst-tool" id="b-poll" type="button"><span data-ic="repeat"></span><span class="btxt">轮询选中</span></button>
+              </div>
             </div>
-            <div class="bst-chrows" id="b-ch-rows"></div>
+            <div class="bst-chbody" id="b-chbody">
+              <div class="bst-chrows" id="b-ch-rows"></div>
+            </div>
+            <div class="bst-chfoot">轮询时每路采样 8 s · 名称和地址可在「编辑列表」里修改</div>
           </div>
-        </div>
-      </div>
+        </aside>
 
-      <div class="bst-kpiwrap" id="b-kpi"></div>
+        <div class="bst-main">
+          <div class="bst-status" id="b-status">
+            <span class="dot" id="b-dot"></span>
+            <span class="bst-status-text" id="b-status-text">待机</span>
+            <span class="bst-chips" id="b-sum"></span>
+            <span class="bst-cfg" id="b-cfg"></span>
+          </div>
 
-      <div class="bst-chart-card">
-        <div class="bst-chart-head">
-          <div class="bst-chart-title">
-            <b id="b-spark-title">最近 240 个 1ms 窗口到达量</b>
-            <span id="b-spark-sub">每根柱 = 1ms 内收到的字节</span>
+          <div class="bst-kpiwrap" id="b-kpi"></div>
+
+          <div class="bst-chart-card">
+            <div class="bst-chart-head">
+              <div class="bst-chart-title">
+                <b id="b-spark-title">最近 240 个 1ms 窗口到达量</b>
+                <span id="b-spark-sub">每根柱 = 1ms 内收到的字节</span>
+              </div>
+              <div class="bst-legend">
+                <span><i class="lg-normal"></i>正常窗口</span>
+                <span><i class="lg-burst"></i>超阈值</span>
+                <span><i class="lg-thr"></i>阈值线</span>
+                <span class="bst-win-chip" id="b-win-chip">窗口 1 ms</span>
+              </div>
+            </div>
+            <div class="bst-plot" id="b-plot">
+              <div class="bst-yaxis" id="b-yaxis"><span class="bst-yunit">Mbps</span></div>
+              <canvas id="b-spark"></canvas>
+              <div class="bst-xaxis" id="b-xaxis"></div>
+              <div class="bst-empty" id="b-empty">暂无数据 · 开始检测后显示最近 240 个窗口</div>
+              <div class="bst-thr" id="b-thr" hidden></div>
+            </div>
+            <div class="bst-chart-foot">
+              <span id="b-foot-note">口径：把到达时间按 1ms 分桶，峰值 = 单窗口字节量换算的瞬时码率；某个窗口 ≥ 均值 × 阈值即计一次微突发。</span>
+              <span class="bst-foot-basis">毫秒级突发高但平均码率正常，通常说明上游发包不平滑或链路缓冲不足。</span>
+            </div>
           </div>
-          <div class="bst-legend">
-            <span><i class="lg-normal"></i>正常窗口</span>
-            <span><i class="lg-burst"></i>超阈值</span>
-            <span><i class="lg-thr"></i>阈值线</span>
-            <span class="bst-win-chip" id="b-win-chip">窗口 1 ms</span>
-          </div>
-        </div>
-        <div class="bst-plot" id="b-plot">
-          <div class="bst-yaxis" id="b-yaxis"><span class="bst-yunit">Mbps</span></div>
-          <canvas id="b-spark"></canvas>
-          <div class="bst-xaxis" id="b-xaxis"></div>
-          <div class="bst-empty" id="b-empty">暂无数据 · 开始检测后显示最近 240 个窗口</div>
-          <div class="bst-thr" id="b-thr" hidden></div>
-        </div>
-        <div class="bst-chart-foot">
-          <span id="b-foot-note">口径：把到达时间按 1ms 分桶，峰值 = 单窗口字节量换算的瞬时码率；某个窗口 ≥ 均值 × 阈值即计一次微突发。</span>
-          <span class="bst-foot-basis">毫秒级突发高但平均码率正常，通常说明上游发包不平滑或链路缓冲不足。</span>
         </div>
       </div>
 
@@ -538,7 +540,7 @@
         <div class="bst-dialog" role="dialog" aria-modal="true" aria-labelledby="b-set-title">
           <div class="bst-dialog-head">
             <div><b id="b-set-title">参数设置</b><span>只影响下一次检测；检测中不可修改</span></div>
-            <button class="bst-x" id="b-set-x" type="button" aria-label="关闭"><span data-ic="x"></span></button>
+            <button class="bst-x" id="b-set-x" type="button" aria-label="关闭">关闭</button>
           </div>
           <div class="bst-dialog-body">
             <label class="bst-setrow">
@@ -576,7 +578,7 @@
         <span class="lbl">来源</span>
         <div class="srcbox">
           <input class="src" id="av-src" placeholder="本地文件 / udp://@239.x.x.x:port / rtsp://…" spellcheck="false" />
-          <button class="iconbtn ghost histbtn" id="av-browse" title="浏览本地文件…" data-ic="folder"></button>
+          <button class="iconbtn ghost histbtn txtbtn tb-browse" id="av-browse" title="浏览本地文件…" type="button"><span data-ic="folder"></span><span class="btxt">浏览</span></button>
         </div>
         <span class="lbl">分析时长</span>
         <input class="num" id="av-secs" value="20" />
@@ -586,36 +588,41 @@
         <span class="unit">±ms</span>
         <div class="vsep"></div>
         <button class="gradbtn" id="av-act"><span data-ic="audiolines"></span>开始检测</button>
-        <button class="iconbtn ghost" id="av-stop" title="停止" data-ic="square" hidden></button>
+        <button class="iconbtn ghost txtbtn bst-stop" id="av-stop" title="停止" type="button" hidden><span data-ic="square"></span><span class="btxt">停止检测</span></button>
       </div>
 
-      <div class="chblock">
-        <div class="chboard" id="av-chboard"></div>
-        <div class="prevbox">
-          <img id="av-prev" alt="" />
-          <span class="prevtag" id="av-prevtag">无预览</span>
+      <div class="av-body">
+        <aside class="av-side">
+          <div class="chboard" id="av-chboard"></div>
+        </aside>
+
+        <div class="av-main">
+          <div class="prevbox av-prevbox">
+            <img id="av-prev" alt="" />
+            <span class="prevtag" id="av-prevtag">无预览</span>
+          </div>
+
+          <div class="statusline" id="av-status">
+            <span class="dot" id="av-dot"></span>
+            <span class="txt" id="av-status-text">待机</span>
+            <span class="chips" id="av-sum"></span>
+          </div>
+
+          <div class="kpiwrap" id="av-kpi"></div>
+
+          <div class="spark">
+            <div class="spark-h"><b>画面 / 音频活动度</b><span class="spark-s">蓝色＝画面帧间变化，紫色＝音频包络（已对齐到视频帧率）</span></div>
+            <canvas id="av-curve" height="150"></canvas>
+            <div class="spark-empty" id="av-empty">检测后这里显示画面 / 音频活动度曲线</div>
+          </div>
+
+          <div class="peaks" id="av-peaks"></div>
+
+          <div class="kfoot" id="av-foot">
+            <span class="kfoot-note">口径：画面活动度＝相邻帧（64×36 灰度）平均差异；音频＝40ms RMS 包络；两侧取正向突变后做互相关，峰值为音频相对视频的滞后量。正数表示音频晚，负数表示音频早。</span>
+            <span class="kfoot-basis">实时流会起两路 ffmpeg 分别取画面与音频，占用双份带宽，建议分析时长 20–60 秒。</span>
+          </div>
         </div>
-      </div>
-
-      <div class="statusline" id="av-status">
-        <span class="dot" id="av-dot"></span>
-        <span class="txt" id="av-status-text">待机</span>
-        <span class="chips" id="av-sum"></span>
-      </div>
-
-      <div class="kpiwrap" id="av-kpi"></div>
-
-      <div class="spark">
-        <div class="spark-h"><b>画面 / 音频活动度</b><span class="spark-s">蓝色＝画面帧间变化，紫色＝音频包络（已对齐到视频帧率）</span></div>
-        <canvas id="av-curve" height="150"></canvas>
-        <div class="spark-empty" id="av-empty">检测后这里显示画面 / 音频活动度曲线</div>
-      </div>
-
-      <div class="peaks" id="av-peaks"></div>
-
-      <div class="kfoot" id="av-foot">
-        <span class="kfoot-note">口径：画面活动度＝相邻帧（64×36 灰度）平均差异；音频＝40ms RMS 包络；两侧取正向突变后做互相关，峰值为音频相对视频的滞后量。正数表示音频晚，负数表示音频早。</span>
-        <span class="kfoot-basis">实时流会起两路 ffmpeg 分别取画面与音频，占用双份带宽，建议分析时长 20–60 秒。</span>
       </div>
     </section>
 
@@ -627,13 +634,13 @@
           <button class="cg-tab" data-cgview="alarm">告警处理<span class="cg-tab-badge" id="cg-alarmcount" hidden>0</span></button>
         </div>
         <div class="cg-acts" id="cg-acts-compare">
-          <button class="cg-ghost" id="cg-new">＋ 新建分组</button>
+          <button class="cg-ghost" id="cg-new">新建分组</button>
           <button class="cg-ghost" id="cg-import">导入频道</button>
           <button class="cg-grad" id="cg-all">开始轮询</button>
         </div>
         <div class="cg-acts" id="cg-acts-alarm" hidden>
-          <button class="al-ghost" id="al-export">⇩ 导出记录</button>
-          <button class="al-ghost" id="al-settings">⚙ 设置</button>
+          <button class="al-ghost" id="al-export">导出记录</button>
+          <button class="al-ghost" id="al-settings">设置</button>
         </div>
       </div>
       <div class="cg-view" id="cg-view-compare">
@@ -644,16 +651,16 @@
         <span class="cg-chip">阈值 <b id="cg-chip-thr">0.75</b></span>
         <span class="cg-chip">台标 <b id="cg-chip-logo">整帧</b></span>
         <span class="cg-chip">并发 <b id="cg-chip-conc">2</b></span>
-        <button class="cg-btnset" id="cg-param">⚙ 参数设置</button>
+        <button class="cg-btnset" id="cg-param">参数设置</button>
         <span class="cg-runinfo" id="cg-runinfo">待机</span>
       </div>
       <div class="cg-grid" id="cg-grid">
         <aside class="cg-card cg-left" id="cg-left">
-          <div class="cg-lhead"><b>待检测分组</b><span id="cg-count">0 组 / 0 源</span><button id="cg-collapse">« 收起</button></div>
+          <div class="cg-lhead"><b>待检测分组</b><span id="cg-count">0 组 / 0 源</span><button id="cg-collapse">收起</button></div>
           <div class="cg-list" id="cg-list"></div>
           <div class="cg-rail" id="cg-rail" hidden></div>
           <div class="cg-gfoot" id="cg-gfoot">
-            <button class="cg-primary" id="cg-runpair">▶ 比对当前对</button>
+            <button class="cg-primary" id="cg-runpair">比对当前对</button>
             <button id="cg-rungroup" hidden>检测本组全部对</button>
             <button class="cg-stop" id="cg-stop" hidden>停止</button>
           </div>
@@ -692,7 +699,7 @@
       <!-- 参数设置弹窗 -->
       <div class="cg-mask" id="cg-mask-param">
         <div class="cg-modal cg-param-modal">
-          <div class="cg-mhd"><b>比对参数设置</b><span>只作用于一致性比对页</span><button class="cg-x" id="cg-param-x">✕</button></div>
+          <div class="cg-mhd"><b>比对参数设置</b><span>只作用于一致性比对页</span><button class="cg-x" id="cg-param-x" type="button">关闭</button></div>
           <div class="cg-mbody">
             <div class="cg-presets">
               <button class="cg-preset" data-fps="5" data-secs="10">快速<span>5 fps · 10 s</span></button>
@@ -722,7 +729,7 @@
       <!-- 分组设置弹窗 -->
       <div class="cg-mask" id="cg-mask-gset">
         <div class="cg-modal cg-gset-modal">
-          <div class="cg-mhd"><b id="cg-gset-title">新建分组</b><span>分组只负责归类，频道挂在分组下</span><button class="cg-x" id="cg-gset-x">✕</button></div>
+          <div class="cg-mhd"><b id="cg-gset-title">新建分组</b><span>分组只负责归类，频道挂在分组下</span><button class="cg-x" id="cg-gset-x" type="button">关闭</button></div>
           <div class="cg-mbody">
             <div class="cg-form2">
               <label>分组名称<div class="cg-in"><input id="cg-gset-name" placeholder="如 河北广电、央视" /></div></label>
@@ -736,7 +743,7 @@
       <!-- 频道设置弹窗 -->
       <div class="cg-mask" id="cg-mask-group">
         <div class="cg-modal cg-group-modal">
-          <div class="cg-mhd"><b id="cg-gtitle">频道设置</b><span id="cg-cowner">所属分组：—</span><button class="cg-x" id="cg-group-x">✕</button></div>
+          <div class="cg-mhd"><b id="cg-gtitle">频道设置</b><span id="cg-cowner">所属分组：—</span><button class="cg-x" id="cg-group-x" type="button">关闭</button></div>
           <div class="cg-mbody">
             <div class="cg-form2">
               <label>频道名称<div class="cg-in"><input id="cg-gname" placeholder="如 河北卫视" /></div></label>
@@ -747,7 +754,7 @@
               <div class="cg-srch"><span>启用</span><span>名称</span><span>地址</span><span>基准</span><span></span></div>
               <div id="cg-srcbody"></div>
             </div>
-            <button class="cg-addsrc" id="cg-addsrc">＋ 添加来源</button>
+            <button class="cg-addsrc" id="cg-addsrc">添加来源</button>
             <div class="cg-tip">少于 2 个启用来源的频道不参与轮询；地址支持本地文件、udp://、rtp://、http://。</div>
           </div>
           <div class="cg-mfoot"><button class="cg-reset" id="cg-group-del">删除频道</button><button class="cg-ghost" id="cg-group-cancel">取消</button><button class="cg-grad" id="cg-group-save">保存频道</button></div>
@@ -777,7 +784,7 @@
 
       <div class="al-mask" id="al-mask-set">
         <div class="al-modal">
-          <div class="al-mhd"><b>告警存储设置</b><span>日志与故障视频分开存放，路径仅作用于本机</span><button class="al-x" id="al-set-x">✕</button></div>
+          <div class="al-mhd"><b>告警存储设置</b><span>日志与故障视频分开存放，路径仅作用于本机</span><button class="al-x" id="al-set-x" type="button">关闭</button></div>
           <div class="al-mbody">
             <div class="al-sec"><div class="al-st">检测日志保存路径</div><div class="al-prow"><input id="al-logdir" /><button id="al-logbrowse">浏览…</button><button id="al-logopen">打开目录</button></div><div class="al-hint">每次检测的 JSON 日志、曲线采样和差异段按「日期 / 频道」归档。</div></div>
             <div class="al-sec"><div class="al-st">故障视频保存路径</div><div class="al-prow"><input id="al-clipdir" /><button id="al-clipbrowse">浏览…</button><button id="al-clipopen">打开目录</button></div><div class="al-hint">告警触发后自动保存证据片段，文件名含频道、日期和时间；告警详情里可直接回放。</div></div>
