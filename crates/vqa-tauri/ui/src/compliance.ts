@@ -187,7 +187,7 @@ async function tick() {
 
 export function initCompliance() {
   const url = $("k-url") as HTMLInputElement;
-  const nic = $("k-nic") as HTMLSelectElement;
+  const nic = $("k-nic") as HTMLSelectElement | null;
   const act = $("k-act") as HTMLButtonElement;
   const stop = $("k-stop") as HTMLButtonElement;
   const kind = $("k-kind") as HTMLSelectElement;
@@ -213,11 +213,18 @@ export function initCompliance() {
     if ((ev.target as HTMLElement).closest('[data-view="doc"], .kfoot-link')) showDoc(true);
   });
 
-  // 网卡：值 = IP，显示「IP · 网卡名」
-  api.listNics().then((list: NicRow[]) => {
+  // 网卡：值 = IP，显示「IP · 网卡名」；位置在「合规检测设置」抽屉里
+  api.listNics().then(async (list: NicRow[]) => {
+    if (!nic) return;
     nic.innerHTML = [`<option value="">自动</option>`]
       .concat(list.map((n) => `<option value="${n.ip}">${nicLabel(n)}</option>`))
       .join("");
+    try {
+      const saved = await api.uiGet("compliance.nic");
+      if (typeof saved === "string" && list.some((n) => n.ip === saved)) nic.value = saved;
+    } catch {
+      /* 没保存过就保持自动 */
+    }
   });
 
   // 历史来源
@@ -275,7 +282,7 @@ export function initCompliance() {
     try {
       if (isLive) {
         liveMode = true;
-        await api.complianceLiveStart(src, nic.value, kind.value);
+        await api.complianceLiveStart(src, nic?.value || "", kind.value);
         stop.hidden = false;
         $("k-empty").hidden = true;
         stopPolling();

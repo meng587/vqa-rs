@@ -1,11 +1,11 @@
 {
-  "version": "0.2.38",
-  "notes": "0.2.38：视频分析的组播网卡选择移入「视频分析设置」抽屉，保存后作为默认；顶栏只保留来源、开始扫描与报告操作。",
-  "pub_date": "2026-11-19T09:40:00Z",
+  "version": "0.2.39",
+  "notes": "0.2.39：合规检测新增「设置」抽屉，组播网卡移入其中并随设置保存；顶栏保留来源、依据、开始检测与导出。",
+  "pub_date": "2026-11-19T09:51:48Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW1KSWlpS3lEZzFsTDJRQ2Nwek0vQnVHNmRyR0V3MjlEVU1tSDJxdHlmRTVGVGQ0NUZqT21nWVBIcXQzSnBQMEROc1pDQkFBcCsxRTVMYWVGVEpDQUFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDgxMjAwCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4zOF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjM4CkhqV21KVGpyc0plVTY4OG1rTWM3UllVUDQ4MmZhS2RXdXFpaytkKzNMOEFBVjVnOUNobS9MbVJwTk1ZeHdTbTlHTmJxcjlJR2lMVE01UWhtbGUxR0NnPT0K",
-      "url": "https://github.com/meng587/vqa-rs/releases/download/v0.2.38/vqa-workbench-0.2.38-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXJwQm53UWhjYkZ2cDJXQVFLd29BVmRKVFJndUdTVDJCYzN5dmJhcjJXUDlHOHhzTFluLzdXUEVXMUYrdmFNOWRHeWpqUk9TVGc2ZWdFVkRZNG5Vc0FRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDgxOTA4CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4zOV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjM5CmdKZEU5dVZWMDA1eVdGaHBRcitSYWJOZTR0V29HZDVYcyt2V21FV29rK0FMMEYrOUdMb1AwaERBZCsxZ3dTWnhWT0JmeXMrOVNLMGJlME1XOUJua0RnPT0K",
+      "url": "https://github.com/meng587/vqa-rs/releases/download/v0.2.39/vqa-workbench-0.2.39-setup.exe"
     }
   }
 }

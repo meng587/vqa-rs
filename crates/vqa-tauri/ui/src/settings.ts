@@ -2,6 +2,7 @@
 //! 每个功能各存一份配置，互不影响：
 //!   播放器 → shared/settings.json 的 out_snap_dir / out_rec_dir / player.default_*
 //!   分析   → analysis.report_dir / analysis.nic
+//!   合规   → compliance.nic
 //! 抽屉不切换页面，改完立刻对新截图/录像/导出生效。
 
 import { api } from "./api";
@@ -15,6 +16,7 @@ export function initSettings() {
   buildDrawers();
   wirePlayerDrawer();
   wireAnalysisDrawer();
+  wireComplianceDrawer();
 }
 
 // ═══════════════════ 抽屉骨架 ═══════════════════
@@ -84,11 +86,28 @@ function buildDrawers() {
       <button class="gradbtn" id="dr-a-save">保存</button>
       <button class="md-export" id="dr-a-reset">恢复默认</button>
     </div>
+  </aside>
+
+  <aside class="drawer" id="dr-compliance" hidden>
+    <div class="drhead"><b>合规检测设置</b><button class="iconbtn drx txtbtn" id="dr-k-x" title="关闭"></button></div>
+    <div class="drbody">
+      <div class="drsec">网络</div>
+      <div class="setrow">
+        <span class="k">组播网卡</span>
+        <select id="k-nic"><option value="">自动</option></select>
+      </div>
+      <div class="drhint">自动 = 按系统路由选择；合规检测收 UDP / RTP 组播流时绑定该网卡。保存后作为默认，下次启动仍沿用；找不到该网卡时回到自动。</div>
+      <div class="setmsg" id="dr-k-msg"></div>
+    </div>
+    <div class="drfoot">
+      <button class="gradbtn" id="dr-k-save">保存</button>
+      <button class="md-export" id="dr-k-reset">恢复默认</button>
+    </div>
   </aside>`;
   while (frag.firstElementChild) document.body.appendChild(frag.firstElementChild);
 
   // 关闭按钮与遮罩装配图标
-  for (const id of ["dr-p-x", "dr-a-x"]) $(id).innerHTML = `${icon("x", 14)}<span class="btxt">关闭</span>`;
+  for (const id of ["dr-p-x", "dr-a-x", "dr-k-x"]) $(id).innerHTML = `${icon("x", 14)}<span class="btxt">关闭</span>`;
   for (const id of ["dr-p-snapb", "dr-p-recb", "dr-a-reportb"]) $(id).innerHTML = `${icon("folder", 14)}<span class="btxt">选择</span>`;
   $("dr-mask").addEventListener("click", () => closeAll());
   window.addEventListener("keydown", (e) => {
@@ -109,8 +128,9 @@ function open(id: string) {
 function closeAll() {
   drawerHold("dr-player", false);
   drawerHold("dr-analysis", false);
+  drawerHold("dr-compliance", false);
   $("dr-mask").hidden = true;
-  for (const id of ["dr-player", "dr-analysis"]) {
+  for (const id of ["dr-player", "dr-analysis", "dr-compliance"]) {
     const d = $(id);
     d.classList.remove("on");
     d.hidden = true;
@@ -272,6 +292,54 @@ function wireAnalysisDrawer() {
 
   $("dr-a-reset").addEventListener("click", () => {
     report.value = "";
+    nic.value = "";
+    saveBtn.click();
+  });
+}
+
+// ═══════════════════ 合规检测 ═══════════════════
+
+function wireComplianceDrawer() {
+  const nic = $("k-nic") as HTMLSelectElement;
+  const msg = $("dr-k-msg") as HTMLElement;
+  const saveBtn = $("dr-k-save") as HTMLButtonElement;
+
+  const say = (t: string, kind: "" | "ok" | "err" = "") => {
+    msg.textContent = t;
+    msg.className = `setmsg${kind ? ` ${kind}` : ""}`;
+  };
+
+  $("k-set").addEventListener("click", () => {
+    open("dr-compliance");
+    load();
+  });
+  $("dr-k-x").addEventListener("click", closeAll);
+
+  async function load() {
+    try {
+      const saved = await api.uiGet("compliance.nic");
+      nic.value = typeof saved === "string" ? saved : "";
+      say("");
+    } catch (e) {
+      say(`读取失败：${e}`, "err");
+    }
+  }
+
+  saveBtn.addEventListener("click", async () => {
+    saveBtn.disabled = true;
+    say("保存中…");
+    try {
+      await api.uiSet("compliance.nic", nic.value);
+      const nicText = nic.selectedOptions[0]?.textContent || "自动";
+      say(`已保存 · 网卡 → ${nicText}`, "ok");
+    } catch (e) {
+      say(String(e), "err");
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  $("dr-k-reset").addEventListener("click", () => {
     nic.value = "";
     saveBtn.click();
   });
