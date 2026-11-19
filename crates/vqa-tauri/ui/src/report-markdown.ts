@@ -13,7 +13,7 @@ export function buildMarkdownReport(r: Res): string {
   const bad = tr.filter((t) => t.level >= 2);
   const pids = (r.pids || []).slice(0, 400);
   const progs = r.programs || [];
-  const rateMax = (r.rate || []).reduce((m, x) => Math.max(m, x[1] || 0), 0);
+  const rateMax = (r.rate || []).reduce((m, x) => Math.max(m, x[2] || 0), 0);
 
   const lines: string[] = [];
   lines.push("# TS 流质量检测报告", "");

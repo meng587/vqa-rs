@@ -180,7 +180,8 @@ export function initAnalysis() {
         if (p) pushLog(`HTML 报告已导出：${p}（可直接用浏览器打开/发邮件）`);
       }
     } catch (err) {
-      pushLog(`导出失败：${String(err)}`);
+      const text = String(err);
+      if (!text.includes("已取消")) pushLog(`导出失败：${text}`);
     } finally {
       exporting = false;
       exportBtn.disabled = false;
@@ -687,7 +688,7 @@ function buildHtmlReport(r: Res): string {
   const bad = tr.filter((t) => t.level >= 2);
   const pids = (r.pids || []).slice(0, 400);
   const progs = r.programs || [];
-  const rateMax = (r.rate || []).reduce((m, x) => Math.max(m, x[1] || 0), 0);
+  const rateMax = (r.rate || []).reduce((m, x) => Math.max(m, x[2] || 0), 0);
 
   const kv = (k: string, v: string) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`;
   const trRow = (t: { level: number; name: string; count: number; first: string; detail: string }) =>

@@ -1,11 +1,11 @@
 {
-  "version": "0.2.40",
-  "notes": "0.2.40：视频分析报告合并为单一「导出报告」入口，可选 Markdown / Word(.docx) / HTML；三种格式都遵循报告输出目录设置。",
-  "pub_date": "2026-11-19T10:04:18Z",
+  "version": "0.2.41",
+  "notes": "0.2.41：修正视频分析报告「峰值码率（采样）」取错列的问题，Markdown / Word / HTML 三份报告统一；保留 0.2.40 的单入口三格式导出。",
+  "pub_date": "2026-11-19T10:19:33Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWhFeG9xdS9vMzhlTE9Ocy9PSkQyN25UYXh4STBwT2RsK3VhclZLM1UvUWNjNVk5MGtRZkhwT1R6WnN6ZktUY05DcUYybTRHdmJqTmpjWVl2SG4vZUFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDgyNjU4CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi40MF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjQwCmJXejNYRmpuREcvS2FKZnR6bEFmbnhqUk1temRIYlZzS1ZnMGtFQ2pVYTBWOENDSlBDVVpmTHZtb29kUEd0ZGVHSHdKRjZ2NVNiSUx5L3ZYU3JSMUJBPT0K",
-      "url": "https://github.com/meng587/vqa-rs/releases/download/v0.2.40/vqa-workbench-0.2.40-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWpkZjROK2QzeHgrVWZpN0xFenF3dUtNQmpiV2dCNkc5b0o2NDRHdVBtV2paQytTekw1UFk1bXpoZmJZSmhHTXU4OWZlLzJOTFFXNzJqZFkwOUlkbkEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDgzNTczCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi40MV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjQxCklCT0k5OEFrbVlrVWdpbzVKSkpJendOaUZCL2t2TlZmWXhRWEFyenVnOVM3RlVHTWZyRlVuZTB2dlNmQWViZG91S0tzQTFpTzljR3BqUEwrVXpzQkJ3PT0K",
+      "url": "https://github.com/meng587/vqa-rs/releases/download/v0.2.41/vqa-workbench-0.2.41-setup.exe"
     }
   }
 }

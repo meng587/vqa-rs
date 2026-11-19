@@ -102,7 +102,7 @@ export async function buildDocxReport(r: Res): Promise<string> {
   const bad = tr.filter((t) => t.level >= 2);
   const pids = (r.pids || []).slice(0, 400);
   const progs = r.programs || [];
-  const rateMax = (r.rate || []).reduce((m, x) => Math.max(m, x[1] || 0), 0);
+  const rateMax = (r.rate || []).reduce((m, x) => Math.max(m, x[2] || 0), 0);
 
   const children: (Paragraph | Table)[] = [
     para("TS 流质量检测报告", { bold: true, size: 40, align: AlignmentType.CENTER, after: 60 }),
