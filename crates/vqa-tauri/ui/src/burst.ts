@@ -90,10 +90,10 @@ function drawSpark(s: BurstStats) {
 
   // Y 轴刻度：max / max/2 / 0，标成瞬时 Mbps（188B/ms ≈ 1.5Mbps）
   const toMbps = (b: number) => (b * 8) / 1000;
-  ctx.font = '9.5px Consolas, monospace';
+  ctx.font = '10px Consolas, monospace';
   ctx.textAlign = 'right';
-  ctx.fillStyle = 'rgba(255,255,255,.40)';
-  ctx.strokeStyle = 'rgba(255,255,255,.10)';
+  ctx.fillStyle = '#D9CDA9';
+  ctx.strokeStyle = 'rgba(203,189,164,.18)';
   ctx.lineWidth = 1;
   for (const t of [0, 0.5, 1]) {
     const y = y0 - bmax * t;
@@ -109,19 +109,19 @@ function drawSpark(s: BurstStats) {
   const thr = s.bytes_per_ms_avg * ratio;
   for (let i = 0; i < series.length; i++) {
     const bh = Math.max(1, (series[i] / max) * bmax);
-    ctx.fillStyle = thr > 0 && series[i] >= thr ? "rgba(248,113,113,.9)" : "rgba(129,140,248,.75)";
+    ctx.fillStyle = thr > 0 && series[i] >= thr ? "rgba(248,113,113,.9)" : "rgba(168,121,58,.8)";
     ctx.fillRect(GUT + i * bw + 0.5, y0 - bh, Math.max(1, bw - 1), bh);
   }
   if (s.bytes_per_ms_avg > 0) {
     const y = y0 - (s.bytes_per_ms_avg / max) * bmax;
-    ctx.strokeStyle = "rgba(255,255,255,.28)";
+    ctx.strokeStyle = "rgba(232,220,180,.55)";
     ctx.setLineDash([3, 3]);
     ctx.beginPath();
     ctx.moveTo(GUT, y);
     ctx.lineTo(w, y);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = "rgba(255,255,255,.45)";
+    ctx.fillStyle = "#D9CDA9";
     ctx.fillText(`均值 ${toMbps(s.bytes_per_ms_avg).toFixed(2)}`, GUT + 2, y - 3);
   }
 }

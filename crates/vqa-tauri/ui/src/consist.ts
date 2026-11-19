@@ -659,7 +659,7 @@ function drawCurve(r: ConsistResult | null) {
   const ph = BOT - TOP;
   ctx.strokeStyle = "rgba(255,255,255,.07)";
   ctx.font = "9px Consolas, monospace";
-  ctx.fillStyle = "rgba(255,255,255,.35)";
+  ctx.fillStyle = "#CBBDA4";
   ctx.textAlign = "right";
   for (const t of [1, 0.75, 0.5, 0.25, 0]) {
     const y = TOP + (1 - t) * ph;
@@ -670,14 +670,15 @@ function drawCurve(r: ConsistResult | null) {
     ctx.fillText(`${Math.round(t * 100)}%`, GUT - 4, y + 3);
   }
   ctx.textAlign = "left";
+  const empty = document.getElementById("cg-empty") as HTMLElement | null;
   if (!r || r.series_sim.length < 4) {
-    ctx.fillStyle = "rgba(255,255,255,.35)";
-    ctx.font = "11px Segoe UI, Microsoft YaHei, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(r && !r.ok ? "比对失败，无逐帧曲线" : "比对后这里显示逐帧相似度曲线", GUT + pw / 2, h / 2);
-    ctx.textAlign = "left";
+    if (empty) {
+      empty.hidden = false;
+      empty.textContent = r && !r.ok ? "比对失败，无逐帧曲线" : "比对后这里显示逐帧相似度曲线";
+    }
     return;
   }
+  if (empty) empty.hidden = true;
   const arr = r.series_sim;
   const totalS = arr.length / (r.fps || 1);
   ctx.textAlign = "center";
@@ -686,7 +687,7 @@ function drawCurve(r: ConsistResult | null) {
     ctx.fillText(`${t.toFixed(1)}s`, GUT + (pw * i) / 4, h - 5);
   }
   ctx.textAlign = "left";
-  ctx.strokeStyle = "rgba(129,140,248,.95)";
+  ctx.strokeStyle = "rgba(168,212,189,.95)";
   ctx.lineWidth = 1.4;
   ctx.beginPath();
   for (let i = 0; i < arr.length; i++) {

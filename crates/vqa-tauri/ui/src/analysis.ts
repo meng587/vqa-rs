@@ -515,18 +515,18 @@ function renderBitrate(res: Res | null) {
           padding: [8, 8, 0, 0],
           axes: [
             {
-              stroke: "#71717a",
+              stroke: "#4E4536",
               font: "11px system-ui, sans-serif",
-              grid: { stroke: "rgba(63,63,70,.35)", width: 1 },
-              ticks: { stroke: "#3f3f46", size: 4 },
+              grid: { stroke: "rgba(203,189,164,.48)", width: 1 },
+              ticks: { stroke: "#CBBDA4", size: 4 },
               size: 48,
               values: (_u, ticks) => ticks.map((t: number) => fmtX(t)),
             },
             {
-              stroke: "#71717a",
+              stroke: "#4E4536",
               font: "11px system-ui, sans-serif",
-              grid: { stroke: "rgba(63,63,70,.35)", width: 1 },
-              ticks: { stroke: "#3f3f46", size: 4 },
+              grid: { stroke: "rgba(203,189,164,.48)", width: 1 },
+              ticks: { stroke: "#CBBDA4", size: 4 },
               size: 58,
               // 固定 6 条刻度线（0 起、均分），高度变化时刻度数量不再塌缩
               splits: (_u: any, _ai: number, lo: number, hi: number) => {
@@ -541,10 +541,10 @@ function renderBitrate(res: Res | null) {
           series: [
             {},
             {
-              stroke: "#818cf8",
+              stroke: "#355F4D",
               width: 1.4,
               points: { show: false },
-              fill: "rgba(129,140,248,.12)",
+              fill: "rgba(53,95,77,.12)",
             },
           ],
         },

@@ -89,12 +89,12 @@ function drawCurve(r: AvSyncResult | null) {
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = "rgba(255,255,255,.03)";
   ctx.fillRect(0, 0, w, h);
+  const empty = document.getElementById("av-empty") as HTMLElement | null;
   if (!r || r.series_video.length < 4) {
-    ctx.fillStyle = "rgba(255,255,255,.35)";
-    ctx.font = "12px Segoe UI, Microsoft YaHei, sans-serif";
-    ctx.fillText("检测后这里显示画面/音频活动度曲线", 12, h / 2);
+    if (empty) empty.hidden = false;
     return;
   }
+  if (empty) empty.hidden = true;
   const GUT = 34;
   const PAD_R = 10;
   const TOP = 10;
@@ -119,7 +119,7 @@ function drawCurve(r: AvSyncResult | null) {
     ctx.stroke();
   }
   ctx.font = "10px Consolas, monospace";
-  ctx.fillStyle = "rgba(255,255,255,.35)";
+  ctx.fillStyle = "#CBBDA4";
   ctx.textAlign = "right";
   ctx.fillText("1.0", GUT - 4, TOP + 4);
   ctx.fillText("0.5", GUT - 4, TOP + plotH / 2 + 4);
@@ -142,10 +142,10 @@ function drawCurve(r: AvSyncResult | null) {
     }
     ctx.stroke();
   };
-  drawLine(sv, "rgba(129,140,248,.85)");
-  drawLine(sa, "rgba(192,132,252,.95)");
+  drawLine(sv, "rgba(168,212,189,.9)");
+  drawLine(sa, "rgba(201,147,43,.9)");
   const offText = `偏移 ${r.offset_ms > 0 ? "+" : ""}${r.offset_ms} ms`;
-  ctx.fillStyle = "rgba(255,255,255,.55)";
+  ctx.fillStyle = "#D9CDA9";
   ctx.font = "11px Consolas, monospace";
   ctx.fillText(offText, GUT + 4, 14);
 }

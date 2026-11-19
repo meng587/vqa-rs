@@ -315,7 +315,7 @@ function drawCurve(r: AlarmRecord) {
   const arr = r.series_sim || [];
   ctx.strokeStyle = "rgba(255,255,255,.06)";
   ctx.font = "8px Consolas, monospace";
-  ctx.fillStyle = "rgba(255,255,255,.35)";
+  ctx.fillStyle = "#CBBDA4";
   ctx.textAlign = "right";
   for (const t of [1, 0.5, 0]) {
     const y = TOP + (1 - t) * ph;
@@ -326,7 +326,7 @@ function drawCurve(r: AlarmRecord) {
     ctx.fillText(`${Math.round(t * 100)}%`, GUT - 4, y + 3);
   }
   if (arr.length < 4) {
-    ctx.fillStyle = "rgba(255,255,255,.35)";
+    ctx.fillStyle = "#CBBDA4";
     ctx.textAlign = "center";
     ctx.font = "9px Segoe UI, Microsoft YaHei, sans-serif";
     ctx.fillText(arr.length ? "曲线采样点不足" : "这条告警没有保存曲线（旧记录）", GUT + pw / 2, h / 2);
@@ -341,7 +341,7 @@ function drawCurve(r: AlarmRecord) {
       ctx.fillRect(x0, TOP, x1 - x0, ph);
     }
   }
-  ctx.strokeStyle = "rgba(129,140,248,.95)";
+  ctx.strokeStyle = "rgba(168,212,189,.95)";
   ctx.lineWidth = 1.6;
   ctx.beginPath();
   arr.forEach((v, i) => {
@@ -352,7 +352,7 @@ function drawCurve(r: AlarmRecord) {
   });
   ctx.stroke();
   // 底部时间刻度，避免只有 Y 轴没有横轴参照
-  ctx.fillStyle = "rgba(255,255,255,.35)";
+  ctx.fillStyle = "#CBBDA4";
   ctx.font = "8px Consolas, monospace";
   ctx.textAlign = "center";
   const totalS = arr.length / (r.fps || 10);

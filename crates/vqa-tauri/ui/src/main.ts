@@ -29,6 +29,66 @@ const pages = document.querySelectorAll<HTMLElement>(".pg");
 export type Page = "player" | "analysis" | "compliance" | "transcode" | "burst" | "avsync" | "consist" | "about";
 type ConsistView = "compare" | "alarm";
 
+/** 顶栏页头与快捷动作：只做壳层，不替代页面内原有控件。 */
+const PAGE_CHROME: Record<Page, { kicker: string; title: string; sub: string; seal: string }> = {
+  player: { kicker: "PLAYER & MONITOR", title: "播放器", sub: "本地文件 / UDP 组播实时监看", seal: "播" },
+  analysis: { kicker: "STREAM ANALYSIS", title: "视频分析", sub: "TS 结构 / PCR / TR101 290 / 码率曲线", seal: "析" },
+  compliance: { kicker: "COMPLIANCE CHECK", title: "合规检测", sub: "依据 广电办发〔2024〕253 号 逐项判定", seal: "规" },
+  transcode: { kicker: "LIVE TRANSCODE", title: "直播转码", sub: "输入 → 解码 → 转码 → 输出 全链路", seal: "转" },
+  burst: { kicker: "BURST INSPECT", title: "微突发巡检", sub: "毫秒级包间隔窗口，定位瞬态拥塞", seal: "巡" },
+  avsync: { kicker: "A/V SYNC", title: "音画同步", sub: "音频包络与视频帧对齐，测量偏移", seal: "音" },
+  consist: { kicker: "CONSISTENCY", title: "一致性比对", sub: "同频道多来源双画面逐帧比对", seal: "鉴" },
+  about: { kicker: "ABOUT", title: "关于", sub: "版本 / 更新 / 诊断与工具链", seal: "关" },
+};
+
+const TOP_ACTIONS: Record<Page, { run?: string; runLabel?: string; settings?: string }> = {
+  player: { run: "p-act", runLabel: "开始播放", settings: "p-set" },
+  analysis: { run: "a-act", runLabel: "开始扫描", settings: "a-set" },
+  compliance: { run: "k-act", runLabel: "开始检测" },
+  transcode: { run: "x-act", runLabel: "开始转码", settings: "x-set" },
+  burst: { run: "b-act", runLabel: "开始巡检" },
+  avsync: { run: "av-act", runLabel: "开始检测" },
+  consist: { run: "cg-all", runLabel: "开始轮询", settings: "cg-param" },
+  about: {},
+};
+
+function updatePageChrome(page: Page) {
+  const meta = PAGE_CHROME[page];
+  const kicker = document.getElementById("ph-kicker");
+  const title = document.getElementById("ph-title");
+  const sub = document.getElementById("ph-sub");
+  const seal = document.getElementById("ph-seal");
+  if (kicker) kicker.textContent = meta.kicker;
+  if (title) title.textContent = meta.title;
+  if (sub) sub.textContent = meta.sub;
+  if (seal) seal.textContent = meta.seal;
+  document.title = `${meta.title} · 视听质量检测工作站`;
+
+  const act = TOP_ACTIONS[page];
+  const run = document.getElementById("tb-run") as HTMLButtonElement | null;
+  const settings = document.getElementById("tb-settings") as HTMLButtonElement | null;
+  if (run) {
+    run.hidden = !act.run;
+    run.textContent = act.runLabel ?? "开始";
+  }
+  if (settings) settings.hidden = !act.settings;
+}
+
+function clickCurrent(id?: string) {
+  if (!id) return;
+  const el = document.getElementById(id) as HTMLButtonElement | null;
+  if (el && !el.hidden) el.click();
+}
+
+document.getElementById("tb-run")?.addEventListener("click", () => {
+  const page = (document.body.dataset.page || "player") as Page;
+  clickCurrent(TOP_ACTIONS[page].run);
+});
+document.getElementById("tb-settings")?.addEventListener("click", () => {
+  const page = (document.body.dataset.page || "player") as Page;
+  clickCurrent(TOP_ACTIONS[page].settings);
+});
+
 /** 一致性页内部子视图：比对工作台 / 告警处理。 */
 function showConsistView(view: ConsistView) {
   const cmp = document.getElementById("cg-view-compare");
@@ -66,6 +126,7 @@ function goto(page: Page) {
   // 状态栏按页切换：播放器页显示指标与桥说明，其它页只显示页名
   document.body.dataset.page = page;
   if (page === "consist") showConsistView("compare");
+  updatePageChrome(page);
   const sbTitle = document.getElementById("sb-title");
   if (sbTitle) {
     sbTitle.textContent =
@@ -106,6 +167,33 @@ document.querySelectorAll<HTMLElement>("#nav .mn[data-goto]").forEach((btn) => {
   btn.addEventListener("click", () => goto(btn.getAttribute("data-goto") as Page));
 });
 
+// ---- 左栏收起 / 展开（表格页可把宽度让给内容）----
+const SIDEBAR_KEY = "vqa-sidebar-collapsed";
+const sidebar = document.getElementById("sidebar");
+const sideToggle = document.getElementById("side-collapse");
+
+function setSidebarCollapsed(collapsed: boolean, persist = true) {
+  document.body.classList.toggle("side-collapsed", collapsed);
+  if (sideToggle) {
+    sideToggle.setAttribute("aria-expanded", String(!collapsed));
+    sideToggle.title = collapsed ? "展开导航" : "收起导航";
+    sideToggle.setAttribute("aria-label", sideToggle.title);
+  }
+  sidebar?.classList.toggle("is-collapsed", collapsed);
+  if (persist) {
+    try { localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0"); } catch { /* WebView 隐私模式 */ }
+  }
+}
+
+let sidebarSaved = false;
+try { sidebarSaved = localStorage.getItem(SIDEBAR_KEY) === "1"; } catch { /* 默认展开 */ }
+setSidebarCollapsed(sidebarSaved, false);
+sideToggle?.addEventListener("click", () => {
+  setSidebarCollapsed(!document.body.classList.contains("side-collapsed"));
+});
+
+updatePageChrome("player");
+
 document.querySelectorAll<HTMLElement>("[data-cgview]").forEach((btn) => {
   btn.addEventListener("click", () => showConsistView(btn.dataset.cgview as ConsistView));
 });
@@ -143,6 +231,10 @@ document.addEventListener("click", () => {
 api.appVersion().then((v) => {
   const el = document.getElementById("ab-ver");
   if (el) el.textContent = `v${v}`;
+  const tb = document.getElementById("tb-ver");
+  if (tb) tb.textContent = `v${v}`;
+  const sv = document.getElementById("side-ver");
+  if (sv) sv.textContent = `v${v} / LOCAL`;
 });
 
 // ---- 路径行：单行省略 + 复制 / 打开 ----

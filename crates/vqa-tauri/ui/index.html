@@ -6,24 +6,123 @@
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body data-page="player">
-<div class="workspace">
-  <aside class="side">
-    <div class="brand">
-      <span class="logo" data-ic="circledot"></span>
-      <div><b>VQA</b><small>Workbench v0.2</small></div>
+<div class="mythbg" aria-hidden="true">
+  <svg class="myth-weave" viewBox="0 0 1600 900" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <pattern id="yunlei" width="80" height="80" patternUnits="userSpaceOnUse">
+        <g fill="none" stroke="#A8793A" stroke-width="1.1" opacity=".3">
+          <path d="M9 9h27v27H19v-13h12v-7"/>
+          <path d="M50 50h21v21H58v-10h10v-5" opacity=".7"/>
+          <circle cx="40" cy="40" r="1.2"/>
+        </g>
+      </pattern>
+      <pattern id="jiaguwen" width="220" height="160" patternUnits="userSpaceOnUse">
+        <g fill="none" stroke="#8A7C66" stroke-width=".8" opacity=".38">
+          <path d="M18 30l24 14 12-7 28 20 14-4 22 18"/>
+          <path d="M160 20l-18 20 8 10-12 24 18 12"/>
+          <path d="M60 130l16-10 10 6 20-14"/>
+          <path d="M185 120l-24-14-10 8-20-10"/>
+          <path d="M32 88l12-5 7 9-12 7"/>
+        </g>
+      </pattern>
+    </defs>
+    <rect width="1600" height="900" fill="url(#yunlei)"/>
+    <rect width="1600" height="900" fill="url(#jiaguwen)"/>
+  </svg>
+  <svg class="myth-taotie" viewBox="0 0 480 320" xmlns="http://www.w3.org/2000/svg">
+    <g fill="none" stroke="#A8793A" stroke-width="2.4" stroke-linecap="round" opacity=".5">
+      <path d="M210 76c-30-36-72-52-104-34 24-6 44 8 60 30"/>
+      <path d="M270 76c30-36 72-52 104-34-24-6-44 8-60 30"/>
+      <path d="M138 112c56-28 148-28 204 0"/>
+      <path d="M156 124c44-18 124-18 168 0" opacity=".62"/>
+      <ellipse cx="172" cy="148" rx="23" ry="25"/>
+      <ellipse cx="308" cy="148" rx="23" ry="25"/>
+      <circle cx="172" cy="148" r="7" fill="#A8793A" opacity=".35"/>
+      <circle cx="308" cy="148" r="7" fill="#A8793A" opacity=".35"/>
+      <path d="M240 112v52M222 164h36"/>
+      <path d="M228 176c8 8 16 8 24 0"/>
+      <path d="M176 206c42 26 122 26 164 0"/>
+      <path d="M192 206l4 22 12-12M288 206l-4 22-12-12"/>
+      <path d="M232 214v18M248 214v18" opacity=".62"/>
+      <path d="M126 172c-25 0-37 17-26 32 10 14 31 6 24-8-5-9-17-2-13 6"/>
+      <path d="M354 172c25 0 37 17 26 32-10 14-31 6-24-8 5-9 17-2 13 6"/>
+    </g>
+  </svg>
+  <svg class="myth-bird" viewBox="0 0 360 210" xmlns="http://www.w3.org/2000/svg">
+    <g fill="none" stroke="#A8793A" stroke-width="2.1" stroke-linecap="round" opacity=".48">
+      <path d="M160 96c18-10 40-4 52 12 14 20 8 42-12 52"/>
+      <path d="M212 108c16-10 34-6 44 6-12 4-24 2-34-2"/>
+      <circle cx="214" cy="92" r="4"/>
+      <path d="M160 96c-44-40-96-52-132-30 34-4 60 10 82 34 22 24 36 52 38 80"/>
+      <path d="M162 104c-20-50-8-90 28-118-4 30 6 54 26 76 18 20 32 40 34 62"/>
+      <path d="M198 156c-10 26-8 48 6 66 10-26 24-42 44-54-18 2-34-2-50-12"/>
+      <path d="M190 158l-6 28m12-26l8 26"/>
+    </g>
+  </svg>
+</div>
+<aside class="sidebar" id="sidebar">
+  <svg class="dingsym" aria-hidden="true"><defs><symbol id="ding-glyph" viewBox="0 0 24 24">
+    <path d="M6.2 8h11.6v4.2c0 3-2.6 5.4-5.8 5.4S6.2 15.2 6.2 12.2V8z"/>
+    <rect x="5" y="6.4" width="14" height="2.2" rx=".6"/>
+    <path d="M6.2 7.1C3.9 7.1 2.9 5.5 3.3 4 3.7 2.7 5.2 2.4 6.3 3.3 6.8 3.7 7 4.5 6.9 5.4"/>
+    <path d="M17.8 7.1C20.1 7.1 21.1 5.5 20.7 4 20.3 2.7 18.8 2.4 17.7 3.3 17.2 3.7 17 4.5 17.1 5.4"/>
+    <path d="M8.4 17.1 7 21h2.4l1.1-2.8M15.6 17.1 17 21h-2.4l-1.1-2.8M12 18.2V21"/>
+  </symbol></defs></svg>
+  <div class="brand tb-brand">
+    <span class="logo" data-ic="circledot"></span>
+    <div class="btxt"><b>视听质量检测</b><small>VQA WORKBENCH / 3.0</small></div>
+  </div>
+  <div class="side-label"><span>工作台</span><span>WORKBENCH</span></div>
+  <nav id="nav" class="sidenav">
+    <button class="mn is-on" data-goto="player" title="播放器"><span class="mn-ic" data-ic="monitorplay"></span><span class="mn-t">播放器</span><span class="lamp" id="lamp-player"></span></button>
+    <button class="mn" data-goto="analysis" title="视频分析"><span class="mn-ic" data-ic="activity"></span><span class="mn-t">视频分析</span><span class="lamp" id="lamp-analysis"></span></button>
+    <button class="mn" data-goto="compliance" title="合规检测"><span class="mn-ic" data-ic="shieldcheck"></span><span class="mn-t">合规检测</span><span class="lamp" id="lamp-compliance"></span></button>
+    <button class="mn" data-goto="transcode" title="直播转码"><span class="mn-ic" data-ic="radiotower"></span><span class="mn-t">直播转码</span><span class="lamp" id="lamp-transcode"></span></button>
+    <button class="mn" data-goto="burst" title="微突发巡检"><span class="mn-ic" data-ic="gauge"></span><span class="mn-t">微突发巡检</span><span class="lamp" id="lamp-burst"></span></button>
+    <button class="mn" data-goto="avsync" title="音画同步"><span class="mn-ic" data-ic="audiolines"></span><span class="mn-t">音画同步</span><span class="lamp" id="lamp-avsync"></span></button>
+    <button class="mn" data-goto="consist" title="一致性比对"><span class="mn-ic" data-ic="repeat"></span><span class="mn-t">一致性比对</span><span class="lamp" id="lamp-consist"></span></button>
+    <button class="mn" data-goto="about" title="关于"><span class="mn-ic" data-ic="info"></span><span class="mn-t">关于</span></button>
+  </nav>
+  <div class="side-bottom">
+    <div class="dingnine side-dings" title="九鼎 · 九州">
+      <span class="dn-t">九鼎</span>
+      <svg viewBox="0 0 24 24"><use href="#ding-glyph"/></svg>
+      <svg viewBox="0 0 24 24"><use href="#ding-glyph"/></svg>
+      <svg viewBox="0 0 24 24"><use href="#ding-glyph"/></svg>
+      <svg viewBox="0 0 24 24"><use href="#ding-glyph"/></svg>
+      <svg class="ding-main" viewBox="0 0 24 24"><use href="#ding-glyph"/></svg>
+      <svg viewBox="0 0 24 24"><use href="#ding-glyph"/></svg>
+      <svg viewBox="0 0 24 24"><use href="#ding-glyph"/></svg>
+      <svg viewBox="0 0 24 24"><use href="#ding-glyph"/></svg>
+      <svg viewBox="0 0 24 24"><use href="#ding-glyph"/></svg>
+      <span class="dn-cap">九州</span>
     </div>
-    <nav id="nav">
-      <button class="mn is-on" data-goto="player"><span data-ic="monitorplay"></span>播放器<span class="lamp" id="lamp-player"></span></button>
-      <button class="mn" data-goto="analysis"><span data-ic="activity"></span>视频分析<span class="lamp" id="lamp-analysis"></span></button>
-      <button class="mn" data-goto="compliance"><span data-ic="shieldcheck"></span>合规检测<span class="lamp" id="lamp-compliance"></span></button>
-      <button class="mn" data-goto="transcode"><span data-ic="radiotower"></span>直播转码<span class="lamp" id="lamp-transcode"></span></button>
-      <button class="mn" data-goto="burst"><span data-ic="activity"></span>微突发巡检<span class="lamp" id="lamp-burst"></span></button>
-      <button class="mn" data-goto="avsync"><span data-ic="audiolines"></span>音画同步<span class="lamp" id="lamp-avsync"></span></button>
-      <button class="mn" data-goto="consist"><span data-ic="scaneye"></span>一致性比对<span class="lamp" id="lamp-consist"></span></button>
-      <button class="mn" data-goto="about"><span data-ic="info"></span>关于</button>
-    </nav>
-  </aside>
+    <div class="side-status"><span class="dot"></span><div><b>LOCAL WORKBENCH</b><small>离线检测 · 本机引擎</small></div></div>
+    <div class="side-meta"><span id="side-ver">v0.2.27 / LOCAL</span><button class="side-collapse" id="side-collapse" title="收起导航" aria-label="收起导航"><span data-ic="chevronleft"></span></button></div>
+  </div>
+</aside>
 
+<div class="pagehead">
+  <div class="ph-copy">
+    <div class="kicker" id="ph-kicker">PLAYER &amp; MONITOR</div>
+    <div class="ph-title-line">
+      <h1 id="ph-title">播放器</h1>
+      <span class="seal" id="ph-seal">播</span>
+    </div>
+    <div class="sub" id="ph-sub">本地文件 / UDP 组播实时监看</div>
+  </div>
+  <div class="ph-side">
+    <div class="topright">
+      <span class="led">LIVE</span>
+      <span class="tb-ver" id="tb-ver">v0.2.27</span>
+      <button class="tb-btn" id="tb-settings" title="当前页面参数设置">参数设置</button>
+      <button class="tb-btn p" id="tb-run" title="当前页面主操作">开始</button>
+    </div>
+    <div class="phmeta"><span class="stamp">REALTIME / 实时</span></div>
+  </div>
+</div>
+
+<div class="workspace">
   <main>
     <!-- ══════════ 播放器页 ══════════ -->
     <section class="pg" data-page="player">
@@ -444,6 +543,7 @@
       <div class="spark">
         <div class="spark-h"><b>画面 / 音频活动度</b><span class="spark-s">蓝色＝画面帧间变化，紫色＝音频包络（已对齐到视频帧率）</span></div>
         <canvas id="av-curve" height="150"></canvas>
+        <div class="spark-empty" id="av-empty">检测后这里显示画面 / 音频活动度曲线</div>
       </div>
 
       <div class="peaks" id="av-peaks"></div>
@@ -514,7 +614,7 @@
           <div class="cg-kpis" id="cg-kpi"></div>
           <div class="cg-card cg-curvecard">
             <div class="cg-chd"><b>连续相似度</b><span class="cg-sub">虚线＝差异阈值，低于阈值的连续段列在下方</span><div class="cg-leg"><span><i></i>相似度</span><span class="th"><i></i>阈值</span></div></div>
-            <div class="cg-cbody"><canvas id="cg-curve"></canvas></div>
+            <div class="cg-cbody"><canvas id="cg-curve"></canvas><div class="spark-empty" id="cg-empty">比对后这里显示逐帧相似度曲线</div></div>
           </div>
           <div class="cg-card cg-segcard">
             <div class="cg-chd"><b>差异段</b><span class="cg-sub" id="cg-segsub">低于阈值且连续 ≥ 2 帧</span></div>
