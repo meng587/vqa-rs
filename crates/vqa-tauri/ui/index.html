@@ -78,7 +78,7 @@
     <button class="mn" data-goto="analysis" title="视频分析"><span class="mn-ic" data-ic="activity"></span><span class="mn-t">视频分析</span><span class="lamp" id="lamp-analysis"></span></button>
     <button class="mn" data-goto="compliance" title="合规检测"><span class="mn-ic" data-ic="shieldcheck"></span><span class="mn-t">合规检测</span><span class="lamp" id="lamp-compliance"></span></button>
     <button class="mn" data-goto="transcode" title="直播转码"><span class="mn-ic" data-ic="radiotower"></span><span class="mn-t">直播转码</span><span class="lamp" id="lamp-transcode"></span></button>
-    <button class="mn" data-goto="burst" title="微突发巡检"><span class="mn-ic" data-ic="gauge"></span><span class="mn-t">微突发巡检</span><span class="lamp" id="lamp-burst"></span></button>
+    <button class="mn" data-goto="burst" title="微突发检测"><span class="mn-ic" data-ic="gauge"></span><span class="mn-t">微突发检测</span><span class="lamp" id="lamp-burst"></span></button>
     <button class="mn" data-goto="avsync" title="音画同步"><span class="mn-ic" data-ic="audiolines"></span><span class="mn-t">音画同步</span><span class="lamp" id="lamp-avsync"></span></button>
     <button class="mn" data-goto="consist" title="一致性比对"><span class="mn-ic" data-ic="repeat"></span><span class="mn-t">一致性比对</span><span class="lamp" id="lamp-consist"></span></button>
     <button class="mn" data-goto="about" title="关于"><span class="mn-ic" data-ic="info"></span><span class="mn-t">关于</span></button>
@@ -456,7 +456,7 @@
       </div>
     </section>
 
-    <!-- ══════════ 微突发巡检页 ══════════ -->
+    <!-- ══════════ 微突发检测页 ══════════ -->
     <section class="pg" data-page="burst" hidden>
       <div class="srcbar">
         <span class="lbl">组播地址</span>
@@ -466,11 +466,18 @@
         <span class="lbl">网卡</span>
         <select class="nic" id="b-nic"></select>
         <span class="lbl">突发阈值</span>
-        <input class="num" id="b-ratio" value="2.0" title="1ms 桶字节量 ≥ 均值 × 该倍率即计一次微突发" />
+        <input class="num" id="b-ratio" value="2.0" title="检测窗口字节量 ≥ 均值 × 该倍率即计一次微突发" />
         <span class="unit">× 均值</span>
+        <span class="lbl">检测时间</span>
+        <select class="nic winsel" id="b-window" title="检测时间窗：1ms / 10ms / 100ms / 1000ms">
+          <option value="1">1 ms</option>
+          <option value="10">10 ms</option>
+          <option value="100">100 ms</option>
+          <option value="1000">1000 ms</option>
+        </select>
         <div class="vsep"></div>
-        <button class="gradbtn" id="b-act"><span data-ic="activity"></span>开始巡检</button>
-        <button class="iconbtn ghost" id="b-stop" title="停止巡检" data-ic="square" hidden></button>
+        <button class="gradbtn" id="b-act"><span data-ic="activity"></span>开始检测</button>
+        <button class="iconbtn ghost" id="b-stop" title="停止检测" data-ic="square" hidden></button>
       </div>
 
       <div class="statusline" id="b-status">
@@ -482,12 +489,12 @@
       <div class="kpiwrap" id="b-kpi"></div>
 
       <div class="spark">
-        <div class="spark-h"><b>最近 240ms 到达量</b><span class="spark-s">每根柱 = 1ms 内收到的字节</span></div>
+        <div class="spark-h"><b id="b-spark-title">最近 240 个 1ms 窗口到达量</b><span class="spark-s" id="b-spark-sub">每根柱 = 1ms 内收到的字节</span></div>
         <canvas id="b-spark" height="110"></canvas>
       </div>
 
       <div class="kfoot" id="b-foot">
-        <span class="kfoot-note">口径：把到达时间按 1ms 分桶，峰值 = 单桶字节量换算的瞬时码率；某个桶 ≥ 均值 × 阈值即计一次微突发。</span>
+        <span class="kfoot-note" id="b-foot-note">口径：把到达时间按 1ms 分桶，峰值 = 单窗口字节量换算的瞬时码率；某个窗口 ≥ 均值 × 阈值即计一次微突发。</span>
         <span class="kfoot-basis">微突发高但平均码率正常，通常说明上游发包不平滑或链路缓冲不足；本机回环测试时 recv 会成批取包，毫秒级突发天然偏多，长链路/真实组播更有参考价值。</span>
       </div>
     </section>

@@ -332,7 +332,7 @@ impl Default for XcodeState {
     fn default() -> Self { Self::new() }
 }
 
-/// 微突发巡检页的会话
+/// 微突发检测页的会话
 pub struct BurstState {
     pub sess: Mutex<Option<vqa_core::burst::BurstSession>>,
     pub err: Mutex<Option<String>>,

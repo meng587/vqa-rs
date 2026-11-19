@@ -35,7 +35,7 @@ const PAGE_CHROME: Record<Page, { kicker: string; title: string; sub: string; se
   analysis: { kicker: "STREAM ANALYSIS", title: "视频分析", sub: "TS 结构 / PCR / TR101 290 / 码率曲线", seal: "析" },
   compliance: { kicker: "COMPLIANCE CHECK", title: "合规检测", sub: "依据 广电办发〔2024〕253 号 逐项判定", seal: "规" },
   transcode: { kicker: "LIVE TRANSCODE", title: "直播转码", sub: "输入 → 解码 → 转码 → 输出 全链路", seal: "转" },
-  burst: { kicker: "BURST INSPECT", title: "微突发巡检", sub: "毫秒级包间隔窗口，定位瞬态拥塞", seal: "巡" },
+  burst: { kicker: "BURST DETECT", title: "微突发检测", sub: "按设定时间窗检测瞬时拥塞", seal: "检" },
   avsync: { kicker: "A/V SYNC", title: "音画同步", sub: "音频包络与视频帧对齐，测量偏移", seal: "音" },
   consist: { kicker: "CONSISTENCY", title: "一致性比对", sub: "同频道多来源双画面逐帧比对", seal: "鉴" },
   about: { kicker: "ABOUT", title: "关于", sub: "版本 / 更新 / 诊断与工具链", seal: "关" },
@@ -104,7 +104,7 @@ function goto(page: Page) {
             : page === "transcode"
               ? "直播转码"
               : page === "burst"
-                ? "微突发巡检"
+                ? "微突发检测"
                 : page === "avsync"
                   ? "音画同步"
                   : page === "consist"

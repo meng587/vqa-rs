@@ -215,7 +215,7 @@ impl eframe::App for VqaApp {
                     for (name, icon) in [
                         ("合规检测", crate::widgets::lucide::Lucide::ShieldCheck),
                         ("直播转码", crate::widgets::lucide::Lucide::RadioTower),
-                        ("微突发巡检", crate::widgets::lucide::Lucide::Activity),
+                        ("微突发检测", crate::widgets::lucide::Lucide::Activity),
                     ] {
                         let (rect, _) = ui.allocate_exact_size(
                             [NAV_WIDTH - 20.0, 34.0].into(),

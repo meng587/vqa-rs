@@ -526,6 +526,8 @@ main { padding: 0; gap: 0; }
 .srcbox .histpop { top: 42px; left: 0; }
 /* 网卡：显示「IP · 网卡名」，放宽到 230px，空间不够就让来源输入先缩 */
 .srcbar select.nic { height: 36px; font-size: 13px; max-width: 230px; min-width: 118px; text-overflow: ellipsis; }
+/* 微突发检测时间窗：四档定宽，别和网卡下拉抢宽度 */
+.srcbar select.nic.winsel { max-width: 96px; min-width: 82px; }
 /* 节目下拉：多节目 TS 才出现，窄一点别挤走来源输入 */
 .srcbar select.nic.progsel { max-width: 96px; min-width: 76px; }
 .iconbtn { width: 32px; height: 32px; border: 0; background: transparent; border-radius: 9px; color: var(--mut); }
@@ -802,7 +804,7 @@ body[data-page="analysis"] #p-chips, body[data-page="about"] #p-chips { display:
 .docback svg { transform: rotate(90deg); }
 #k-doc { padding-top: 8px; }
 
-/* ══════════ 直播转码 / 微突发巡检 ══════════ */
+/* ══════════ 直播转码 / 微突发检测 ══════════ */
 #x-monitor { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
 .x-topbar {
   height: 64px; flex: none; display: flex; align-items: center; gap: 12px;

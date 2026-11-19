@@ -648,6 +648,10 @@ fn start_auto_bridge(
     let mut bridge = None;
     let mut used_decoder: Option<&str> = None;
     let mut last_err = String::new();
+    // 8K 自动降级监看不带源音频：信源 MP2 头损坏时，音频错误会刷满
+    // stderr 并让看门狗误判"无推进"，比静音更影响视频监看。探不到格式的
+    // 8K 源同样按静音处理，先保证画面能持续出。
+    let drop_audio = scale_w > 0 && (avs3 || probe_missing);
     for dec in tries {
         match vqa_core::bridge::RealtimeBridge::start_scaled(
             &ffmpeg,
@@ -659,6 +663,7 @@ fn start_auto_bridge(
             audio_lead,
             scale_w,
             dec,
+            drop_audio,
         ) {
             Ok(b) => {
                 bridge = Some(b);
@@ -863,6 +868,7 @@ fn decide_bridge(
         audio_lead,
         initial_scale,
         if avs3 { Some("libuavs3d") } else { None },
+        initial_scale > 0 && (avs3 || q.is_none()),
     ) {
         Ok(b) => {
             let reason = if h264_8k {

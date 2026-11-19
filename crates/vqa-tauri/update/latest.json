@@ -1,11 +1,11 @@
 {
-  "version": "0.2.30",
-  "notes": "0.2.30：修复 AVS2 4K 快速探测宽高为空时误判直放、导致 mpv 退出的问题；AVS 编码探不到尺寸时强制走转码桥。",
-  "pub_date": "2026-11-19T02:31:02Z",
-  "platforms": {
-    "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW5FN0JuOHhkZ1VXRG1FYWUrTGFlWnh1R2lIWmU0YURLVjRETjVLWXVOTForL25ENWc1YVVDMFdDMHdEU1Q4b04xcFVDRzB3aXBHdXNZc3hUUUZhS2c0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDU1NDYyCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4zMF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjMwClVnQnh0Zk1wZTdNVGRZRFNRbTVnMHJYRHdkcnBTVG1tVVhrT3U0T1praERoV2ZWNUdlcW1COFNFb1BNbXZqdk9Zd29zR2hyLzFPNnA1MUFIV1gzdENnPT0K",
-      "url": "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.30/vqa-workbench-0.2.30-setup.exe"
-    }
-  }
+    "version":  "0.2.31",
+    "notes":  "0.2.31：8K AVS3 源探测修复（去掉首帧时间截断，libuavs3d 补探可回填源格式）；8K 自动降级桥默认静音，避免损坏 MP2 音频拖垮桥；微突发巡检改为微突发检测，新增 1/10/100/1000ms 检测时间窗。",
+    "pub_date":  "2026-11-19T03:44:45Z",
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZWlFYTExVmR4S1ZYRlFpMWdGeTBCMmsvL2hQYzZQS3pUWDYvMUJxWHlXU1kzN3RhOTZXdkFhSzVPT0NmZDRqenY4d2I2N0ZHN1VaTFhiQThNTVI3S1FVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MDU5ODg1CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi4zMV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjMxCmhUZW13VklsUmFwTzRiR0pIKzRPdUFES2NmVW9YeWtSa2gwclluQUZLb1AvcmxwYXRsZE53TmpGbDdwOGt3SmVLMktmdE9aR2s1ZWpHb2ZheHVmMUJBPT0K",
+                                             "url":  "https://gitee.com/meng587/vqa-rs/releases/download/v0.2.31/vqa-workbench-0.2.31-setup.exe"
+                                         }
+                  }
 }

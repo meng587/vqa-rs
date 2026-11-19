@@ -227,7 +227,7 @@ fn is_avs_family(codec: &str) -> bool {
 }
 
 /// 强制 libuavs3d 读流头；成功返回 (宽, 高, 像素格式, 源帧率)。
-/// 不输出、不消耗视频帧，ffmpeg 打印完流头即退出，8K 也能在数秒内返回。
+/// 需要真解出一帧才能区分 AVS3/AVS2；8K 软解首帧可能超过数秒，超时给 15s。
 fn confirm_avs3(url: &str, localaddr: &str) -> Option<(i64, i64, String, String)> {
     let ffmpeg = crate::tools::find_ffmpeg()?;
     let mut cmd = ffmpeg::hidden(&ffmpeg);
@@ -243,11 +243,15 @@ fn confirm_avs3(url: &str, localaddr: &str) -> Option<(i64, i64, String, String)
         "-i", probe_url.as_str(),
         // 必须真解出一帧：AVS2 被强制交给 libuavs3d 时只打一行假流头，
         // frame=0 且立刻退出；AVS3 才能解出 >=1 帧。
-        "-t", "0.5",
+        // ★ 不能加 `-t 0.5`：AVS3 解码有帧延迟，输出时长截断会在首帧
+        //   落盘前就结束，日志仍是 frame=0（本地样本实测）。只靠
+        //   `-frames:v 1` 限制输出，让解码器自己跑到第一帧。
+        "-an", "-sn",
         "-frames:v", "1",
         "-f", "null", "-",
     ]);
-    let out = run_limited(cmd, Duration::from_secs(6))?;
+    // 8K AVS3 软解首帧在弱机上可能超过 6s；宁可多等，不能把源码格式留空。
+    let out = run_limited(cmd, Duration::from_secs(15))?;
     let text = String::from_utf8_lossy(&out.stderr);
     let decoded = text
         .lines()
@@ -259,9 +263,12 @@ fn confirm_avs3(url: &str, localaddr: &str) -> Option<(i64, i64, String, String)
     if decoded == 0 {
         return None;
     }
+    // ffmpeg 的 `Stream ... Video: avs3` 行不一定带 libuavs3d 名称：解码器
+    // 是命令行强制指定的，能解出 frame>0 已足够证明是 AVS3。这里只认视频行，
+    // 不再要求同一行同时出现解码器名（旧条件在 8K 源上会把结果丢掉）。
     let line = text
         .lines()
-        .find(|l| l.contains("Video: avs3") && l.contains("libuavs3d"))?;
+        .find(|l| l.to_ascii_lowercase().contains("video: avs3"))?;
     let parts: Vec<&str> = line.split(',').map(|s| s.trim()).collect();
     let mut width = 0i64;
     let mut height = 0i64;
@@ -312,7 +319,7 @@ pub fn probe_quick(url: &str, timeout: f64, localaddr: &str) -> Option<QuickProb
         "-analyzeduration", "1000000",
         "-i", probe_url.as_str(),
         "-show_entries",
-        "stream=codec_name,width,height,pix_fmt,bit_rate,avg_frame_rate,start_time:format=bit_rate,start_time",
+        "stream=codec_type,codec_name,width,height,pix_fmt,bit_rate,avg_frame_rate,start_time:format=bit_rate,start_time",
         "-of", "json",
     ]);
     let out = run_limited(cmd, Duration::from_secs_f64(timeout))?;
@@ -346,7 +353,14 @@ pub fn probe_quick(url: &str, timeout: f64, localaddr: &str) -> Option<QuickProb
             // ★ ffprobe 的 AVS3/AVS2 自动识别不可靠：裸 AVS3 会被报成
             //   avs2 + 2528x1159，随后被错送进 vkit_davs2。这里让 libuavs3d
             //   读一次流头，确认是 AVS3 就纠正 codec/宽高/帧率。
-            if is_avs_family(&q.video.codec) && !q.video.codec.to_ascii_lowercase().contains("avs3") {
+            // 只要 codec 属于 AVS 家族，且尺寸缺失或尚未确认成 avs3，就补探。
+            // 旧条件要求 codec 不含 avs3；ffprobe 报 `avs3 0x0` 时会直接跳过，
+            // 8K 源永远补不回宽高。尺寸为 0 时必须无条件补探。
+            if is_avs_family(&q.video.codec)
+                && (q.video.width <= 0
+                    || q.video.height <= 0
+                    || !q.video.codec.to_ascii_lowercase().contains("avs3"))
+            {
                 if let Some((w, h, pix, fps)) = confirm_avs3(url, localaddr) {
                     q.video.codec = "avs3".into();
                     q.video.width = w;

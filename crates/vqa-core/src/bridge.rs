@@ -212,7 +212,7 @@ impl RealtimeBridge {
         audio_lead: f64,
     ) -> Result<RealtimeBridge, String> {
         Self::start_scaled(
-            ffmpeg, davs2, url, chain10, crf, localaddr, audio_lead, 0, None,
+            ffmpeg, davs2, url, chain10, crf, localaddr, audio_lead, 0, None, false,
         )
     }
 
@@ -220,6 +220,8 @@ impl RealtimeBridge {
     /// 8K 软解跟不上时，播放器按丢帧阶梯调用：3840 → 1920 → 1280。
     /// `decoder` 可强制输入解码器（AVS3 用 `libuavs3d`，避免 ffmpeg
     /// 把 AVS3 误判成 AVS2 后找不到解码器）。
+    /// `drop_audio`：8K AVS3 自动降级时不带源音频。部分信源 MP2 头损坏，
+    /// 音频解码错误会持续刷 stderr；监看场景宁可静音，也不让桥被拖垮。
     pub fn start_scaled(
         ffmpeg: &Path,
         davs2: &Path,
@@ -230,6 +232,7 @@ impl RealtimeBridge {
         audio_lead: f64,
         scale_w: u32,
         decoder: Option<&str>,
+        drop_audio: bool,
     ) -> Result<RealtimeBridge, String> {
         let port = free_udp_port().map_err(|e| format!("挑 UDP 端口失败：{e}"))?;
         let local = is_local(url);
@@ -268,11 +271,15 @@ impl RealtimeBridge {
             if scale_w > 0 {
                 cmd.args(["-vf", &format!("scale={scale_w}:-2,fps=25")]);
             }
-            cmd.args(&enc_args)
-                .args([
-                    "-map", "0:a:0?", "-c:a", "aac", "-b:a", "96k",
-                    "-f", "mpegts", &dst,
-                ])
+            cmd.args(&enc_args);
+            if drop_audio {
+                // 8K AVS3 降级监看：源里 MP2 头损坏时，带音频只会不断刷
+                // "Header missing" 并让看门狗误判桥无推进；直接 `-an`。
+                cmd.arg("-an");
+            } else {
+                cmd.args(["-map", "0:a:0?", "-c:a", "aac", "-b:a", "96k"]);
+            }
+            cmd.args(["-f", "mpegts", &dst])
                 .stderr(Stdio::piped());
             // ★ 这里必须等 encoder_args / 音频参数都追加后再打印：
             //   之前提前打印的 cmd 看不到实际编码器，诊断包无法判断用了
@@ -280,7 +287,7 @@ impl RealtimeBridge {
             crate::config::log_line(
                 "bridge",
                 &format!(
-                    "start_scaled scale_w={scale_w} decoder={} enc={enc} cmd={cmd:?}",
+                    "start_scaled scale_w={scale_w} decoder={} enc={enc} drop_audio={drop_audio} cmd={cmd:?}",
                     decoder.unwrap_or("default")
                 ),
             );

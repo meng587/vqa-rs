@@ -216,7 +216,7 @@ fn main() {
             xcode_cmds::xcode_start,
             xcode_cmds::xcode_snapshot,
             xcode_cmds::xcode_stop,
-            // 微突发巡检
+            // 微突发检测
             burst_cmds::burst_start,
             burst_cmds::burst_snapshot,
             burst_cmds::burst_stop,

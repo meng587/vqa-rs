@@ -244,9 +244,9 @@ export const api = {
   xcodePreview: (cfg: XcodeCfg) => invoke<XcodePreview>("xcode_preview", { cfg }),
   xcodeSnapshot: () => invoke<XcodeStats>("xcode_snapshot"),
   xcodeStop: () => invoke<XcodeStats>("xcode_stop"),
-  // 微突发巡检
-  burstStart: (url: string, nicIp: string, ratio: number) =>
-    invoke<BurstStats>("burst_start", { url, nicIp, ratio }),
+  // 微突发检测
+  burstStart: (url: string, nicIp: string, ratio: number, windowMs: number) =>
+    invoke<BurstStats>("burst_start", { url, nicIp, ratio, windowMs }),
   burstSnapshot: () => invoke<BurstStats>("burst_snapshot"),
   burstStop: () => invoke<BurstStats>("burst_stop"),
   // 音画同步（job = 并发槽位 id）
@@ -450,8 +450,10 @@ export interface BurstStats {
   peak_ratio: number;
   burst_cnt: number;
   bytes_per_ms_avg: number;
+  bytes_per_window_avg: number;
   series: number[];
   url: string;
+  window_ms: number;
   err: string | null;
 }
 
