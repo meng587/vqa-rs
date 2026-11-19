@@ -180,7 +180,9 @@ function syncLockUi() {
   const act = $<HTMLButtonElement>("b-act");
   const stop = $<HTMLButtonElement>("b-stop");
   const setBtn = $<HTMLButtonElement>("b-settings");
+  const browse = $<HTMLButtonElement>("b-browse");
   if (act) act.disabled = isLocked;
+  if (browse) browse.disabled = isLocked;
   if (setBtn) setBtn.disabled = isLocked;
   if (stop) stop.hidden = !(running || polling);
   board?.setBusy(isLocked);
@@ -632,7 +634,7 @@ async function startContinuous() {
   }
   starting = true;
   syncLockUi();
-  setStatus("running", "绑定端口…");
+  setStatus("running", url.startsWith("udp://") || url.startsWith("rtp://") ? "绑定端口…" : "启动本地文件回放…");
   try {
     const s = await api.burstStart(url, settings.nic, settings.ratio, settings.window_ms);
     starting = false;
@@ -816,6 +818,16 @@ export function initBurst() {
   }
 
   $<HTMLButtonElement>("b-act")?.addEventListener("click", () => void startContinuous());
+  $<HTMLButtonElement>("b-browse")?.addEventListener("click", async () => {
+    const path = await api.browse();
+    if (!path) return;
+    const input = $<HTMLInputElement>("b-url");
+    if (input) input.value = path;
+    activeUrl = path;
+    board?.selectByUrl(path);
+    updateCurrentLabel();
+    syncLockUi();
+  });
   $<HTMLButtonElement>("b-stop")?.addEventListener("click", () => void stopSession());
   $<HTMLButtonElement>("b-settings")?.addEventListener("click", openSettings);
   $<HTMLButtonElement>("b-ch-rail")?.addEventListener("click", () =>
