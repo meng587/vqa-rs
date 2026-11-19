@@ -486,31 +486,7 @@
 
       <div class="bst-body" id="b-body">
         <aside class="bst-side">
-          <div class="bst-chcard" id="b-chcard">
-            <div class="bst-chhead">
-              <span class="bst-chtitle"><span data-ic="chevrondown"></span><b>频道列表</b></span>
-              <span class="bst-chcount" id="b-ch-count">0 个 / 启用 0</span>
-              <label class="bst-chall"><input type="checkbox" id="b-ch-all" /><span>全选</span></label>
-              <button class="bst-chcollapse" id="b-ch-toggle" type="button" aria-expanded="true" title="收起频道列表">
-                <span data-ic="chevronleft"></span><span class="btxt">收起</span>
-              </button>
-              <div class="bst-chtools">
-                <button class="txtbtn bst-tool" id="b-edit-list" type="button">编辑列表</button>
-                <button class="txtbtn bst-tool" id="b-detect-sel" type="button" title="检测频道列表里当前选中的频道">检测选中</button>
-                <button class="txtbtn tb-browse bst-tool" id="b-poll" type="button"><span data-ic="repeat"></span><span class="btxt">轮询选中</span></button>
-              </div>
-            </div>
-            <div class="bst-chfilter">
-              <label class="bst-groupsel">分组
-                <select id="b-ch-group"></select>
-              </label>
-              <span class="bst-chgroupstat" id="b-ch-groupstat"></span>
-            </div>
-            <div class="bst-chbody" id="b-chbody">
-              <div class="bst-chrows" id="b-ch-rows"></div>
-            </div>
-            <div class="bst-chfoot">轮询时每路采样 8 s · 名称和地址可在「编辑列表」里修改</div>
-          </div>
+          <div class="chboard is-compact" id="b-chboard"></div>
         </aside>
         <button class="bst-chrail" id="b-ch-rail" type="button" title="展开频道列表" aria-label="展开频道列表">
           <span data-ic="chevronright"></span><span class="bst-chrail-t">频道列表</span>
@@ -580,8 +556,12 @@
                 <option value="1000">1000 ms</option>
               </select>
             </label>
+            <label class="bst-setrow">
+              <span>轮询时间</span>
+              <div class="bst-inline"><input id="b-set-poll" type="number" min="1" max="120" step="1" value="8" /><em>秒 / 路</em></div>
+            </label>
             <div class="bst-setnote">
-              检测时间越短，越能看出毫秒级突发；阈值越大，只有更明显的尖峰才会被计为微突发。
+              检测时间越短，越能看出毫秒级突发；阈值越大，只有更明显的尖峰才会被计为微突发。轮询时间决定每个频道连续观察多久。
             </div>
           </div>
           <div class="bst-dialog-foot">

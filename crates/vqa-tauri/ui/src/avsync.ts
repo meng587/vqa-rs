@@ -327,6 +327,8 @@ async function loadPrefs() {
     if (search && Number.isFinite(p.search)) search.value = String(p.search);
   } catch {
     /* 设置读不到就用默认值 */
+  } finally {
+    board?.refreshFootnote();
   }
 }
 
@@ -344,7 +346,10 @@ export function initAvSync() {
   if (s) s.innerHTML = `${icon("square", 15)}<span class="btxt">停止检测</span>`;
   s?.addEventListener("click", stop);
   ["av-secs", "av-search"].forEach((id) =>
-    $<HTMLInputElement>(id)?.addEventListener("change", queueSave),
+    $<HTMLInputElement>(id)?.addEventListener("change", () => {
+      queueSave();
+      board?.refreshFootnote();
+    }),
   );
 
   const host = $<HTMLElement>("av-chboard");
@@ -354,7 +359,14 @@ export function initAvSync() {
       title: "频道列表",
       sequential: true,
       compact: true,
+      footnote: () =>
+        `轮询时每路按分析时长 ${readPrefs().secs} 秒采集 · 名称和地址可在「编辑列表」里修改`,
       onCollapse: () => setChannelCollapsed(true),
+      onSelect: (ch) => {
+        if (!ch) return;
+        const input = $<HTMLInputElement>("av-src");
+        if (input) input.value = ch.url;
+      },
       runOne: async (ch, job, focus): Promise<RunOutcome> => {
         if (focus) {
           const input = $<HTMLInputElement>("av-src");

@@ -7,26 +7,19 @@
 //! - 清晰的坐标轴、网格和柱状图。
 
 import { api, BurstStats, Channel, NicRow } from "./api";
-import { openChannelEditor } from "./channel-editor";
 import {
-  ALL_GROUPS,
-  DEFAULT_GROUP,
-  groupMatches,
-  groupNames,
-  groupOf,
-  loadChannelGroups,
-  normalizeGroup,
-} from "./channel-groups";
+  ChannelBoard,
+  RowState,
+} from "./channels";
 
 const $ = <T extends HTMLElement>(id: string): T | null =>
   document.getElementById(id) as T | null;
 
 type WinMs = 1 | 10 | 100 | 1000;
-type RowState = "idle" | "run" | "ok" | "warn" | "err";
 
 const WINDOWS: WinMs[] = [1, 10, 100, 1000];
 const SERIES_N = 240;
-const DEFAULT_DWELL_MS = 8000; // 轮询时每个频道采样时长
+const DEFAULT_POLL_SECS = 8; // 轮询时每个频道采样时长
 const SETTINGS_KEY = "burst.settings";
 const COLLAPSED_KEY = "burst.ch.collapsed";
 
@@ -52,6 +45,7 @@ interface Settings {
   nic: string;
   ratio: number;
   window_ms: WinMs;
+  poll_secs: number;
 }
 
 interface RowMeta {
@@ -59,18 +53,17 @@ interface RowMeta {
   text: string;
 }
 
-let settings: Settings = { nic: "", ratio: 2, window_ms: 1 };
+let settings: Settings = { nic: "", ratio: 2, window_ms: 1, poll_secs: DEFAULT_POLL_SECS };
 let channels: Channel[] = [];
-let groupFilter = ALL_GROUPS;
-let groups: string[] = [DEFAULT_GROUP];
-let nics: NicRow[] = [];
 let activeUrl = "";
+let board: ChannelBoard | null = null;
+let nics: NicRow[] = [];
 let snapshot: BurstStats = { ...EMPTY };
 let running = false;
 let starting = false;
 let polling = false;
 let pollStop = false;
-let pollList: number[] = [];
+let pollList: Channel[] = [];
 let pollPos = 0;
 let pollStartedAt = 0;
 let snapshotTimer: number | null = null;
@@ -89,6 +82,11 @@ function esc(s: string): string {
 function normalizeWin(v: unknown): WinMs {
   const n = Number(v);
   return WINDOWS.includes(n as WinMs) ? (n as WinMs) : 1;
+}
+
+function normalizePollSecs(v: unknown): number {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n >= 1 && n <= 120 ? n : DEFAULT_POLL_SECS;
 }
 
 function currentUrl(): string {
@@ -162,7 +160,8 @@ function updateCfgChips() {
   el.innerHTML =
     `<span class="bst-cfgchip"><i>网卡</i><b>${esc(settings.nic ? currentNicLabel() : "自动")}</b></span>` +
     `<span class="bst-cfgchip"><i>阈值</i><b>${settings.ratio.toFixed(2)} ×</b></span>` +
-    `<span class="bst-cfgchip"><i>窗口</i><b>${settings.window_ms} ms</b></span>`;
+    `<span class="bst-cfgchip"><i>窗口</i><b>${settings.window_ms} ms</b></span>` +
+    `<span class="bst-cfgchip"><i>轮询</i><b>${settings.poll_secs} s</b></span>`;
 }
 
 function setStatus(kind: "idle" | "running" | "error", text: string) {
@@ -176,32 +175,15 @@ function setStatus(kind: "idle" | "running" | "error", text: string) {
   if (lamp) lamp.className = `lamp${kind === "running" ? " run" : kind === "error" ? " err" : ""}`;
 }
 
-function selectedIndex(): number {
-  if (!activeUrl) return -1;
-  return visibleIndexes().find((i) => channels[i]?.url === activeUrl) ?? -1;
-}
-
 function syncLockUi() {
   const isLocked = locked();
   const act = $<HTMLButtonElement>("b-act");
   const stop = $<HTMLButtonElement>("b-stop");
   const setBtn = $<HTMLButtonElement>("b-settings");
-  const pollBtn = $<HTMLButtonElement>("b-poll");
-  const detectBtn = $<HTMLButtonElement>("b-detect-sel");
-  const editBtn = $<HTMLButtonElement>("b-edit-list");
-  const all = $<HTMLInputElement>("b-ch-all");
   if (act) act.disabled = isLocked;
   if (setBtn) setBtn.disabled = isLocked;
-  if (pollBtn) pollBtn.disabled = isLocked;
-  if (detectBtn) detectBtn.disabled = isLocked || selectedIndex() < 0;
-  if (editBtn) editBtn.disabled = isLocked;
-  if (all) all.disabled = isLocked;
-  const group = $<HTMLSelectElement>("b-ch-group");
-  if (group) group.disabled = isLocked;
   if (stop) stop.hidden = !(running || polling);
-  document.querySelectorAll<HTMLInputElement>("#b-ch-rows input[type=checkbox]").forEach((c) => {
-    c.disabled = isLocked;
-  });
+  board?.setBusy(isLocked);
 }
 
 function kpiCard(label: string, value: string, hint = ""): string {
@@ -418,37 +400,13 @@ function renderAll(s: BurstStats) {
   updateCurrentLabel();
 }
 
-function rowStateText(st: RowState): string {
-  switch (st) {
-    case "run":
-      return "检测中";
-    case "ok":
-      return "正常";
-    case "warn":
-      return "有突发";
-    case "err":
-      return "失败";
-    default:
-      return "待检";
-  }
-}
-
 function getRowMeta(url: string): RowMeta {
   return rowMeta.get(url) || { state: "idle", text: "—" };
 }
 
 function updateRow(url: string, state: RowState, text: string) {
   rowMeta.set(url, { state, text });
-  const idx = channels.findIndex((c) => c.url === url);
-  const row = idx >= 0 ? document.querySelector<HTMLElement>(`.bst-chrow[data-i="${idx}"]`) : null;
-  if (!row) return;
-  const st = row.querySelector<HTMLElement>(".bst-chst");
-  const sm = row.querySelector<HTMLElement>(".bst-chsum");
-  if (st) {
-    st.className = `bst-chst ${state}`;
-    st.textContent = rowStateText(state);
-  }
-  if (sm) sm.textContent = text || "—";
+  board?.updateRowByUrl(url, state, text);
 }
 
 function summaryOf(s: BurstStats): RowMeta {
@@ -457,175 +415,20 @@ function summaryOf(s: BurstStats): RowMeta {
   return { state: s.burst_cnt > 0 ? "warn" : "ok", text };
 }
 
-function visibleIndexes(): number[] {
-  return channels
-    .map((ch, i) => (groupMatches(ch, groupFilter) ? i : -1))
-    .filter((i) => i >= 0);
-}
-
-function renderGroupSelect() {
-  const sel = $<HTMLSelectElement>("b-ch-group");
-  if (!sel) return;
-  groups = groupNames(channels, groups);
-  if (groupFilter !== ALL_GROUPS && !groups.includes(groupFilter)) groupFilter = ALL_GROUPS;
-  sel.innerHTML =
-    `<option value="${ALL_GROUPS}">全部分组</option>` +
-    groups.map((g) => `<option value="${esc(g)}">${esc(g)}</option>`).join("");
-  sel.value = groupFilter;
-  const stat = $<HTMLElement>("b-ch-groupstat");
-  if (stat) {
-    const n = visibleIndexes().length;
-    stat.textContent =
-      groupFilter === ALL_GROUPS ? `${groups.length} 个分组` : `${n} 个频道 · ${groupFilter}`;
-  }
-}
-
-function updateChannelCount() {
-  const count = $<HTMLElement>("b-ch-count");
-  if (!count) return;
-  const list = visibleIndexes();
-  const on = list.filter((i) => channels[i]?.enabled).length;
-  count.textContent =
-    groupFilter === ALL_GROUPS
-      ? `${channels.length} 个 / 启用 ${on}`
-      : `${list.length} 个 · ${groupFilter} / 启用 ${on}`;
-}
-
-function renderChannels() {
-  const rowsEl = $<HTMLElement>("b-ch-rows");
-  if (!rowsEl) return;
-  renderGroupSelect();
-  updateChannelCount();
-
-  const list = visibleIndexes();
-  if (!list.length) {
-    rowsEl.innerHTML = channels.length
-      ? `<div class="bst-chempty">「${esc(groupFilter)}」分组暂无频道 · 点「编辑列表」调整分组</div>`
-      : `<div class="bst-chempty">还没有频道 · 点「编辑列表」添加频道</div>`;
-  } else {
-    rowsEl.innerHTML = list
-      .map((i) => {
-        const c = channels[i];
-        const meta = getRowMeta(c.url);
-        const active = c.url === activeUrl;
-        return (
-          `<div class="bst-chrow${active ? " sel" : ""}${c.enabled ? "" : " off"}" data-i="${i}">` +
-          `<label class="bst-chk"><input type="checkbox" data-i="${i}" ${c.enabled ? "checked" : ""} /></label>` +
-          `<span class="bst-chname" title="${esc(c.name || "未命名频道")} · ${esc(groupOf(c))}"><span class="bst-chname-t">${esc(c.name || "未命名频道")}</span><i class="bst-chgroup">${esc(groupOf(c))}</i></span>` +
-          `<span class="bst-churl mono" title="${esc(c.url)}">${esc(c.url)}</span>` +
-          `<span class="bst-chst ${meta.state}">${esc(rowStateText(meta.state))}</span>` +
-          `<span class="bst-chsum mono" title="${esc(meta.text)}">${esc(meta.text)}</span>` +
-          `</div>`
-        );
-      })
-      .join("");
-
-    rowsEl.querySelectorAll<HTMLInputElement>("input[type=checkbox]").forEach((box) => {
-      box.disabled = locked();
-      box.addEventListener("change", () => {
-        const i = Number(box.dataset.i);
-        if (!channels[i]) return;
-        channels[i].enabled = box.checked;
-        box.closest(".bst-chrow")?.classList.toggle("off", !box.checked);
-        persistChannels();
-        updateAllBox();
-        updateChannelCount();
-      });
-    });
-
-    rowsEl.querySelectorAll<HTMLElement>(".bst-chrow").forEach((row) => {
-      row.addEventListener("click", (ev) => {
-        if ((ev.target as HTMLElement).closest(".bst-chk")) return;
-        const i = Number(row.dataset.i);
-        if (channels[i]) activateChannel(i);
-      });
-    });
-  }
-
-  updateAllBox();
-  updateCurrentLabel();
-  syncLockUi();
-}
-
-function updateAllBox() {
-  const all = $<HTMLInputElement>("b-ch-all");
-  if (!all) return;
-  const list = visibleIndexes();
-  const on = list.filter((i) => channels[i]?.enabled).length;
-  all.checked = list.length > 0 && on === list.length;
-  all.indeterminate = on > 0 && on < list.length;
-}
-
-function activateChannel(i: number) {
-  const c = channels[i];
-  if (!c) return;
-  activeUrl = c.url;
-  const input = $<HTMLInputElement>("b-url");
-  if (input) input.value = c.url;
-  renderChannels();
-  syncLockUi();
-}
-
-/** 只检测频道列表里当前选中的这一路，不勾选也不轮询其他频道。 */
-function detectSelected() {
-  if (locked()) return;
-  const i = selectedIndex();
-  if (i < 0) {
-    setStatus("error", "先在频道列表选中一个频道");
-    return;
-  }
-  activateChannel(i);
-  void startContinuous();
-}
-
-function highlightRows() {
-  document.querySelectorAll<HTMLElement>(".bst-chrow[data-i]").forEach((row) => {
-    const c = channels[Number(row.dataset.i)];
-    row.classList.toggle("sel", !!c && c.url === activeUrl);
-  });
-  updateCurrentLabel();
-}
-
-function persistChannels() {
-  api.channelsSave(channels).catch(() => {});
-}
-
 function setChannelCollapsed(on: boolean, persist = true) {
   collapsed = on;
   const body = $<HTMLElement>("b-body");
-  const card = $<HTMLElement>("b-chcard");
-  const btn = $<HTMLButtonElement>("b-ch-toggle");
   const rail = $<HTMLButtonElement>("b-ch-rail");
   body?.classList.toggle("is-ch-collapsed", on);
-  card?.classList.toggle("collapsed", on);
-  if (btn) btn.setAttribute("aria-expanded", String(!on));
-  if (btn) btn.title = on ? "展开频道列表" : "收起频道列表";
   if (rail) rail.setAttribute("aria-expanded", String(!on));
   if (persist) api.uiSet(COLLAPSED_KEY, on).catch(() => {});
   window.setTimeout(() => drawSpark(snapshot), 30);
 }
 
-async function loadChannels() {
-  try {
-    const list = await api.channelsGet();
-    const seen = new Set<string>();
-    channels = (list || [])
-      .map((c) => ({
-        name: c.name || "",
-        url: c.url || "",
-        group: normalizeGroup(c.group),
-        enabled: c.enabled !== false,
-      }))
-      .filter((c) => {
-        const k = c.url.trim().toLowerCase();
-        if (!k || seen.has(k)) return false;
-        seen.add(k);
-        return true;
-      });
-    groups = await loadChannelGroups(channels);
-  } catch {
-    channels = [];
-  }
+async function loadBurstChannels() {
+  if (!board) return;
+  await board.load();
+  channels = board.getChannels();
   if (!activeUrl) {
     const first = channels.find((c) => c.enabled && c.url);
     if (first) {
@@ -634,7 +437,9 @@ async function loadChannels() {
       if (input) input.value = first.url;
     }
   }
-  renderChannels();
+  board.selectByUrl(activeUrl);
+  updateCurrentLabel();
+  syncLockUi();
 }
 
 async function loadNics() {
@@ -669,15 +474,22 @@ async function loadSettings() {
       nic: typeof raw.nic === "string" ? raw.nic : "",
       ratio: Number.isFinite(ratio) && ratio >= 1.05 ? Math.min(20, ratio) : 2,
       window_ms: win,
+      poll_secs: normalizePollSecs(raw.poll_secs),
     };
   } else {
-    settings = { nic: "", ratio: 2, window_ms: normalizeWin(legacyWin) };
+    settings = {
+      nic: "",
+      ratio: 2,
+      window_ms: normalizeWin(legacyWin),
+      poll_secs: DEFAULT_POLL_SECS,
+    };
   }
   updateStatic(settings.window_ms);
   syncSettingsInputs();
   updateCfgChips();
   snapshot = { ...EMPTY, window_ms: settings.window_ms };
   renderAll(snapshot);
+  board?.refreshFootnote();
 }
 
 function syncSettingsInputs() {
@@ -695,6 +507,8 @@ function syncSettingsInputs() {
   if (ratio) ratio.value = settings.ratio.toFixed(2);
   const win = $<HTMLSelectElement>("b-set-window");
   if (win) win.value = String(settings.window_ms);
+  const poll = $<HTMLInputElement>("b-set-poll");
+  if (poll) poll.value = String(settings.poll_secs);
 }
 
 function openSettings() {
@@ -725,12 +539,13 @@ async function saveSettings() {
   const ratio = Number($<HTMLInputElement>("b-set-ratio")?.value || "2");
   const win = normalizeWin($<HTMLSelectElement>("b-set-window")?.value);
   const nic = $<HTMLSelectElement>("b-set-nic")?.value || "";
+  const poll = normalizePollSecs($<HTMLInputElement>("b-set-poll")?.value);
   if (!Number.isFinite(ratio) || ratio < 1.05) {
     setStatus("error", "突发阈值需 ≥ 1.05");
     return;
   }
   const changed = settings.ratio !== ratio || settings.window_ms !== win;
-  settings = { nic, ratio: Math.min(20, ratio), window_ms: win };
+  settings = { nic, ratio: Math.min(20, ratio), window_ms: win, poll_secs: poll };
   try {
     await api.uiSet(SETTINGS_KEY, settings);
     await api.uiSet("burst.window_ms", win);
@@ -748,6 +563,7 @@ async function saveSettings() {
   } else {
     drawSpark(snapshot);
   }
+  board?.refreshFootnote();
   closeSettings();
   setStatus("idle", "参数已保存 · 待机");
 }
@@ -786,12 +602,13 @@ async function pollSnapshot() {
 function updateRunStatus() {
   if (!running) return;
   if (polling) {
-    const name = channels[pollList[pollPos - 1]]?.name || "轮询";
-    const elapsed = Math.min(DEFAULT_DWELL_MS, Date.now() - pollStartedAt);
-    const countdown = Math.max(0, (DEFAULT_DWELL_MS - elapsed) / 1000);
+    const dwellMs = settings.poll_secs * 1000;
+    const name = pollList[pollPos - 1]?.name || "轮询";
+    const elapsed = Math.min(dwellMs, Date.now() - pollStartedAt);
+    const countdown = Math.max(0, (dwellMs - elapsed) / 1000);
     setStatus(
       "running",
-      `轮询 ${pollPos}/${pollList.length} · ${name} · ${countdown.toFixed(1)} s / ${(DEFAULT_DWELL_MS / 1000).toFixed(0)} s`,
+      `轮询 ${pollPos}/${pollList.length} · ${name} · ${countdown.toFixed(1)} s / ${settings.poll_secs} s`,
     );
   } else {
     setStatus(
@@ -867,13 +684,10 @@ async function stopSession(showStatus = true) {
   }
 }
 
-async function pollSelected() {
+async function pollSelected(list: Channel[]) {
   if (locked()) return;
-  const list = visibleIndexes()
-    .map((i) => (channels[i]?.enabled && channels[i]?.url ? i : -1))
-    .filter((i) => i >= 0);
   if (!list.length) {
-    setStatus("error", groupFilter === ALL_GROUPS ? "没有勾选可轮询的频道" : `分组「${groupFilter}」没有启用频道`);
+    setStatus("error", "当前分组没有勾选可轮询的频道");
     return;
   }
 
@@ -885,15 +699,14 @@ async function pollSelected() {
 
   for (let k = 0; k < list.length; k++) {
     if (pollStop) break;
-    const i = list[k];
-    const ch = channels[i];
+    const ch = list[k];
     if (!ch) continue;
     activeUrl = ch.url;
     const input = $<HTMLInputElement>("b-url");
     if (input) input.value = ch.url;
+    board?.selectByUrl(ch.url);
     pollPos = k + 1;
     updateRow(ch.url, "run", "准备…");
-    renderChannels();
     setStatus(
       "running",
       `轮询 ${pollPos}/${list.length} · ${ch.name || "未命名频道"} · 准备中`,
@@ -908,7 +721,7 @@ async function pollSelected() {
       startSnapshotTimer();
       syncLockUi();
       updateRow(ch.url, "run", "采集…");
-      while (!pollStop && Date.now() - pollStartedAt < DEFAULT_DWELL_MS) {
+      while (!pollStop && Date.now() - pollStartedAt < settings.poll_secs * 1000) {
         await sleep(250);
       }
       if (pollStop) break;
@@ -964,37 +777,56 @@ function bindModal() {
 }
 
 export function initBurst() {
+  const host = $<HTMLElement>("b-chboard");
+  if (host) {
+    board = new ChannelBoard(host, {
+      owner: "burst",
+      title: "频道列表",
+      sequential: true,
+      compact: true,
+      manual: true,
+      pollLabel: "轮询选中",
+      footnote: () =>
+        `轮询时每路采样 ${settings.poll_secs} s · 名称和地址可在「编辑列表」里修改`,
+      onCollapse: () => setChannelCollapsed(true),
+      onLoaded: (list) => {
+        channels = list;
+      },
+      onSelect: (ch) => {
+        if (!ch) return;
+        activeUrl = ch.url;
+        const input = $<HTMLInputElement>("b-url");
+        if (input) input.value = ch.url;
+        updateCurrentLabel();
+        syncLockUi();
+      },
+      onDetect: (ch) => {
+        if (locked()) return;
+        activeUrl = ch.url;
+        const input = $<HTMLInputElement>("b-url");
+        if (input) input.value = ch.url;
+        updateCurrentLabel();
+        void startContinuous();
+      },
+      onPoll: (list) => {
+        void pollSelected(list);
+      },
+      initialRow: (ch) => getRowMeta(ch.url),
+    });
+  }
+
   $<HTMLButtonElement>("b-act")?.addEventListener("click", () => void startContinuous());
   $<HTMLButtonElement>("b-stop")?.addEventListener("click", () => void stopSession());
   $<HTMLButtonElement>("b-settings")?.addEventListener("click", openSettings);
-  $<HTMLButtonElement>("b-edit-list")?.addEventListener("click", () => void openChannelEditor());
-  $<HTMLButtonElement>("b-detect-sel")?.addEventListener("click", detectSelected);
-  $<HTMLButtonElement>("b-poll")?.addEventListener("click", () => void pollSelected());
-  $<HTMLButtonElement>("b-ch-toggle")?.addEventListener("click", () =>
-    setChannelCollapsed(!collapsed),
-  );
   $<HTMLButtonElement>("b-ch-rail")?.addEventListener("click", () =>
     setChannelCollapsed(false),
   );
 
   $<HTMLInputElement>("b-url")?.addEventListener("input", () => {
     activeUrl = currentUrl();
-    highlightRows();
+    board?.selectByUrl(activeUrl);
+    updateCurrentLabel();
     syncLockUi();
-  });
-
-  $<HTMLInputElement>("b-ch-all")?.addEventListener("change", (ev) => {
-    const on = (ev.target as HTMLInputElement).checked;
-    visibleIndexes().forEach((i) => {
-      if (channels[i]) channels[i].enabled = on;
-    });
-    persistChannels();
-    renderChannels();
-  });
-
-  $<HTMLSelectElement>("b-ch-group")?.addEventListener("change", (ev) => {
-    groupFilter = (ev.target as HTMLSelectElement).value || ALL_GROUPS;
-    renderChannels();
   });
 
   bindModal();
@@ -1007,14 +839,13 @@ export function initBurst() {
   setStatus("idle", "待机");
 
   void (async () => {
-    await Promise.all([loadNics(), loadSettings(), loadChannels()]);
+    await Promise.all([loadNics(), loadSettings(), loadBurstChannels()]);
     try {
       const v = await api.uiGet(COLLAPSED_KEY);
       setChannelCollapsed(!!v, false);
     } catch {
       /* 默认展开 */
     }
-    renderChannels();
   })();
 
   const plot = $<HTMLElement>("b-plot");
@@ -1027,5 +858,4 @@ export function initBurst() {
       window.requestAnimationFrame(() => drawSpark(snapshot));
     }
   });
-  window.addEventListener("channels-changed", () => void loadChannels());
 }
