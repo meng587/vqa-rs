@@ -27,6 +27,7 @@ export function initSettings() {
   wireAnalysisDrawer();
   wireComplianceDrawer();
   wireAvSyncDrawer();
+  wireCaptureDrawer();
   wireGlobalDrawer();
 }
 
@@ -171,6 +172,23 @@ function buildDrawers() {
     </div>
   </aside>
 
+  <aside class="drawer" id="dr-capture" hidden>
+    <div class="drhead"><b>抓包分析设置</b><button class="iconbtn drx txtbtn" id="dr-c-x" title="关闭"></button></div>
+    <div class="drbody">
+      <div class="drsec">网络</div>
+      <div class="setrow">
+        <span class="k">抓包网卡</span>
+        <select id="c-nic" class="setnic"><option value="">自动</option></select>
+      </div>
+      <div class="drhint">自动 = 按系统路由选择；抓 UDP / RTP 组播时绑定该网卡，组播建议选承载组播的内网口。保存后作为默认，下次启动仍沿用；找不到该网卡时回到自动。</div>
+      <div class="setmsg" id="dr-c-msg"></div>
+    </div>
+    <div class="drfoot">
+      <button class="gradbtn" id="dr-c-save">保存</button>
+      <button class="md-export" id="dr-c-reset">恢复默认</button>
+    </div>
+  </aside>
+
   <aside class="drawer" id="dr-global" hidden>
     <div class="drhead"><b>设置</b><button class="iconbtn drx txtbtn" id="dr-g-x" title="关闭"></button></div>
     <div class="drbody">
@@ -227,7 +245,7 @@ function buildDrawers() {
   while (frag.firstElementChild) document.body.appendChild(frag.firstElementChild);
 
   // 关闭按钮与遮罩装配图标
-  for (const id of ["dr-p-x", "dr-a-x", "dr-k-x", "dr-v-x", "dr-g-x"]) $(id).innerHTML = `${icon("x", 14)}<span class="btxt">关闭</span>`;
+  for (const id of ["dr-p-x", "dr-a-x", "dr-k-x", "dr-v-x", "dr-c-x", "dr-g-x"]) $(id).innerHTML = `${icon("x", 14)}<span class="btxt">关闭</span>`;
   for (const id of ["dr-p-snapb", "dr-p-recb", "dr-a-reportb"]) $(id).innerHTML = `${icon("folder", 14)}<span class="btxt">选择</span>`;
   $("dr-mask").addEventListener("click", () => closeAll());
   window.addEventListener("keydown", (e) => {
@@ -250,9 +268,10 @@ function closeAll() {
   drawerHold("dr-analysis", false);
   drawerHold("dr-compliance", false);
   drawerHold("dr-avsync", false);
+  drawerHold("dr-capture", false);
   drawerHold("dr-global", false);
   $("dr-mask").hidden = true;
-  for (const id of ["dr-player", "dr-analysis", "dr-compliance", "dr-avsync", "dr-global"]) {
+  for (const id of ["dr-player", "dr-analysis", "dr-compliance", "dr-avsync", "dr-capture", "dr-global"]) {
     const d = $(id);
     d.classList.remove("on");
     d.hidden = true;
@@ -585,6 +604,72 @@ function wireAvSyncDrawer() {
     secs.value = String(AV_DEFAULTS.secs);
     search.value = String(AV_DEFAULTS.search);
     fps.value = String(AV_DEFAULTS.fps);
+    saveBtn.click();
+  });
+}
+
+// ═══════════════════ 抓包分析设置 ═══════════════════
+
+const CAPTURE_PREF_KEY = "capture.prefs";
+
+function wireCaptureDrawer() {
+  const nic = $("c-nic") as HTMLSelectElement;
+  const msg = $("dr-c-msg") as HTMLElement;
+  const saveBtn = $("dr-c-save") as HTMLButtonElement;
+
+  const say = (t: string, kind: "" | "ok" | "err" = "") => {
+    msg.textContent = t;
+    msg.className = `setmsg${kind ? ` ${kind}` : ""}`;
+  };
+
+  const fill = (list: NicRow[], selected: string) => {
+    const label = (n: NicRow) => `${n.ip} · ${n.desc || n.name}${n.up ? "" : "（未连接）"}`;
+    const opts = [`<option value="">自动（系统默认出口）</option>`].concat(
+      list.map((n) => `<option value="${n.ip}" title="${n.desc || n.name}">${label(n)}</option>`),
+    );
+    if (selected && !list.some((n) => n.ip === selected)) {
+      opts.push(`<option value="${selected}">${selected}（未找到）</option>`);
+    }
+    nic.innerHTML = opts.join("");
+    nic.value = selected;
+  };
+
+  const load = async () => {
+    say("读取中…");
+    try {
+      const [pref, list] = await Promise.all([
+        api.uiGet(CAPTURE_PREF_KEY).catch(() => null),
+        api.listNics().catch(() => [] as NicRow[]),
+      ]);
+      const selected = typeof pref?.nic === "string" ? pref.nic : "";
+      fill(list, selected);
+      say("");
+    } catch (e) {
+      say(`读取失败：${e}`, "err");
+    }
+  };
+
+  $("c-set").addEventListener("click", () => {
+    open("dr-capture");
+    void load();
+  });
+  $("dr-c-x").addEventListener("click", closeAll);
+
+  saveBtn.addEventListener("click", async () => {
+    saveBtn.disabled = true;
+    say("保存中…");
+    try {
+      await api.uiSet(CAPTURE_PREF_KEY, { nic: nic.value });
+      say(`已保存 · 网卡 → ${nic.selectedOptions[0]?.textContent || "自动"}`, "ok");
+    } catch (e) {
+      say(String(e), "err");
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  $("dr-c-reset").addEventListener("click", () => {
+    nic.value = "";
     saveBtn.click();
   });
 }

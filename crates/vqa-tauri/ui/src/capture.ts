@@ -2,6 +2,7 @@
 //! 抓包线程在后端独立运行，离开页面不自动停止；导航灯持续显示运行状态。
 
 import { api, downloadUrl, isWebMode, webDownloadUrl, type CapturePacket, type CaptureSnapshot, type NicRow } from "./api";
+import { icon } from "./icons";
 import { setNavLamp } from "./main";
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -11,6 +12,7 @@ let active = false;
 let busy = false;
 let pollTimer = 0;
 let localError = "";
+const CAPTURE_PREF_KEY = "capture.prefs";
 
 function esc(s: string): string {
   return s
@@ -64,8 +66,8 @@ function setBusyUi(): void {
   btn.innerHTML = busy
     ? `<span class="cap-spin"></span>${running ? "停止中…" : "启动中…"}`
     : running
-      ? `<span data-ic="square"></span>停止抓包`
-      : `<span data-ic="scanline"></span>开始抓包`;
+      ? `${icon("square")}停止抓包`
+      : `${icon("scanline")}开始抓包`;
   const url = $<HTMLInputElement>("c-url");
   const nic = $<HTMLSelectElement>("c-nic");
   url.disabled = running || busy;
@@ -291,9 +293,14 @@ function sendTs(target: "analysis" | "player"): void {
 
 async function loadNics(): Promise<void> {
   const sel = $<HTMLSelectElement>("c-nic");
-  const keep = sel.value;
+  const current = sel.value;
   try {
-    const list = await api.listNics();
+    const [list, pref] = await Promise.all([
+      api.listNics(),
+      api.uiGet(CAPTURE_PREF_KEY).catch(() => null),
+    ]);
+    const saved = typeof pref?.nic === "string" ? pref.nic : "";
+    const keep = current || saved;
     const label = (n: NicRow) => `${n.ip} · ${n.desc || n.name}${n.up ? "" : "（未连接）"}`;
     sel.innerHTML = [
       `<option value="">自动（系统默认出口）</option>`,
