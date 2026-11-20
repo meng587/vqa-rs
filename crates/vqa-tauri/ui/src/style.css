@@ -1647,6 +1647,7 @@ body[data-page="analysis"] #p-chips, body[data-page="about"] #p-chips { display:
   --display:"KaiTi","STKaiti","SimSun","Songti SC",serif;
   --kai:"Segoe UI","KaiTi","STKaiti","Kaiti SC","Songti SC",serif;
   --song:"Segoe UI","SimSun","Songti SC","STSong","Noto Serif CJK SC",serif;
+  --chaoge:"方正朝歌圆","方正朝歌圆 简","FZChaoGeYuan","FZChaoGeYuan-R","FZChaoGeYuan-R-GB","FZZhaoGYJW","FZZhaoGYJW-R","FZZhaoGYJW-R-2",var(--song);
   --shadow:0 1px 2px rgba(33,28,20,.04),0 8px 24px rgba(33,28,20,.06);
   --shadow-sm:0 1px 2px rgba(33,28,20,.04);
 }
@@ -4004,7 +4005,7 @@ body.side-collapsed .side-meta .side-collapse .btxt{display:none}
   .mv-dialog{width:min(560px, calc(100vw - 40px))}
 }
 
-/* ---------- 字体口径：频道列表中文楷体 / 左侧功能模块中文宋体 ---------- */
+/* ---------- 字体口径：频道列表中文楷体 / 左侧功能模块中文方正朝歌圆 ---------- */
 .chboard .chttl,
 .chboard .chcount,
 .chboard .chrow,
@@ -4013,5 +4014,5 @@ body.side-collapsed .side-meta .side-collapse .btxt{display:none}
   font-family:var(--kai);
 }
 .sidenav .mn{
-  font-family:var(--song);
+  font-family:var(--chaoge);
 }
