@@ -1,4 +1,5 @@
 //! 各功能自己的设置抽屉：播放器页齿轮 →「播放器设置」，分析页齿轮 →「视频分析设置」。
+//! 左侧导航「设置」是程序级入口，承载常规（局域网访问）与 AI 助手（模型/规则/GGUF）。
 //! 每个功能各存一份配置，互不影响：
 //!   播放器 → shared/settings.json 的 out_snap_dir / out_rec_dir / player.default_*
 //!   分析   → analysis.report_dir / analysis.nic
@@ -204,56 +205,69 @@ function buildDrawers() {
     </div>
   </aside>
 
-  <aside class="drawer" id="dr-global" hidden>
-    <div class="drhead"><b>设置</b><button class="iconbtn drx txtbtn" id="dr-g-x" title="关闭"></button></div>
-    <div class="drbody">
-      <div class="drsec">局域网访问</div>
-      <div class="setrow web-toggle-row">
-        <span class="k">访问开关</span>
-        <label class="web-switch">
-          <input type="checkbox" id="dr-g-on" />
-          <span class="web-switch-ui" aria-hidden="true"></span>
-          <span class="web-switch-t" id="dr-g-ontext">已关闭</span>
-        </label>
-      </div>
-      <div class="setrow">
-        <span class="k">自定义端口</span>
-        <input id="dr-g-port" class="drnum" type="number" min="1024" max="65535" step="1" value="8766" />
-      </div>
-      <div class="drhint">
-        端口可填 1024–65535，默认 8766。修改端口会重启 Web 服务并更新访问地址；端口被占用时会自动恢复到原端口。
-        开启后，同一局域网内的电脑用浏览器访问下面的地址。播放器依赖桌面端 mpv 子窗口，Web 端只开放检测、控制与报告；直播转码和 EasyTier 也保留在桌面端。
-      </div>
-
-      <div class="web-access" id="dr-g-card">
-        <div class="web-access-head">
-          <span class="web-dot" id="dr-g-dot"></span>
-          <b id="dr-g-state">未开启</b>
-          <span class="web-code" id="dr-g-code" hidden>口令 <strong>--------</strong></span>
-        </div>
-        <div class="web-kv"><span>访问地址</span><code id="dr-g-url">—</code></div>
-        <div class="web-kv" id="dr-g-localrow" hidden><span>本机地址</span><code id="dr-g-local">—</code></div>
-        <div class="web-kv" id="dr-g-lanrow" hidden><span>局域网 IP</span><code id="dr-g-lan">—</code></div>
-        <div class="web-error" id="dr-g-error" hidden></div>
-      </div>
-
-      <div class="web-actions">
-        <button class="md-export" id="dr-g-copy" type="button">复制访问地址</button>
-        <button class="md-export" id="dr-g-open" type="button">本机打开</button>
-        <button class="md-export" id="dr-g-reset" type="button">重置口令</button>
-        <button class="md-export" id="dr-g-firewall" type="button" disabled>放行防火墙</button>
-        <button class="md-export" id="dr-g-logout" type="button" hidden>退出登录</button>
-      </div>
-
-      <div class="setmsg" id="dr-g-msg"></div>
-
-      <div class="drsec">说明</div>
-      <div class="drhint">
-        本机访问（127.0.0.1）免口令；局域网访问需要 8 位访问码，登录状态最长 12 小时。关闭开关、修改端口或重置访问码后，所有已登录浏览器立即失效。
-        请仅在可信局域网内开启，不要直接映射到公网。若另一台电脑打不开，请检查 Windows 防火墙是否放行本程序或对应 TCP 端口（域/专用网络）。
-      </div>
+  <aside class="drawer gset-drawer" id="dr-global" hidden>
+    <div class="drhead">
+      <div class="gset-title"><b>设置</b><small>程序级配置 · 对本机所有功能生效</small></div>
+      <button class="iconbtn drx txtbtn" id="dr-g-x" title="关闭"></button>
     </div>
-    <div class="drfoot">
+    <div class="gset-tabs" role="tablist" aria-label="设置分类">
+      <button class="gset-tab is-on" id="dr-g-tab-app" type="button" role="tab" aria-selected="true" aria-controls="dr-g-pane-app" data-gset-tab="app">${icon("settings", 14)}<span>常规</span></button>
+      <button class="gset-tab" id="dr-g-tab-ai" type="button" role="tab" aria-selected="false" aria-controls="dr-g-pane-ai" data-gset-tab="ai">${icon("spark", 14)}<span>AI 助手</span></button>
+    </div>
+    <div class="drbody gset-body">
+      <section class="gset-pane" id="dr-g-pane-app" role="tabpanel" aria-labelledby="dr-g-tab-app" data-gset-pane="app">
+        <div class="gset-caption"><b>局域网访问</b><span>桌面端开启后，同网段浏览器可做检测和查看报告。</span></div>
+        <div class="setrow web-toggle-row">
+          <span class="k">访问开关</span>
+          <label class="web-switch">
+            <input type="checkbox" id="dr-g-on" />
+            <span class="web-switch-ui" aria-hidden="true"></span>
+            <span class="web-switch-t" id="dr-g-ontext">已关闭</span>
+          </label>
+        </div>
+        <div class="setrow">
+          <span class="k">自定义端口</span>
+          <input id="dr-g-port" class="drnum" type="number" min="1024" max="65535" step="1" value="8766" />
+        </div>
+        <div class="drhint">
+          端口可填 1024–65535，默认 8766。修改端口会重启 Web 服务并更新访问地址；端口被占用时会自动恢复到原端口。
+          开启后，同一局域网内的电脑用浏览器访问下面的地址。播放器依赖桌面端 mpv 子窗口，Web 端只开放检测、控制与报告；直播转码和 EasyTier 也保留在桌面端。
+        </div>
+
+        <div class="web-access" id="dr-g-card">
+          <div class="web-access-head">
+            <span class="web-dot" id="dr-g-dot"></span>
+            <b id="dr-g-state">未开启</b>
+            <span class="web-code" id="dr-g-code" hidden>口令 <strong>--------</strong></span>
+          </div>
+          <div class="web-kv"><span>访问地址</span><code id="dr-g-url">—</code></div>
+          <div class="web-kv" id="dr-g-localrow" hidden><span>本机地址</span><code id="dr-g-local">—</code></div>
+          <div class="web-kv" id="dr-g-lanrow" hidden><span>局域网 IP</span><code id="dr-g-lan">—</code></div>
+          <div class="web-error" id="dr-g-error" hidden></div>
+        </div>
+
+        <div class="web-actions">
+          <button class="md-export" id="dr-g-copy" type="button">复制访问地址</button>
+          <button class="md-export" id="dr-g-open" type="button">本机打开</button>
+          <button class="md-export" id="dr-g-reset" type="button">重置口令</button>
+          <button class="md-export" id="dr-g-firewall" type="button" disabled>放行防火墙</button>
+          <button class="md-export" id="dr-g-logout" type="button" hidden>退出登录</button>
+        </div>
+
+        <div class="setmsg" id="dr-g-msg"></div>
+
+        <div class="drsec">说明</div>
+        <div class="drhint">
+          本机访问（127.0.0.1）免口令；局域网访问需要 8 位访问码，登录状态最长 12 小时。关闭开关、修改端口或重置访问码后，所有已登录浏览器立即失效。
+          请仅在可信局域网内开启，不要直接映射到公网。若另一台电脑打不开，请检查 Windows 防火墙是否放行本程序或对应 TCP 端口（域/专用网络）。
+        </div>
+      </section>
+      <section class="gset-pane" id="dr-g-pane-ai" role="tabpanel" aria-labelledby="dr-g-tab-ai" data-gset-pane="ai" hidden>
+        <div class="gset-caption"><b>AI 助手</b><span>运行模式、模型接口和本机 GGUF 文件，只作用于 AI 助手的计划生成。</span></div>
+        <div id="gset-ai-slot" class="gset-ai-slot"></div>
+      </section>
+    </div>
+    <div class="drfoot" id="dr-g-foot-app">
       <button class="gradbtn" id="dr-g-save">保存并应用</button>
     </div>
   </aside>`;
@@ -702,7 +716,7 @@ function wireCaptureDrawer() {
   });
 }
 
-// ═══════════════════ 全局设置：局域网访问 ═══════════════════
+// ═══════════════════ 全局设置：常规 / AI 助手 ═══════════════════
 
 function wireGlobalDrawer() {
   const on = $("dr-g-on") as HTMLInputElement;
@@ -732,6 +746,37 @@ function wireGlobalDrawer() {
     $("dr-g-ontext").className = `web-switch-t${v ? " is-on" : ""}`;
   };
 
+  const tabApp = $("dr-g-tab-app") as HTMLButtonElement;
+  const tabAi = $("dr-g-tab-ai") as HTMLButtonElement;
+  const paneApp = $("dr-g-pane-app") as HTMLElement;
+  const paneAi = $("dr-g-pane-ai") as HTMLElement;
+  const footApp = $("dr-g-foot-app") as HTMLElement;
+
+  const selectTab = (which: "app" | "ai") => {
+    const isAi = which === "ai";
+    paneApp.hidden = isAi;
+    paneAi.hidden = !isAi;
+    footApp.hidden = isAi;
+    for (const [tab, on] of [
+      [tabApp, !isAi],
+      [tabAi, isAi],
+    ] as const) {
+      tab.classList.toggle("is-on", on);
+      tab.setAttribute("aria-selected", String(on));
+    }
+    const body = $("dr-global").querySelector<HTMLElement>(".drbody");
+    if (body) body.scrollTop = 0;
+    if (isAi) window.dispatchEvent(new CustomEvent("global-settings-tab", { detail: "ai" }));
+  };
+
+  tabApp.addEventListener("click", () => selectTab("app"));
+  tabAi.addEventListener("click", () => selectTab("ai"));
+  if (isWebMode) {
+    tabAi.hidden = true;
+    const sub = $("dr-global").querySelector<HTMLElement>(".gset-title small");
+    if (sub) sub.textContent = "Web 检测端 · 部分设置只读";
+  }
+
   const render = (st: WebStatus) => {
     current = st;
     on.checked = st.running;
@@ -757,6 +802,7 @@ function wireGlobalDrawer() {
   };
 
   $("global-set").addEventListener("click", async () => {
+    selectTab("app");
     open("dr-global");
     $("dr-g-logout").hidden = !isWebMode;
     $("dr-g-firewall").hidden = isWebMode;

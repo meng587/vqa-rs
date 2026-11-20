@@ -105,6 +105,19 @@ TAURI_SIGNING_PRIVATE_KEY=keys/tauri.key npx --prefix ui tauri build
 - Gitee / AtomGit 仅作代码备份，不作为安装包分发入口。
 - 私钥 `keys/tauri.key` 离线保存（已 gitignore）；丢失则历史版本无法再升级。
 
+### 本机 AI 引擎（内置 llama-server）
+
+- 主安装包只带 `bin/llama` 运行时（llama.cpp b12556，Windows CPU x64），**不带模型**；模型下载到 `%APPDATA%\vqa\ai\models`，升级安装包不会重复下载。
+- 设置 → AI 助手可选用内置清单中的 GGUF（Qwen2.5 1.5B / Qwen3 4B / Qwen3 0.6B），也可导入本地 `.gguf`，或改填企业镜像的 `models.json` 地址。
+- 内置清单在 `crates/vqa-tauri/update/models.json`，随程序编译；下载时做文件长度与 SHA256 校验。
+- 开发/打包前如 `bin/llama` 不存在，先准备 CPU 运行时（目录被 `.gitignore` 忽略，需本机放置）：
+
+```powershell
+curl.exe -L -o dist/llama-b12556-bin-win-cpu-x64.zip `
+  https://github.com/ggml-org/llama.cpp/releases/download/b12556/llama-b12556-bin-win-cpu-x64.zip
+Expand-Archive -Force dist/llama-b12556-bin-win-cpu-x64.zip bin/llama
+```
+
 ### 诊断日志
 
 关于页「诊断日志」：`log_{MAC前8位}_{时间}.txt`（环境元信息 + 页面状态 +

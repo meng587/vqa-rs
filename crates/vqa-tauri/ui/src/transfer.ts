@@ -38,6 +38,7 @@ const TARGETS: FlowTargetMeta[] = [
   { id: "compliance", name: "合规检测", hint: "按当前依据开始检测" },
   { id: "burst", name: "微突发检测", hint: "按当前时间窗开始检测" },
   { id: "avsync", name: "音画同步", hint: "按当前采样参数开始检测" },
+  { id: "capture", name: "抓包分析", hint: "按当前网卡接收 UDP / RTP 流" },
 ];
 
 const entries = new Map<FlowModule, FlowEntry>();

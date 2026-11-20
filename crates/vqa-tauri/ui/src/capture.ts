@@ -4,6 +4,7 @@
 import { api, downloadUrl, isWebMode, webDownloadUrl, type CapturePacket, type CaptureSnapshot, type NicRow } from "./api";
 import { icon } from "./icons";
 import { setNavLamp } from "./main";
+import { registerFlowTarget, type FlowOutcome } from "./transfer";
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 
@@ -273,6 +274,23 @@ async function toggleCapture(): Promise<void> {
   }
 }
 
+/** 流转入口：只接受 UDP / RTP；正在抓包时只把地址填入来源栏，避免误停当前任务。 */
+async function runCaptureFlow(src: string): Promise<FlowOutcome> {
+  const u = src.trim();
+  if (!u) return { state: "failed", message: "来源为空" };
+  if (!/^(udp|rtp):\/\//i.test(u)) {
+    return { state: "failed", message: "抓包分析只接受 udp:// 或 rtp:// 业务流地址，本地 TS 文件请走视频分析" };
+  }
+  const input = $<HTMLInputElement>("c-url");
+  input.value = u;
+  if (snap?.running || busy) {
+    return { state: "filled", message: "抓包正在运行，地址已填入，停止后再开始" };
+  }
+  await toggleCapture();
+  if (snap?.running) return { state: "started", message: "已开始抓包" };
+  return { state: "failed", message: localError || "启动失败，请查看抓包页状态栏" };
+}
+
 function gotoPage(page: string): void {
   document.querySelector<HTMLElement>(`#nav .mn[data-goto="${page}"]`)?.click();
 }
@@ -392,5 +410,6 @@ export function initCapture(): void {
   });
   $<HTMLButtonElement>("c-ts-analysis").addEventListener("click", () => sendTs("analysis"));
   $<HTMLButtonElement>("c-ts-player").addEventListener("click", () => sendTs("player"));
+  registerFlowTarget("capture", runCaptureFlow, () => !!snap?.running || busy);
   render(null);
 }

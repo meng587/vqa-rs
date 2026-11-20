@@ -3,7 +3,16 @@
 //! 纪律：这里不点击任何页面控件，也不模拟 DOM 事件；所有模块动作都调 `api.*`
 //! （即 Tauri 命令）。页面只负责展示状态和确认，AI 与手动操作共用同一套后端。
 
-import { api, type AiConfig, type AiModelCheckItem, type AiModelInfo, type AiPlan, type AiStep } from "./api";
+import {
+  api,
+  type AiConfig,
+  type AiDownloadStatus,
+  type AiModelCheckItem,
+  type AiModelInfo,
+  type AiPlan,
+  type AiStep,
+  type LlamaStatus,
+} from "./api";
 import { icon } from "./icons";
 import { buildAiHtml, buildAiMarkdown, overallVerdict, reportFileName, stepStateLabel, type RunView, type StepState, type StepStatus } from "./ai-report";
 
@@ -43,7 +52,10 @@ let finishedAt: number | undefined;
 let lastReport: { name: string; md_path?: string | null; html_path?: string | null } | null = null;
 let models: AiModelInfo[] = [];
 let checkItems = new Map<string, AiModelCheckItem>();
-let settingsOpen = false;
+let llama: LlamaStatus | null = null;
+let download: AiDownloadStatus | null = null;
+let downloadPollTimer: number | undefined;
+let modelBusy = "";
 let nicsLoaded = false;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -69,6 +81,14 @@ function setNote(text: string, kind: "normal" | "err" | "ok" = "normal") {
 function setSettingsNote(text: string, kind: "normal" | "err" | "ok" = "normal") {
   const el = $id("ai-model-out");
   if (!el) return;
+  el.textContent = text;
+  el.className = `ai-note${kind === "err" ? " err" : kind === "ok" ? " ok" : ""}`;
+}
+
+function setConfigNote(text: string, kind: "normal" | "err" | "ok" = "normal") {
+  const el = $id("ai-save-out");
+  if (!el) return;
+  el.hidden = !text;
   el.textContent = text;
   el.className = `ai-note${kind === "err" ? " err" : kind === "ok" ? " ok" : ""}`;
 }
@@ -112,20 +132,19 @@ function modeText(): string {
   return "规则模式 · 无需模型";
 }
 
+function modeTipText(mode: string | undefined): string {
+  if (mode === "local") return "本机模型：由内置 llama-server 加载，只把目标和工具清单发给本机接口，来源地址不出本机。";
+  if (mode === "cloud") return "云端模型：只发送目标和工具清单，不发送原始码流、截图或完整 IP；需要显式配置。";
+  return "规则模式：不调用模型，按关键词生成计划，稳定且不消耗额度。";
+}
+
 function updateBadge() {
   const b = $id("ai-mode-badge");
   if (!b) return;
   b.textContent = modeText();
   b.className = `ai-mode-badge${cfg?.mode === "rule" ? " rule" : cfg?.mode === "cloud" ? " cloud" : " local"}`;
   const tip = $id("ai-mode-tip");
-  if (tip) {
-    tip.textContent =
-      cfg?.mode === "local"
-        ? "本机模型：只把目标和工具清单发给本机接口，来源地址不出本机。"
-        : cfg?.mode === "cloud"
-          ? "云端模型：只发送目标和工具清单，不发送原始码流、截图或完整 IP；需要显式配置。"
-          : "规则模式：不调用模型，按关键词生成计划，稳定且不消耗额度。";
-  }
+  if (tip) tip.textContent = modeTipText(cfg?.mode);
 }
 
 function fillConfigForm(c: AiConfig) {
@@ -146,6 +165,8 @@ function updateModeBoxes() {
   const mode = q<HTMLSelectElement>("ai-mode").value;
   $id("ai-local-box")?.toggleAttribute("hidden", mode !== "local");
   $id("ai-cloud-box")?.toggleAttribute("hidden", mode !== "cloud");
+  const tip = $id("ai-mode-tip");
+  if (tip) tip.textContent = modeTipText(mode);
 }
 
 function collectConfig(): AiConfig {
@@ -173,21 +194,110 @@ async function loadConfig() {
     cfg = await api.aiConfigGet();
     fillConfigForm(cfg);
     updateBadge();
+    void checkModels(true);
   } catch (e: any) {
     setNote(`读取 AI 配置失败：${String(e).slice(0, 160)}`, "err");
   }
 }
 
-async function saveConfig(show = true): Promise<AiConfig | null> {
+async function saveConfig(): Promise<AiConfig | null> {
   try {
     cfg = await api.aiConfigSet(collectConfig());
     updateBadge();
-    if (show) setSettingsNote("设置已保存", "ok");
+    setConfigNote("AI 设置已保存，下一次生成计划生效。", "ok");
     return cfg;
   } catch (e: any) {
-    if (show) setSettingsNote(`保存失败：${String(e).slice(0, 200)}`, "err");
+    setConfigNote(`保存失败：${String(e).slice(0, 200)}`, "err");
     return null;
   }
+}
+
+function fmtSpeed(bps: number): string {
+  if (!bps || !Number.isFinite(bps)) return "—";
+  if (bps >= 1024 ** 2) return `${(bps / 1024 ** 2).toFixed(1)} MB/s`;
+  if (bps >= 1024) return `${(bps / 1024).toFixed(0)} KB/s`;
+  return `${bps.toFixed(0)} B/s`;
+}
+
+function fmtEta(secs: number): string {
+  if (!secs || !Number.isFinite(secs)) return "—";
+  if (secs >= 60) return `${Math.floor(secs / 60)} 分 ${Math.round(secs % 60)} 秒`;
+  return `${Math.round(secs)} 秒`;
+}
+
+async function loadLlamaStatus() {
+  try {
+    llama = await api.llamaStatus();
+  } catch {
+    llama = null;
+  }
+  renderLlamaStatus();
+  renderModels();
+}
+
+function renderLlamaStatus() {
+  const badge = $id("llama-badge");
+  const text = $id("llama-status");
+  const stop = $id("llama-stop") as HTMLButtonElement | null;
+  if (!badge || !text) return;
+  let cls = "";
+  let label = "待命";
+  let message = "内置引擎待命；选择下面的 GGUF 模型后点「启用」。";
+  if (llama) {
+    if (!llama.engine_present) {
+      cls = "bad";
+      label = "缺少运行时";
+      message = "当前安装包缺少 llama-server 运行时；本地模型不可用。请重新安装完整版本。";
+    } else if (llama.starting) {
+      cls = "up";
+      label = "加载中";
+      message = `正在加载 ${llama.model_name || llama.model_id || "模型"}…首次加载需要几十秒。`;
+    } else if (llama.running) {
+      cls = "ok";
+      label = "运行中";
+      const warn = llama.error ? ` · ${llama.error}` : "";
+      message = `运行中 · ${llama.model_name} · ${llama.base_url}/v1 · PID ${llama.pid}${warn}`;
+    } else if (llama.error) {
+      cls = "bad";
+      label = "异常";
+      message = `引擎未运行：${llama.error}`;
+    } else {
+      message = `内置引擎待命 · ${llama.engine_version}；选择模型后点「启用」。`;
+    }
+  } else {
+    cls = "bad";
+    label = "不可用";
+    message = "读取引擎状态失败；Web 检测端不提供本机模型。";
+  }
+  badge.className = `ai-model-badge${cls ? ` ${cls}` : ""}`;
+  badge.textContent = label;
+  text.textContent = message;
+  text.className = `ai-note${cls === "bad" ? " err" : cls === "ok" ? " ok" : ""}`;
+  if (stop) stop.hidden = !(llama?.running || llama?.starting);
+  const wrap = $id("llama-log-wrap") as HTMLDetailsElement | null;
+  const log = $id("llama-log");
+  if (wrap && log) {
+    const tail = llama?.log_tail?.trim() || "";
+    wrap.hidden = !tail;
+    log.textContent = tail;
+    if (tail && llama?.error) wrap.open = true;
+  }
+}
+
+function renderDownload() {
+  const box = $id("ai-dl");
+  const text = $id("ai-dl-text");
+  const fill = $id("ai-dl-fill") as HTMLElement | null;
+  const cancel = $id("ai-dl-cancel") as HTMLButtonElement | null;
+  if (!box || !text || !fill) return;
+  const active = !!download?.active;
+  box.hidden = !active;
+  if (!active || !download) return;
+  const pct = Math.max(0, Math.min(100, download.percent || 0));
+  fill.style.width = `${pct}%`;
+  const total = download.total > 0 ? fmtBytes(download.total) : "未知大小";
+  text.textContent = `${download.cancelling ? "正在取消 · " : ""}${download.name} · ${fmtBytes(download.downloaded)} / ${total} · ${pct.toFixed(1)}% · ${fmtSpeed(download.speed_bps)} · 剩余 ${fmtEta(download.eta_secs)}`;
+  if (cancel) cancel.disabled = !!download.cancelling;
 }
 
 async function loadModels() {
@@ -203,55 +313,276 @@ async function loadModels() {
 function renderModels() {
   const box = $id("ai-models");
   if (!box) return;
-  if (!models.length) {
+  const rows: { id: string; info?: AiModelInfo; cat?: AiModelCheckItem }[] = [];
+  const seen = new Set<string>();
+  for (const m of models) {
+    rows.push({ id: m.id, info: m, cat: checkItems.get(m.id) });
+    seen.add(m.id);
+  }
+  for (const c of checkItems.values()) {
+    if (!seen.has(c.id)) rows.push({ id: c.id, cat: c });
+  }
+  if (!rows.length) {
     box.innerHTML =
-      '<div class="ai-empty"><b>还没有导入模型</b><small>请自行从模型发布页下载 GGUF 文件，再点“导入 GGUF”。应用不会自动下载模型。</small></div>';
+      '<div class="ai-empty"><b>没有可显示的模型</b><small>内置清单读取失败或清单为空；可点「刷新清单」，或直接导入本地 GGUF。</small></div>';
+    renderLlamaStatus();
     return;
   }
-  box.innerHTML = models
-    .map((m) => {
-      const c = checkItems.get(m.id);
-      const badge = c?.update_available
-        ? '<span class="ai-model-badge up">可升级</span>'
-        : m.present
-          ? '<span class="ai-model-badge ok">已导入</span>'
-          : '<span class="ai-model-badge bad">文件缺失</span>';
-      return `<div class="ai-model"><div class="ai-model-main"><b>${h(m.name)}</b><small>${fmtBytes(m.bytes)} · ${m.version ? `v${h(m.version)}` : "版本未知"}${c?.version ? ` · 清单 ${h(c.version)}` : ""}</small></div>${badge}<button class="ai-mini" data-model-remove="${h(m.id)}">移除</button></div>`;
+  const anyDownload = !!download?.active;
+  box.innerHTML = rows
+    .map((row) => {
+      const m = row.info;
+      const c = row.cat;
+      const id = row.id;
+      const installed = !!m && m.present;
+      const runningThis = !!llama?.running && llama.model_id === id;
+      const startingThis = !!llama?.starting && llama.model_id === id;
+      const downloadingThis = !!download?.active && download.id === id;
+      const busy = modelBusy === id;
+      const name = c?.name || m?.name || id;
+      const size = (installed ? m?.bytes : c?.size) || 0;
+      const version = c?.version || m?.version || "";
+      let badge = '<span class="ai-model-badge">未安装</span>';
+      if (runningThis) badge = '<span class="ai-model-badge ok">运行中</span>';
+      else if (startingThis) badge = '<span class="ai-model-badge up">加载中</span>';
+      else if (downloadingThis) badge = '<span class="ai-model-badge up">下载中</span>';
+      else if (m && !m.present) badge = '<span class="ai-model-badge bad">文件缺失</span>';
+      else if (installed && c?.update_available) badge = '<span class="ai-model-badge up">可升级</span>';
+      else if (installed) badge = '<span class="ai-model-badge ok">已安装</span>';
+      const meta = [
+        size ? fmtBytes(size) : "—",
+        version ? `v${version}` : "",
+        c?.notes || (m?.source === "download" ? "清单下载" : m?.source === "import" ? "本地导入" : ""),
+      ].filter(Boolean).join(" · ");
+      let actions = "";
+      if (installed && !runningThis && !startingThis) {
+        actions += `<button class="ai-mini" data-model-start="${h(id)}" ${busy || anyDownload ? "disabled" : ""}>启用</button>`;
+      }
+      if (runningThis || startingThis) {
+        actions += `<button class="ai-mini" data-model-stop="${h(id)}" ${modelBusy === "stop" ? "disabled" : ""}>${startingThis ? "取消" : "停止"}</button>`;
+      }
+      if (c && (!installed || c.update_available) && !downloadingThis) {
+        actions += `<button class="ai-mini" data-model-download="${h(id)}" ${anyDownload || busy ? "disabled" : ""}>${installed ? "更新" : "下载"}</button>`;
+      }
+      if (m) {
+        actions += `<button class="ai-mini danger" data-model-remove="${h(id)}" ${runningThis || startingThis || busy || anyDownload ? "disabled" : ""}>移除</button>`;
+      }
+      return `<div class="ai-model"><div class="ai-model-main"><b title="${h(name)}">${h(name)}</b><small title="${h(meta)}">${h(meta)}</small></div>${badge}<div class="ai-model-acts">${actions}</div></div>`;
     })
     .join("");
+  box.querySelectorAll<HTMLButtonElement>("[data-model-start]").forEach((b) => {
+    b.addEventListener("click", () => void startModel(b.dataset.modelStart || ""));
+  });
+  box.querySelectorAll<HTMLButtonElement>("[data-model-stop]").forEach((b) => {
+    b.addEventListener("click", () => void stopModel());
+  });
+  box.querySelectorAll<HTMLButtonElement>("[data-model-download]").forEach((b) => {
+    b.addEventListener("click", () => void downloadModel(b.dataset.modelDownload || ""));
+  });
   box.querySelectorAll<HTMLButtonElement>("[data-model-remove]").forEach((b) => {
     b.addEventListener("click", () => void removeModel(b.dataset.modelRemove || ""));
   });
+  renderLlamaStatus();
+  renderDownload();
+}
+
+function stopDownloadPoll() {
+  if (downloadPollTimer !== undefined) {
+    window.clearInterval(downloadPollTimer);
+    downloadPollTimer = undefined;
+  }
+}
+
+async function pollDownloadOnce() {
+  try {
+    download = await api.aiModelDownloadStatus();
+    renderDownload();
+    renderModels();
+    if (!download.active) {
+      stopDownloadPoll();
+      const finished = download;
+      download = null;
+      renderDownload();
+      if (finished.done) {
+        setSettingsNote(`模型下载完成：${finished.name}（${fmtBytes(finished.downloaded)}），可点「启用」。`, "ok");
+        await loadModels();
+        await checkModels(true);
+      } else if (finished.error === "已取消") {
+        setSettingsNote("下载已取消，未写入模型", "normal");
+      } else if (finished.error) {
+        setSettingsNote(`下载失败：${finished.error}`, "err");
+      }
+      renderModels();
+    }
+  } catch (e: any) {
+    stopDownloadPoll();
+    download = null;
+    renderDownload();
+    setSettingsNote(`读取下载进度失败：${String(e).slice(0, 200)}`, "err");
+  }
+}
+
+function ensureDownloadPoll() {
+  if (downloadPollTimer !== undefined) return;
+  downloadPollTimer = window.setInterval(() => void pollDownloadOnce(), 500);
+}
+
+async function loadDownloadStatus() {
+  try {
+    const s = await api.aiModelDownloadStatus();
+    if (s.active) {
+      download = s;
+      renderDownload();
+      ensureDownloadPoll();
+    }
+  } catch {
+    /* 下载状态不可用不阻塞设置页 */
+  }
+}
+
+async function startModel(id: string) {
+  if (!id || modelBusy || llama?.starting) return;
+  modelBusy = id;
+  renderModels();
+  setSettingsNote(`正在启动 ${id}…首次加载模型需要几十秒。`);
+  let ok = false;
+  try {
+    llama = await api.llamaStart(id);
+    renderLlamaStatus();
+    renderModels();
+    for (let i = 0; i < 300 && llama?.starting; i++) {
+      await sleep(500);
+      if (modelBusy === "stop") break;
+      try {
+        llama = await api.llamaStatus();
+      } catch {
+        break;
+      }
+      renderLlamaStatus();
+      renderModels();
+    }
+    if (modelBusy === "stop") {
+      setSettingsNote("已停止模型加载；可以稍后重新启用。", "normal");
+    } else if (llama?.running && llama.model_id === id) {
+      ok = true;
+      try {
+        cfg = await api.aiConfigGet();
+        fillConfigForm(cfg);
+        updateBadge();
+      } catch {
+        /* 配置读取失败不影响引擎已启动 */
+      }
+      setSettingsNote(
+        `已启用 ${llama.model_name || id}；本机接口 ${llama.base_url}/v1。${llama.error ? ` ${llama.error}` : ""}`,
+        llama.error ? "normal" : "ok",
+      );
+    } else if (llama?.error) {
+      setSettingsNote(`模型启动失败：${llama.error}`, "err");
+    } else {
+      setSettingsNote("模型启动未完成；请查看上方引擎状态与启动日志。", "err");
+    }
+  } catch (e: any) {
+    setSettingsNote(`模型启动失败：${String(e).slice(0, 300)}`, "err");
+  } finally {
+    modelBusy = "";
+    renderModels();
+    renderLlamaStatus();
+    if (!ok && llama?.log_tail) {
+      const wrap = $id("llama-log-wrap") as HTMLDetailsElement | null;
+      if (wrap) wrap.open = true;
+    }
+  }
+}
+
+async function stopModel() {
+  if (modelBusy === "stop") return;
+  modelBusy = "stop";
+  renderModels();
+  try {
+    llama = await api.llamaStop();
+    renderLlamaStatus();
+    renderModels();
+    setSettingsNote("内置引擎已停止；AI 配置保留，下次可重新启用。", "ok");
+  } catch (e: any) {
+    setSettingsNote(`停止引擎失败：${String(e).slice(0, 240)}`, "err");
+  } finally {
+    modelBusy = "";
+    renderModels();
+  }
+}
+
+async function downloadModel(id: string) {
+  if (!id || download?.active) return;
+  const input = $id("ai-index-url") as HTMLInputElement | null;
+  const indexUrl = input?.value.trim() || undefined;
+  setSettingsNote(`准备下载 ${id}…`);
+  try {
+    download = await api.aiModelDownload(id, indexUrl);
+    renderDownload();
+    renderModels();
+    if (download.active) {
+      ensureDownloadPoll();
+    } else if (download.done) {
+      setSettingsNote(`模型已在本地：${download.name}`, "ok");
+      await loadModels();
+      await checkModels(true);
+    } else if (download.error) {
+      setSettingsNote(`下载失败：${download.error}`, "err");
+    }
+  } catch (e: any) {
+    setSettingsNote(`下载启动失败：${String(e).slice(0, 280)}`, "err");
+  }
+}
+
+async function cancelDownload() {
+  try {
+    download = await api.aiModelDownloadCancel();
+    renderDownload();
+    setSettingsNote("正在取消下载…");
+  } catch (e: any) {
+    setSettingsNote(`取消下载失败：${String(e).slice(0, 220)}`, "err");
+  }
 }
 
 async function removeModel(id: string) {
   if (!id) return;
-  if (!window.confirm(`移除模型「${id}」？会删除已导入的模型文件。`)) return;
+  if (!window.confirm(`移除模型「${id}」？会删除已下载/导入的模型文件。`)) return;
   try {
+    if (llama && (llama.running || llama.starting) && llama.model_id === id) {
+      llama = await api.llamaStop();
+      renderLlamaStatus();
+    }
     await api.aiModelRemove(id);
-    checkItems.delete(id);
     await loadModels();
-    setSettingsNote("模型已移除", "ok");
+    setSettingsNote("模型已移除；清单项仍保留，可重新下载", "ok");
   } catch (e: any) {
-    setSettingsNote(`移除失败：${String(e).slice(0, 200)}`, "err");
+    setSettingsNote(`移除失败：${String(e).slice(0, 220)}`, "err");
   }
 }
 
-async function checkModels() {
-  const url = q<HTMLInputElement>("ai-index-url").value.trim();
-  setSettingsNote("检查模型清单中…");
+async function checkModels(silent = false) {
+  const input = $id("ai-index-url") as HTMLInputElement | null;
+  const url = input?.value.trim() || "";
+  if (!silent) setSettingsNote("检查模型清单中…");
   try {
     const res = await api.aiModelCheck(url || undefined);
     checkItems = new Map(res.models.map((m) => [m.id, m]));
     renderModels();
+    if (silent) return;
     const up = res.models.filter((m) => m.update_available).length;
     const installable = res.models.filter((m) => !m.installed).length;
     const parts: string[] = [];
-    if (up) parts.push(`${up} 个有可升级版本`);
-    if (installable) parts.push(`${installable} 个清单模型尚未导入`);
-    setSettingsNote(parts.length ? `检查完成：${parts.join("，")}。请自行下载后导入。` : "检查完成：当前没有可升级版本，也未发现未导入的清单模型。", parts.length ? "ok" : "normal");
+    if (res.builtin) parts.push("内置清单");
+    if (installable) parts.push(`${installable} 个可下载`);
+    if (up) parts.push(`${up} 个可升级`);
+    setSettingsNote(
+      parts.length
+        ? `检查完成：${parts.join("，")}。可直接点「下载」，离线环境也可导入 GGUF。`
+        : "检查完成：清单模型都已安装。",
+      parts.length ? "ok" : "normal",
+    );
   } catch (e: any) {
-    setSettingsNote(`检查失败：${String(e).slice(0, 240)}`, "err");
+    if (!silent) setSettingsNote(`检查失败：${String(e).slice(0, 240)}`, "err");
   }
 }
 
@@ -291,17 +622,22 @@ async function testProvider() {
   }
 }
 
-function openSettings() {
-  settingsOpen = true;
-  $id("ai-settings")?.removeAttribute("hidden");
-  fillConfigForm(cfg || collectConfig());
+function refreshAiSettingsPanel() {
+  if (cfg) fillConfigForm(cfg);
   updateBadge();
+  // 重新读一次磁盘配置：模型可能在本页之外被启用/切换，避免表单显示旧端点。
+  void api
+    .aiConfigGet()
+    .then((c) => {
+      cfg = c;
+      fillConfigForm(c);
+      updateBadge();
+    })
+    .catch(() => {});
   void loadModels();
-}
-
-function closeSettings() {
-  settingsOpen = false;
-  $id("ai-settings")?.setAttribute("hidden", "");
+  void loadLlamaStatus();
+  void loadDownloadStatus();
+  void checkModels(true);
 }
 
 function openDrawer() {
@@ -321,14 +657,13 @@ function openDrawer() {
 }
 
 function closeDrawer() {
-  if (settingsOpen) {
-    closeSettings();
-    return;
-  }
   const scrim = $id("ai-scrim");
   const drawer = $id("ai-drawer");
   if (scrim) scrim.hidden = true;
   if (drawer) {
+    if (drawer.contains(document.activeElement)) {
+      (document.activeElement as HTMLElement | null)?.blur();
+    }
     drawer.classList.remove("open");
     drawer.setAttribute("aria-hidden", "true");
   }
@@ -473,11 +808,6 @@ async function generatePlan() {
   btn.disabled = true;
   setNote("正在生成计划…");
   try {
-    const saved = await saveConfig(false);
-    if (!saved) {
-      setNote("模型设置未保存成功，请到“模型设置”检查接口地址/模型名。", "err");
-      return;
-    }
     const p = await api.aiPlan(goal, source, nic, sessionKey || undefined);
     renderPlan(p);
     setNote(`计划已生成：${p.steps.length} 个步骤，确认后点“执行计划”。`, "ok");
@@ -929,25 +1259,30 @@ function clearPlan() {
   setRunUI();
 }
 
+function bindAiSettingsEvents() {
+  const saveCfg = $id("ai-save-cfg") as HTMLButtonElement | null;
+  if (!saveCfg) return;
+  saveCfg.addEventListener("click", () => void saveConfig());
+  q<HTMLButtonElement>("ai-test").addEventListener("click", () => void testProvider());
+  q<HTMLButtonElement>("ai-import").addEventListener("click", () => void importModel());
+  q<HTMLButtonElement>("ai-check").addEventListener("click", () => void checkModels());
+  q<HTMLButtonElement>("llama-stop").addEventListener("click", () => void stopModel());
+  q<HTMLButtonElement>("ai-dl-cancel").addEventListener("click", () => void cancelDownload());
+  q<HTMLSelectElement>("ai-mode").addEventListener("change", updateModeBoxes);
+  q<HTMLInputElement>("ai-cloud-key").addEventListener("input", (e) => {
+    sessionKey = (e.target as HTMLInputElement).value.trim();
+  });
+}
+
 function bindEvents() {
   q<HTMLButtonElement>("ai-open").addEventListener("click", openDrawer);
   q<HTMLButtonElement>("ai-close").addEventListener("click", closeDrawer);
   q<HTMLElement>("ai-scrim").addEventListener("click", closeDrawer);
-  q<HTMLButtonElement>("ai-settings-btn").addEventListener("click", openSettings);
-  q<HTMLButtonElement>("ai-settings-close").addEventListener("click", closeSettings);
   q<HTMLButtonElement>("ai-use-page").addEventListener("click", useCurrentSource);
   q<HTMLButtonElement>("ai-generate").addEventListener("click", () => void generatePlan());
   q<HTMLButtonElement>("ai-run").addEventListener("click", () => void executePlan());
   q<HTMLButtonElement>("ai-stop").addEventListener("click", () => void stopRun());
   q<HTMLButtonElement>("ai-clear").addEventListener("click", clearPlan);
-  q<HTMLButtonElement>("ai-save-cfg").addEventListener("click", () => void saveConfig());
-  q<HTMLButtonElement>("ai-test").addEventListener("click", () => void testProvider());
-  q<HTMLButtonElement>("ai-import").addEventListener("click", () => void importModel());
-  q<HTMLButtonElement>("ai-check").addEventListener("click", () => void checkModels());
-  q<HTMLSelectElement>("ai-mode").addEventListener("change", updateModeBoxes);
-  q<HTMLInputElement>("ai-cloud-key").addEventListener("input", (e) => {
-    sessionKey = (e.target as HTMLInputElement).value.trim();
-  });
 
   document.querySelectorAll<HTMLElement>("[data-ai-example]").forEach((b) => {
     b.addEventListener("click", () => {
@@ -958,8 +1293,7 @@ function bindEvents() {
 
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
-    if (settingsOpen) closeSettings();
-    else if ($id("ai-drawer")?.classList.contains("open")) closeDrawer();
+    if ($id("ai-drawer")?.classList.contains("open")) closeDrawer();
   });
 
   window.addEventListener("page-changed", () => {
@@ -971,6 +1305,10 @@ function bindEvents() {
       }
     }
   });
+
+  window.addEventListener("global-settings-tab", (e) => {
+    if ((e as CustomEvent).detail === "ai") refreshAiSettingsPanel();
+  });
 }
 
 function drawerMarkup(): string {
@@ -979,7 +1317,7 @@ function drawerMarkup(): string {
 <aside id="ai-drawer" class="ai-drawer" aria-hidden="true">
   <header class="ai-head">
     <div class="ai-brand"><span class="ai-mark">${icon("spark", 18)}</span><div><b>AI 检测助手</b><small id="ai-mode-badge" class="ai-mode-badge">读取配置…</small></div></div>
-    <div class="ai-head-acts"><button class="iconbtn" id="ai-settings-btn" title="模型与设置">${icon("settings", 15)}</button><button class="iconbtn" id="ai-close" title="关闭">${icon("x", 15)}</button></div>
+    <div class="ai-head-acts"><button class="iconbtn" id="ai-close" title="关闭">${icon("x", 15)}</button></div>
   </header>
   <div class="ai-body">
     <section class="ai-compose">
@@ -990,6 +1328,7 @@ function drawerMarkup(): string {
       <div class="ai-srcrow"><input id="ai-src" class="ai-src" spellcheck="false" placeholder="udp://@239.x.x.x:port 或本地 TS 文件" /><button class="ai-mini" id="ai-use-page">取当前页</button></div>
       <div class="ai-srcrow"><select id="ai-nic" class="nic ai-nic"><option value="">自动选择网卡</option></select><button class="gradbtn ai-primary" id="ai-generate">${icon("route", 13)} 生成计划</button></div>
       <div id="ai-note" class="ai-note">AI 只通过后端 API 操作模块，不点击页面。规则模式无需模型；本机/云端模型失败会自动回退规则计划。</div>
+      <div class="ai-settings-hint">模型、规则模式与 GGUF 模型统一在左侧「设置 → AI 助手」中配置；内置 llama-server 可直接加载本机模型。</div>
     </section>
     <section id="ai-planwrap" class="ai-planwrap" hidden>
       <div class="ai-sec-head"><span>执行计划</span><span id="ai-plan-provider" class="ai-tag">规则</span></div>
@@ -1001,32 +1340,51 @@ function drawerMarkup(): string {
     <section id="ai-runlog" class="ai-runlog" hidden><div class="ai-sec-head"><span>执行日志</span></div><div id="ai-log" class="ai-log"></div></section>
     <section id="ai-report" class="ai-report" hidden></section>
   </div>
-  <div class="ai-settings" id="ai-settings" hidden>
-    <div class="ai-settings-head"><b>模型与设置</b><button class="iconbtn" id="ai-settings-close" title="关闭设置">${icon("x", 13)}</button></div>
-    <div class="ai-settings-body">
-      <div class="ai-field"><label>运行模式</label><select id="ai-mode"><option value="rule">规则模式（无需模型）</option><option value="local">本机模型</option><option value="cloud">云端模型</option></select></div>
-      <div id="ai-mode-tip" class="ai-note ai-mode-tip"></div>
-      <div id="ai-local-box" class="ai-provbox" hidden>
-        <div class="ai-field"><label>本机接口</label><input id="ai-local-url" placeholder="http://127.0.0.1:11434/v1" spellcheck="false" /></div>
-        <div class="ai-field"><label>模型名</label><input id="ai-local-model" placeholder="qwen3:4b" spellcheck="false" /></div>
-        <div class="ai-note">本机模型由你自行下载并启动（如 Ollama / llama.cpp 的 OpenAI 兼容接口）；应用不内置模型文件。</div>
-      </div>
-      <div id="ai-cloud-box" class="ai-provbox" hidden>
-        <div class="ai-field"><label>云端接口</label><input id="ai-cloud-url" placeholder="https://…/v1" spellcheck="false" /></div>
-        <div class="ai-field"><label>模型名</label><input id="ai-cloud-model" placeholder="模型名" spellcheck="false" /></div>
-        <div class="ai-field"><label>API Key（仅本次会话）</label><input id="ai-cloud-key" type="password" placeholder="留空则读 VQA_AI_API_KEY" spellcheck="false" /></div>
-        <div class="ai-note">Key 不写入配置文件；关闭应用后需重新输入。云端只发送目标和工具清单，不发送原始码流/截图/完整 IP。</div>
-      </div>
-      <div class="ai-field"><label>超时（秒）</label><input id="ai-local-timeout" type="number" min="5" max="300" value="60" /></div>
-      <div class="ai-field"><label>模型清单地址（可选）</label><input id="ai-index-url" placeholder="https://…/models.json；留空只支持本地导入" spellcheck="false" /></div>
-      <div class="ai-actions"><button class="gradbtn" id="ai-save-cfg">保存设置</button><button class="ai-mini" id="ai-test">测试连接</button><span id="ai-test-out" class="ai-test-out"></span></div>
-      <div class="ai-models-head"><b>本机模型</b><small>只检查/导入，不自动下载</small></div>
-      <div id="ai-models" class="ai-models"></div>
-      <div class="ai-actions"><button class="ai-mini" id="ai-import">导入 GGUF</button><button class="ai-mini" id="ai-check">检查可升级</button></div>
-      <div id="ai-model-out" class="ai-note">模型文件请自行从发布页下载；应用只读取清单版本与 SHA256，不替你下载。</div>
-    </div>
-  </div>
 </aside>`;
+}
+
+function aiSettingsMarkup(): string {
+  return `<div class="gset-ai-panel">
+  <section class="gset-ai-block">
+    <div class="gset-ai-block-head"><b>运行模式</b><span>规则模式不调用模型；本机/云端只发送目标和工具清单。</span></div>
+    <div class="ai-field"><label>模式</label><select id="ai-mode"><option value="rule">规则模式（无需模型）</option><option value="local">本机模型</option><option value="cloud">云端模型</option></select></div>
+    <div id="ai-mode-tip" class="ai-note ai-mode-tip"></div>
+    <div id="ai-local-box" class="ai-provbox" hidden>
+      <div class="ai-field"><label>本机接口</label><input id="ai-local-url" placeholder="http://127.0.0.1:11434/v1" spellcheck="false" /></div>
+      <div class="ai-field"><label>模型名</label><input id="ai-local-model" placeholder="qwen3:4b" spellcheck="false" /></div>
+      <div class="ai-note">本机接口由内置 llama-server 启动后自动填写；也可改为 Ollama / LM Studio 的 OpenAI 兼容地址。</div>
+    </div>
+    <div id="ai-cloud-box" class="ai-provbox" hidden>
+      <div class="ai-field"><label>云端接口</label><input id="ai-cloud-url" placeholder="https://…/v1" spellcheck="false" /></div>
+      <div class="ai-field"><label>模型名</label><input id="ai-cloud-model" placeholder="模型名" spellcheck="false" /></div>
+      <div class="ai-field"><label>API Key（仅本次会话）</label><input id="ai-cloud-key" type="password" placeholder="留空则读环境变量 VQA_AI_API_KEY" spellcheck="false" /></div>
+      <div class="ai-note">Key 不写入配置文件；关闭应用后需重新输入。云端只发送目标和工具清单，不发送原始码流/截图/完整 IP。</div>
+    </div>
+  </section>
+  <section class="gset-ai-block">
+    <div class="gset-ai-block-head"><b>本机推理引擎</b><span>安装包内置 llama-server，无需另装 Ollama 或 LM Studio。</span></div>
+    <div class="ai-engine-row"><span id="llama-badge" class="ai-model-badge">待命</span><button class="ai-mini" id="llama-stop" hidden>停止引擎</button></div>
+    <div id="llama-status" class="ai-note">内置引擎待命；选择下面的 GGUF 模型后点「启用」。</div>
+    <details id="llama-log-wrap" class="ai-engine-log" hidden><summary>启动日志</summary><pre id="llama-log"></pre></details>
+  </section>
+  <section class="gset-ai-block">
+    <div class="gset-ai-block-head"><b>连接参数</b><span>超时对本机与云端同时生效；模型清单留空时使用内置清单。</span></div>
+    <div class="ai-field"><label>超时（秒）</label><input id="ai-local-timeout" type="number" min="5" max="300" value="60" /></div>
+    <div class="ai-field"><label>模型清单地址（可选）</label><input id="ai-index-url" placeholder="留空使用内置清单；可填企业镜像 models.json" spellcheck="false" /></div>
+    <div class="ai-actions"><button class="gradbtn" id="ai-save-cfg">保存 AI 设置</button><button class="ai-mini" id="ai-test">测试连接</button><span id="ai-test-out" class="ai-test-out"></span></div>
+    <div id="ai-save-out" class="ai-note" hidden></div>
+  </section>
+  <section class="gset-ai-block">
+    <div class="gset-ai-block-head"><b>GGUF 模型</b><span>清单模型可一键下载；离线环境可导入本地 GGUF 文件。</span></div>
+    <div id="ai-models" class="ai-models"></div>
+    <div id="ai-dl" class="ai-dl" hidden>
+      <div class="ai-dl-head"><span id="ai-dl-text"></span><button class="ai-mini" id="ai-dl-cancel">取消</button></div>
+      <div class="ai-dl-bar"><i id="ai-dl-fill"></i></div>
+    </div>
+    <div class="ai-actions"><button class="ai-mini" id="ai-import">导入 GGUF</button><button class="ai-mini" id="ai-check">刷新清单</button></div>
+    <div id="ai-model-out" class="ai-note">模型不随应用更新反复重下；下载完成后可随时启用或停止。</div>
+  </section>
+</div>`;
 }
 
 export function initAI() {
@@ -1037,8 +1395,15 @@ export function initAI() {
   side.innerHTML = `<button id="ai-open" class="ai-entry" title="用自然语言编排检测">${icon("spark", 14)}<span>AI 助手</span><i class="ai-entry-dot"></i></button>`;
   head.appendChild(side);
   document.body.insertAdjacentHTML("beforeend", drawerMarkup());
+  const settingsHost = $id("gset-ai-slot");
+  if (settingsHost) {
+    settingsHost.innerHTML = aiSettingsMarkup();
+    bindAiSettingsEvents();
+  }
   bindEvents();
   updateBadge();
   void loadConfig();
   void loadModels();
+  void loadLlamaStatus();
+  void loadDownloadStatus();
 }

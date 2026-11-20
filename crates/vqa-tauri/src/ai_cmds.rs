@@ -1,14 +1,19 @@
 //! AI 编排层：把自然语言目标转成可执行计划，并管理模型清单。
 //!
-//! 这一层只做两件事：
+//! 这一层做三件事：
 //! 1. 生成结构化计划（规则或本机/云端 OpenAI 兼容模型），**不直接操作页面**；
-//! 2. 管理模型文件与升级提示（不自动下载模型）。
+//! 2. 管理 GGUF 模型文件，支持内置清单下载、离线导入与升级提示；
+//! 3. 本机模型由内置 llama-server 直接加载，不要求用户另装 Ollama。
 //!
 //! 真正的模块动作由前端执行器调用现有 Tauri 命令完成，报告也由前端汇总。
 //! 这样 AI 与页面共用同一套 API，不会出现“AI 点页面”的旁路。
 
+
 use std::collections::HashSet;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use regex::Regex;
@@ -18,13 +23,16 @@ use sha2::{Digest, Sha256};
 use tauri::AppHandle;
 use tauri_plugin_dialog::DialogExt;
 
+/// 内置模型清单：随安装包编译，不依赖联网即可展示可下载模型。
+const BUILTIN_MODELS_INDEX: &str = include_str!("../update/models.json");
+
 // ═══════════════════════════ 配置 ═══════════════════════════
 
 fn ai_dir() -> PathBuf {
     vqa_core::config::base_dir().join("ai")
 }
 
-fn models_dir() -> PathBuf {
+pub(crate) fn models_dir() -> PathBuf {
     ai_dir().join("models")
 }
 
@@ -80,7 +88,7 @@ pub struct AiConfig {
     pub local: AiProviderCfg,
     #[serde(default)]
     pub cloud: AiProviderCfg,
-    /// 模型清单地址；留空时只支持本地导入，不做联网检查。
+    /// 自定义模型清单地址；留空时使用随安装包内置的清单。
     #[serde(default)]
     pub models_index_url: String,
     #[serde(default = "default_true")]
@@ -440,13 +448,14 @@ fn call_chat(
     system: &str,
     user: &str,
     max_tokens: u32,
+    json_mode: bool,
 ) -> Result<String, String> {
     let url = chat_url(base_url);
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(timeout_secs.clamp(5, 300)))
         .build()
         .map_err(|e| format!("创建模型客户端失败：{e}"))?;
-    let mut req = client.post(&url).json(&json!({
+    let mut body = json!({
         "model": model,
         "messages": [
             {"role": "system", "content": system},
@@ -455,7 +464,13 @@ fn call_chat(
         "temperature": 0.1,
         "max_tokens": max_tokens,
         "stream": false
-    }));
+    });
+    if json_mode {
+        // llama-server / 多数 OpenAI 兼容服务支持 json_object；用于计划生成，
+        // 避免小模型输出解释文字导致解析失败。
+        body["response_format"] = json!({ "type": "json_object" });
+    }
+    let mut req = client.post(&url).json(&body);
     if !api_key.trim().is_empty() {
         req = req.header("Authorization", format!("Bearer {}", api_key.trim()));
     }
@@ -506,7 +521,7 @@ fn model_plan(
     if pcfg.base_url.trim().is_empty() || pcfg.model.trim().is_empty() {
         return Err(format!("{provider_name} 模型接口地址或模型名为空"));
     }
-    let system = "你是视听质量检测工作站的编排助手。只输出一个 JSON 对象，不要 Markdown，不要解释。你必须从给定工具清单中选择步骤，不能编造工具名，不能输出任何 shell 命令。";
+    let system = "你是视听质量检测工作站的编排助手。只输出一个 JSON 对象，不要 Markdown，不要解释。你必须从给定工具清单中选择步骤，不能编造工具名，不能输出任何 shell 命令。计划要最小化：只包含用户明确要求的检测项，以及生成报告所必需的步骤；用户没有说“全面/体检/全部”时，不要自作主张增加微突发、音画同步、合规或播放器。";
     let user = format!(
         "用户目标：{}\n来源类型：{}\n请输出计划 JSON：{{\"summary\":\"一句话说明\",\"steps\":[...]}}。\n{}",
         redact_for_model(goal.trim()),
@@ -521,9 +536,20 @@ fn model_plan(
         system,
         &user,
         1600,
+        true,
     )?;
     let cleaned = strip_json_fence(&raw);
-    let v: Value = serde_json::from_str(&cleaned).map_err(|e| format!("模型计划不是合法 JSON：{e}"))?;
+    let v: Value = match serde_json::from_str(&cleaned) {
+        Ok(v) => v,
+        Err(e) => {
+            // 留一份最近一次失败输出，便于现场排查是截断、乱码还是模型跑题。
+            let _ = std::fs::write(
+                ai_dir().join("plan-error.txt"),
+                format!("{raw}\n\n--- cleaned ---\n{cleaned}"),
+            );
+            return Err(format!("模型计划不是合法 JSON：{e}"));
+        }
+    };
     let arr = v["steps"]
         .as_array()
         .ok_or_else(|| "模型计划缺少 steps 数组".to_string())?;
@@ -581,6 +607,47 @@ fn model_plan(
 
     let source_live = source_is_live(source);
     let mut warnings = Vec::new();
+    // 用规则计划限定模型可编排的步骤集合：模型仍可决定顺序和标题，但不能
+    // 自行增加用户没要求的检测项；漏掉的必需步骤由规则计划补回。
+    let baseline = rule_plan(goal, source, nic_ip)?;
+    let allowed_tools: HashSet<String> = baseline.steps.iter().map(|s| s.tool.clone()).collect();
+    let before_filter = steps.len();
+    steps.retain(|s| allowed_tools.contains(&s.tool));
+    let trimmed = before_filter - steps.len();
+    if trimmed > 0 {
+        warnings.push(format!(
+            "模型计划包含 {trimmed} 个用户未要求的步骤，已按目标裁剪"
+        ));
+    }
+    let mut seen_tool = HashSet::new();
+    steps.retain(|s| seen_tool.insert(s.tool.clone()));
+    let mut missing = 0;
+    for b in &baseline.steps {
+        if steps.iter().any(|s| s.tool == b.tool) {
+            continue;
+        }
+        let mut s = b.clone();
+        let mut n = 1;
+        while steps.iter().any(|x| x.id == s.id) {
+            s.id = format!("{}-{}", b.id, n);
+            n += 1;
+        }
+        steps.push(s);
+        missing += 1;
+    }
+    if missing > 0 {
+        warnings.push(format!(
+            "模型漏掉 {missing} 个必需步骤，已按规则计划补回"
+        ));
+    }
+    // 模型给的依赖可能指向被裁掉的步骤；由后面的能力校验统一重建。
+    for s in &mut steps {
+        s.depends_on.clear();
+    }
+    if steps.is_empty() {
+        return Err("模型没有给出适用于当前来源的步骤".into());
+    }
+
     if contains_any(&goal.to_lowercase(), &["word", "docx", "文档"]) {
         warnings.push("AI 汇总报告暂先导出 Markdown/HTML；Word 版可在后续版本接入".into());
     }
@@ -717,12 +784,20 @@ fn model_plan(
         s.depends_on.retain(|d| ids.contains(d) && d != &sid);
     }
 
-    let summary = v["summary"]
-        .as_str()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string)
-        .unwrap_or_else(|| format!("模型编排了 {} 个步骤。", steps.len()));
+    let summary = if trimmed > 0 || missing > 0 {
+        format!(
+            "按目标编排 {} 个步骤：{}。",
+            steps.len(),
+            steps.iter().map(|s| s.title.as_str()).collect::<Vec<_>>().join("、")
+        )
+    } else {
+        v["summary"]
+            .as_str()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("模型编排了 {} 个步骤。", steps.len()))
+    };
 
     Ok(AiPlan {
         goal: goal.trim().to_string(),
@@ -820,6 +895,7 @@ pub async fn ai_test(
             "你是一个连通性测试端点，只回复 OK。",
             "只回复 OK",
             8,
+            false,
         )
     })
     .await
@@ -872,21 +948,20 @@ pub struct InstalledModel {
     pub source: String,
 }
 
-fn load_installed() -> Vec<InstalledModel> {
+pub(crate) fn load_installed() -> Vec<InstalledModel> {
     std::fs::read_to_string(installed_path())
         .ok()
         .and_then(|s| serde_json::from_str(&s).ok())
         .unwrap_or_default()
 }
 
-fn save_installed(list: &[InstalledModel]) -> Result<(), String> {
+pub(crate) fn save_installed(list: &[InstalledModel]) -> Result<(), String> {
     std::fs::create_dir_all(ai_dir()).map_err(|e| format!("建 AI 目录失败：{e}"))?;
     let raw = serde_json::to_string_pretty(list).map_err(|e| format!("序列化模型清单失败：{e}"))?;
     std::fs::write(installed_path(), raw).map_err(|e| format!("写模型清单失败：{e}"))
 }
 
-fn sha256_file(path: &Path) -> Result<String, String> {
-    use std::io::Read;
+pub(crate) fn sha256_file(path: &Path) -> Result<String, String> {
     let mut f = std::fs::File::open(path).map_err(|e| format!("打开模型文件失败：{e}"))?;
     let mut hasher = Sha256::new();
     let mut buf = vec![0u8; 1024 * 1024];
@@ -900,7 +975,7 @@ fn sha256_file(path: &Path) -> Result<String, String> {
     Ok(hex::encode(hasher.finalize()))
 }
 
-fn model_info_from_meta(m: &InstalledModel) -> Value {
+pub(crate) fn model_info_from_meta(m: &InstalledModel) -> Value {
     json!({
         "id": m.id,
         "name": m.name,
@@ -926,7 +1001,11 @@ pub fn ai_model_list() -> Value {
                 continue;
             }
             let name = p.file_name().and_then(|x| x.to_str()).unwrap_or("model.gguf");
-            if out.iter().any(|v| v["name"].as_str() == Some(name)) {
+            let pstr = p.to_string_lossy().to_string();
+            if out
+                .iter()
+                .any(|v| v["path"].as_str() == Some(pstr.as_str()) || v["name"].as_str() == Some(name))
+            {
                 continue;
             }
             out.push(json!({
@@ -1009,11 +1088,25 @@ pub async fn ai_model_remove(id: String) -> Result<(), String> {
         return Err("模型 id 为空".into());
     }
     let mut list = load_installed();
-    let Some(pos) = list.iter().position(|m| m.id == id) else {
-        return Err(format!("没有登记这个模型：{id}"));
+    let path = if let Some(pos) = list.iter().position(|m| m.id == id) {
+        let m = list.remove(pos);
+        PathBuf::from(m.path)
+    } else {
+        // 目录里手工放入、尚未登记的 .gguf 也允许按文件主名删除。
+        let mut found = None;
+        if let Ok(rd) = std::fs::read_dir(models_dir()) {
+            for e in rd.flatten() {
+                let p = e.path();
+                if p.extension().and_then(|x| x.to_str()) == Some("gguf")
+                    && p.file_stem().and_then(|x| x.to_str()) == Some(id.as_str())
+                {
+                    found = Some(p);
+                    break;
+                }
+            }
+        }
+        found.ok_or_else(|| format!("没有登记这个模型：{id}"))?
     };
-    let m = list.remove(pos);
-    let path = PathBuf::from(&m.path);
     let root = std::fs::canonicalize(models_dir()).unwrap_or_else(|_| models_dir());
     let target = std::fs::canonicalize(&path).unwrap_or_else(|_| path.clone());
     if !target.starts_with(&root) {
@@ -1068,43 +1161,519 @@ pub fn ai_report_export(name: String, content: String, ext: String) -> Result<St
     Ok(path.to_string_lossy().to_string())
 }
 
-#[tauri::command]
-pub async fn ai_model_check(index_url: Option<String>) -> Result<Value, String> {
+// ═══════════════════════════ 模型清单与下载 ═══════════════════════════
+
+#[derive(Debug, Clone, Deserialize)]
+struct CatalogModel {
+    #[serde(default)]
+    id: String,
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    version: String,
+    #[serde(default)]
+    size: u64,
+    #[serde(default)]
+    sha256: String,
+    #[serde(default)]
+    url: String,
+    #[serde(default)]
+    file_name: String,
+    #[serde(default)]
+    notes: String,
+}
+
+fn parse_catalog(raw: &str) -> Result<Vec<CatalogModel>, String> {
+    let v: Value = serde_json::from_str(raw).map_err(|e| format!("模型清单不是 JSON：{e}"))?;
+    let arr = v["models"]
+        .as_array()
+        .cloned()
+        .or_else(|| v.as_array().cloned())
+        .ok_or_else(|| "模型清单缺少 models 数组".to_string())?;
+    let models: Vec<CatalogModel> =
+        serde_json::from_value(Value::Array(arr)).map_err(|e| format!("模型清单字段无效：{e}"))?;
+    Ok(models)
+}
+
+/// 读取内置清单或自定义清单。返回（来源说明, 模型列表, 是否内置）。
+fn load_catalog(index_url: Option<String>) -> Result<(String, Vec<CatalogModel>, bool), String> {
     let cfg = load_config();
     let url = index_url
         .filter(|s| !s.trim().is_empty())
-        .unwrap_or(cfg.models_index_url.clone());
-    if url.trim().is_empty() {
-        return Err("未配置模型清单地址；可在 AI 设置里填写，留空时只支持本地导入".into());
+        .unwrap_or(cfg.models_index_url)
+        .trim()
+        .to_string();
+    if url.is_empty() {
+        let models = parse_catalog(BUILTIN_MODELS_INDEX)?;
+        return Ok(("内置模型清单".to_string(), models, true));
     }
-    let url = url.trim().to_string();
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(25))
+        .user_agent(format!("vqa-workbench/{}", env!("CARGO_PKG_VERSION")))
+        .build()
+        .map_err(|e| format!("创建清单客户端失败：{e}"))?;
+    let resp = client
+        .get(&url)
+        .send()
+        .map_err(|e| format!("请求模型清单失败：{e}"))?;
+    if !resp.status().is_success() {
+        return Err(format!("模型清单返回 HTTP {}", resp.status()));
+    }
+    let text = resp.text().map_err(|e| format!("读取模型清单失败：{e}"))?;
+    let models = parse_catalog(&text)?;
+    Ok((url, models, false))
+}
+
+/// 后端按 id 找已安装模型，供内置 llama-server 启动使用。
+pub(crate) fn resolve_model(id: &str) -> Result<(PathBuf, String), String> {
+    let id = id.trim();
+    if id.is_empty() {
+        return Err("模型 id 为空".into());
+    }
+    if let Some(m) = load_installed().into_iter().find(|m| m.id == id) {
+        let path = PathBuf::from(&m.path);
+        if path.is_file() {
+            return Ok((path, m.name));
+        }
+    }
+    if let Ok(rd) = std::fs::read_dir(models_dir()) {
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.extension().and_then(|x| x.to_str()) != Some("gguf") {
+                continue;
+            }
+            if p.file_stem().and_then(|x| x.to_str()) == Some(id) {
+                let name = p
+                    .file_name()
+                    .and_then(|x| x.to_str())
+                    .unwrap_or("model.gguf")
+                    .to_string();
+                return Ok((p, name));
+            }
+        }
+    }
+    Err(format!("模型不存在或文件已丢失：{id}；请重新下载或导入"))
+}
+
+/// 内置引擎启动成功后写回本地 OpenAI 兼容端点。
+pub(crate) fn set_local_endpoint(base_url: &str, model: &str) -> Result<AiConfig, String> {
+    let mut cfg = load_config();
+    cfg.mode = "local".into();
+    cfg.local.base_url = base_url.trim().to_string();
+    cfg.local.model = model.trim().to_string();
+    save_config(&cfg)?;
+    Ok(cfg)
+}
+
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct DownloadStatus {
+    pub active: bool,
+    pub cancelling: bool,
+    pub done: bool,
+    pub id: String,
+    pub name: String,
+    pub downloaded: u64,
+    pub total: u64,
+    pub percent: f64,
+    pub speed_bps: f64,
+    pub eta_secs: u64,
+    pub error: String,
+    pub path: String,
+    pub sha256: String,
+}
+
+struct DownloadRuntime {
+    status: DownloadStatus,
+    cancel: Option<Arc<AtomicBool>>,
+    generation: u64,
+}
+
+impl Default for DownloadRuntime {
+    fn default() -> Self {
+        Self {
+            status: DownloadStatus::default(),
+            cancel: None,
+            generation: 0,
+        }
+    }
+}
+
+fn download_state() -> &'static Mutex<DownloadRuntime> {
+    static STATE: OnceLock<Mutex<DownloadRuntime>> = OnceLock::new();
+    STATE.get_or_init(|| Mutex::new(DownloadRuntime::default()))
+}
+
+fn set_download_status(gen: u64, f: impl FnOnce(&mut DownloadStatus)) {
+    if let Ok(mut g) = download_state().lock() {
+        if g.generation == gen {
+            f(&mut g.status);
+        }
+    }
+}
+
+fn safe_model_file_name(entry: &CatalogModel) -> String {
+    let candidate = if !entry.file_name.trim().is_empty() {
+        entry.file_name.trim().to_string()
+    } else if !entry.url.trim().is_empty() {
+        entry
+            .url
+            .split('?')
+            .next()
+            .unwrap_or("")
+            .rsplit('/')
+            .next()
+            .unwrap_or("")
+            .to_string()
+    } else {
+        format!("{}.gguf", entry.id)
+    };
+    let mut name: String = candidate
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    while name.starts_with('.') {
+        name.remove(0);
+    }
+    if name.is_empty() {
+        name = format!("{}.gguf", entry.id);
+    }
+    if !name.to_lowercase().ends_with(".gguf") {
+        name.push_str(".gguf");
+    }
+    name
+}
+
+fn register_downloaded_model(
+    entry: &CatalogModel,
+    path: &Path,
+    bytes: u64,
+    sha: &str,
+) -> Result<(), String> {
+    let mut list = load_installed();
+    let new_path = path.to_string_lossy().to_string();
+    if let Some(pos) = list.iter().position(|m| m.id == entry.id) {
+        let old_path = list[pos].path.clone();
+        if old_path != new_path {
+            let old = PathBuf::from(&old_path);
+            let root = std::fs::canonicalize(models_dir()).unwrap_or_else(|_| models_dir());
+            let target = std::fs::canonicalize(&old).unwrap_or_else(|_| old.clone());
+            if target.starts_with(&root) {
+                let _ = std::fs::remove_file(&old);
+            }
+        }
+        list[pos] = InstalledModel {
+            id: entry.id.clone(),
+            name: entry.name.clone(),
+            path: new_path,
+            bytes,
+            sha256: sha.to_string(),
+            version: entry.version.clone(),
+            imported_at: chrono::Local::now().to_rfc3339(),
+            source: "download".into(),
+        };
+    } else {
+        list.push(InstalledModel {
+            id: entry.id.clone(),
+            name: entry.name.clone(),
+            path: new_path,
+            bytes,
+            sha256: sha.to_string(),
+            version: entry.version.clone(),
+            imported_at: chrono::Local::now().to_rfc3339(),
+            source: "download".into(),
+        });
+    }
+    save_installed(&list)
+}
+
+const DOWNLOAD_CANCELLED: &str = "__download_cancelled__";
+
+fn download_model_inner(
+    gen: u64,
+    entry: &CatalogModel,
+    dest: &Path,
+    part: &Path,
+    cancel: &Arc<AtomicBool>,
+) -> Result<(u64, String, String), String> {
+    let client = reqwest::blocking::Client::builder()
+        .connect_timeout(Duration::from_secs(20))
+        // blocking 版没有独立的 read_timeout；用整体上限兜底网络卡死（15 分钟）。
+        // 正常下载会持续有数据返回，取消也能在下一次 read 返回后生效。
+        .timeout(Duration::from_secs(900))
+        .user_agent(format!("vqa-workbench/{}", env!("CARGO_PKG_VERSION")))
+        .build()
+        .map_err(|e| format!("创建下载客户端失败：{e}"))?;
+    let mut resp = client
+        .get(&entry.url)
+        .send()
+        .map_err(|e| format!("请求模型下载地址失败：{e}"))?;
+    if !resp.status().is_success() {
+        return Err(format!("模型下载返回 HTTP {}", resp.status()));
+    }
+    let header_len = resp.content_length().unwrap_or(0);
+    let total = if header_len > 0 { header_len } else { entry.size };
+    if total > 0 {
+        set_download_status(gen, |s| s.total = total);
+    }
+
+    let mut file = std::fs::File::create(part).map_err(|e| format!("创建临时模型文件失败：{e}"))?;
+    let mut hasher = Sha256::new();
+    let mut downloaded = 0u64;
+    let mut buf = vec![0u8; 1024 * 1024];
+    let mut last_report = Instant::now();
+    let started = Instant::now();
+    loop {
+        if cancel.load(Ordering::Relaxed) {
+            drop(file);
+            return Err(DOWNLOAD_CANCELLED.to_string());
+        }
+        let n = resp.read(&mut buf).map_err(|e| format!("读取模型下载流失败：{e}"))?;
+        if n == 0 {
+            break;
+        }
+        file.write_all(&buf[..n])
+            .map_err(|e| format!("写入模型文件失败：{e}"))?;
+        hasher.update(&buf[..n]);
+        downloaded += n as u64;
+        if last_report.elapsed() >= Duration::from_millis(240) {
+            let secs = started.elapsed().as_secs_f64().max(0.1);
+            let speed = downloaded as f64 / secs;
+            let eta = if total > downloaded && speed > 0.0 {
+                ((total - downloaded) as f64 / speed) as u64
+            } else {
+                0
+            };
+            let percent = if total > 0 {
+                (downloaded as f64 / total as f64 * 100.0).clamp(0.0, 100.0)
+            } else {
+                0.0
+            };
+            set_download_status(gen, |s| {
+                s.downloaded = downloaded;
+                s.total = total;
+                s.percent = percent;
+                s.speed_bps = speed;
+                s.eta_secs = eta;
+            });
+            last_report = Instant::now();
+        }
+    }
+    file.flush().map_err(|e| format!("刷新模型文件失败：{e}"))?;
+    drop(file);
+
+    if entry.size > 0 && downloaded != entry.size {
+        return Err(format!(
+            "模型下载长度不符：清单 {} 字节，实际 {} 字节",
+            entry.size, downloaded
+        ));
+    }
+    let actual = hex::encode(hasher.finalize());
+    let expected_sha = entry.sha256.trim().to_lowercase();
+    if !expected_sha.is_empty() && actual != expected_sha {
+        return Err(format!(
+            "模型 SHA256 校验失败：期望 {expected_sha}，实际 {actual}"
+        ));
+    }
+    if dest.exists() {
+        std::fs::remove_file(dest).map_err(|e| format!("替换旧模型失败：{e}"))?;
+    }
+    std::fs::rename(part, dest).map_err(|e| format!("保存模型文件失败：{e}"))?;
+    let bytes = std::fs::metadata(dest).map(|m| m.len()).unwrap_or(downloaded);
+    register_downloaded_model(entry, dest, bytes, &actual)?;
+    Ok((bytes, actual, dest.to_string_lossy().to_string()))
+}
+
+fn download_worker(
+    gen: u64,
+    entry: CatalogModel,
+    dest: PathBuf,
+    part: PathBuf,
+    cancel: Arc<AtomicBool>,
+) {
+    let result = download_model_inner(gen, &entry, &dest, &part, &cancel);
+    match result {
+        Ok((bytes, sha, path)) => {
+            set_download_status(gen, |s| {
+                s.active = false;
+                s.cancelling = false;
+                s.done = true;
+                s.downloaded = bytes;
+                s.total = bytes;
+                s.percent = 100.0;
+                s.speed_bps = 0.0;
+                s.eta_secs = 0;
+                s.sha256 = sha.clone();
+                s.path = path.clone();
+            });
+        }
+        Err(e) if e == DOWNLOAD_CANCELLED => {
+            let _ = std::fs::remove_file(&part);
+            set_download_status(gen, |s| {
+                s.active = false;
+                s.cancelling = false;
+                s.error = "已取消".into();
+            });
+        }
+        Err(e) => {
+            let _ = std::fs::remove_file(&part);
+            set_download_status(gen, |s| {
+                s.active = false;
+                s.cancelling = false;
+                s.error = e;
+            });
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn ai_model_download(
+    id: String,
+    index_url: Option<String>,
+) -> Result<DownloadStatus, String> {
+    let id = id.trim().to_string();
+    if id.is_empty() {
+        return Err("模型 id 为空".into());
+    }
+    if let Ok(g) = download_state().lock() {
+        if g.status.active {
+            return Err(if g.status.cancelling {
+                "正在取消上一个模型下载，请稍候".into()
+            } else {
+                format!("已有模型正在下载：{}", g.status.name)
+            });
+        }
+    }
+    let id2 = id.clone();
+    let (_, models, _) =
+        tauri::async_runtime::spawn_blocking(move || load_catalog(index_url))
+            .await
+            .map_err(|e| format!("模型清单线程失败：{e}"))??;
+    let entry = models
+        .into_iter()
+        .find(|m| m.id == id2)
+        .ok_or_else(|| format!("模型清单中没有这个模型：{id2}"))?;
+    if entry.url.trim().is_empty() {
+        return Err("该模型清单项没有下载地址".into());
+    }
+    let name = if entry.name.trim().is_empty() {
+        entry.id.clone()
+    } else {
+        entry.name.clone()
+    };
+
+    // 已安装且文件、SHA 与清单一致时直接视为完成。
+    if let Some(local) = load_installed().into_iter().find(|m| m.id == id) {
+        if Path::new(&local.path).is_file()
+            && !entry.sha256.trim().is_empty()
+            && local.sha256.eq_ignore_ascii_case(entry.sha256.trim())
+        {
+            return Ok(DownloadStatus {
+                done: true,
+                id,
+                name,
+                downloaded: local.bytes,
+                total: local.bytes.max(entry.size),
+                percent: 100.0,
+                path: local.path,
+                ..DownloadStatus::default()
+            });
+        }
+    }
+
+    std::fs::create_dir_all(models_dir()).map_err(|e| format!("建模型目录失败：{e}"))?;
+    // 上次异常退出可能留下 .part；新下载开始前清掉，避免磁盘越积越多。
+    if let Ok(rd) = std::fs::read_dir(models_dir()) {
+        for e in rd.flatten() {
+            let p = e.path();
+            let name = p.file_name().and_then(|x| x.to_str()).unwrap_or("");
+            if name.starts_with('.') && name.ends_with(".part") {
+                let _ = std::fs::remove_file(&p);
+            }
+        }
+    }
+    let file_name = safe_model_file_name(&entry);
+    let dest = models_dir().join(&file_name);
+    let generation = {
+        let mut g = download_state()
+            .lock()
+            .map_err(|e| format!("下载状态锁失败：{e}"))?;
+        // 前面读清单是异步的，期间可能有另一个下载已启动；落状态前再查一次。
+        if g.status.active {
+            return Err(if g.status.cancelling {
+                "正在取消上一个模型下载，请稍候".into()
+            } else {
+                format!("已有模型正在下载：{}", g.status.name)
+            });
+        }
+        g.generation = g.generation.wrapping_add(1);
+        let gen = g.generation;
+        let cancel = Arc::new(AtomicBool::new(false));
+        g.cancel = Some(cancel.clone());
+        g.status = DownloadStatus {
+            active: true,
+            id: id.clone(),
+            name: name.clone(),
+            total: entry.size,
+            ..DownloadStatus::default()
+        };
+        let part = models_dir().join(format!(".{file_name}.{gen}.part"));
+        let entry2 = entry.clone();
+        let dest2 = dest.clone();
+        let cancel2 = cancel.clone();
+        std::thread::Builder::new()
+            .name("vqa-model-download".into())
+            .spawn(move || download_worker(gen, entry2, dest2, part, cancel2))
+            .map_err(|e| format!("启动模型下载线程失败：{e}"))?;
+        gen
+    };
+    let _ = generation;
+    Ok(download_state()
+        .lock()
+        .map(|g| g.status.clone())
+        .unwrap_or_default())
+}
+
+#[tauri::command]
+pub fn ai_model_download_status() -> DownloadStatus {
+    download_state()
+        .lock()
+        .map(|g| g.status.clone())
+        .unwrap_or_default()
+}
+
+#[tauri::command]
+pub fn ai_model_download_cancel() -> DownloadStatus {
+    if let Ok(mut g) = download_state().lock() {
+        if g.status.active {
+            g.status.cancelling = true;
+            if let Some(c) = &g.cancel {
+                c.store(true, Ordering::Relaxed);
+            }
+        }
+        return g.status.clone();
+    }
+    DownloadStatus::default()
+}
+
+#[tauri::command]
+pub async fn ai_model_check(index_url: Option<String>) -> Result<Value, String> {
     let installed = load_installed();
     let checked = tauri::async_runtime::spawn_blocking(move || -> Result<Value, String> {
-        let client = reqwest::blocking::Client::builder()
-            .timeout(Duration::from_secs(25))
-            .build()
-            .map_err(|e| format!("创建检查客户端失败：{e}"))?;
-        let resp = client
-            .get(&url)
-            .send()
-            .map_err(|e| format!("请求模型清单失败：{e}"))?;
-        if !resp.status().is_success() {
-            return Err(format!("模型清单返回 HTTP {}", resp.status()));
-        }
-        let v: Value = resp.json().map_err(|e| format!("模型清单不是 JSON：{e}"))?;
-        let models = v["models"]
-            .as_array()
-            .cloned()
-            .or_else(|| v.as_array().cloned())
-            .ok_or_else(|| "模型清单缺少 models 数组".to_string())?;
+        let (source, models, builtin) = load_catalog(index_url)?;
         let mut out = Vec::new();
         for m in models {
-            let id = m["id"].as_str().unwrap_or("").trim().to_string();
+            let id = m.id.trim().to_string();
             if id.is_empty() {
                 continue;
             }
-            let latest = m["version"].as_str().unwrap_or("").to_string();
-            let sha = m["sha256"].as_str().unwrap_or("").to_string();
+            let latest = m.version.clone();
+            let sha = m.sha256.clone();
             let local = installed.iter().find(|x| x.id == id);
             let installed_version = local.map(|x| x.version.clone()).unwrap_or_default();
             let installed_sha = local.map(|x| x.sha256.clone()).unwrap_or_default();
@@ -1117,19 +1686,21 @@ pub async fn ai_model_check(index_url: Option<String>) -> Result<Value, String> 
             };
             out.push(json!({
                 "id": id,
-                "name": m["name"].as_str().unwrap_or(&id),
+                "name": if m.name.trim().is_empty() { m.id.clone() } else { m.name.clone() },
                 "version": latest,
-                "size": m["size"].as_u64().unwrap_or(0),
+                "size": m.size,
                 "sha256": sha,
-                "url": m["url"].as_str().unwrap_or(""),
-                "notes": m["notes"].as_str().unwrap_or(""),
+                "url": m.url,
+                "file_name": m.file_name,
+                "notes": m.notes,
                 "installed": local.is_some(),
                 "installed_version": installed_version,
                 "update_available": update,
             }));
         }
         Ok(json!({
-            "index_url": url,
+            "index_url": source,
+            "builtin": builtin,
             "checked_at": chrono::Local::now().to_rfc3339(),
             "models": out,
         }))

@@ -59,7 +59,31 @@
       "../../bin/easytier/easytier-cli.exe": "bin/easytier-cli.exe",
       "../../bin/easytier/wintun.dll": "bin/wintun.dll",
       "../../bin/easytier/Packet.dll": "bin/Packet.dll",
-      "../../bin/easytier/WinDivert64.sys": "bin/WinDivert64.sys"
+      "../../bin/easytier/WinDivert64.sys": "bin/WinDivert64.sys",
+      "../../bin/llama/llama-server.exe": "bin/llama/llama-server.exe",
+      "../../bin/llama/llama-server-impl.dll": "bin/llama/llama-server-impl.dll",
+      "../../bin/llama/llama-common.dll": "bin/llama/llama-common.dll",
+      "../../bin/llama/llama.dll": "bin/llama/llama.dll",
+      "../../bin/llama/ggml.dll": "bin/llama/ggml.dll",
+      "../../bin/llama/ggml-base.dll": "bin/llama/ggml-base.dll",
+      "../../bin/llama/mtmd.dll": "bin/llama/mtmd.dll",
+      "../../bin/llama/libomp.dll": "bin/llama/libomp.dll",
+      "../../bin/llama/ggml-cpu-x64.dll": "bin/llama/ggml-cpu-x64.dll",
+      "../../bin/llama/ggml-cpu-sse42.dll": "bin/llama/ggml-cpu-sse42.dll",
+      "../../bin/llama/ggml-cpu-haswell.dll": "bin/llama/ggml-cpu-haswell.dll",
+      "../../bin/llama/ggml-cpu-ivybridge.dll": "bin/llama/ggml-cpu-ivybridge.dll",
+      "../../bin/llama/ggml-cpu-sandybridge.dll": "bin/llama/ggml-cpu-sandybridge.dll",
+      "../../bin/llama/ggml-cpu-skylakex.dll": "bin/llama/ggml-cpu-skylakex.dll",
+      "../../bin/llama/ggml-cpu-alderlake.dll": "bin/llama/ggml-cpu-alderlake.dll",
+      "../../bin/llama/ggml-cpu-cannonlake.dll": "bin/llama/ggml-cpu-cannonlake.dll",
+      "../../bin/llama/ggml-cpu-cascadelake.dll": "bin/llama/ggml-cpu-cascadelake.dll",
+      "../../bin/llama/ggml-cpu-cooperlake.dll": "bin/llama/ggml-cpu-cooperlake.dll",
+      "../../bin/llama/ggml-cpu-icelake.dll": "bin/llama/ggml-cpu-icelake.dll",
+      "../../bin/llama/ggml-cpu-sapphirerapids.dll": "bin/llama/ggml-cpu-sapphirerapids.dll",
+      "../../bin/llama/ggml-cpu-piledriver.dll": "bin/llama/ggml-cpu-piledriver.dll",
+      "../../bin/llama/ggml-cpu-zen4.dll": "bin/llama/ggml-cpu-zen4.dll",
+      "../../bin/llama/LICENSE-llama.cpp": "bin/llama/LICENSE-llama.cpp",
+      "../../bin/llama/LICENSE-LLVM-OpenMP": "bin/llama/LICENSE-LLVM-OpenMP"
     }
   }
 }

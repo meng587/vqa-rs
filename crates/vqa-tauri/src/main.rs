@@ -19,6 +19,7 @@ mod easytier_cmds;
 mod events;
 mod mediainfo;
 mod mpv_host;
+mod llama;
 mod multi_cmds;
 mod state;
 mod sync_cmds;
@@ -147,6 +148,7 @@ fn main() {
         .manage(easytier_cmds::EasytierState::new())
         .manage(preview::Preview::new())
         .manage(web_server::WebState::new())
+        .manage(llama::LlamaState::new())
         .setup(|app| {
             // 视频子窗：父 = 主窗口 HWND（WebView2 的同父兄弟，后建者 z 序在上）
             if let Some(win) = app.get_webview_window("main") {
@@ -277,7 +279,14 @@ fn main() {
             ai_cmds::ai_model_check,
             ai_cmds::ai_model_import,
             ai_cmds::ai_model_remove,
+            ai_cmds::ai_model_download,
+            ai_cmds::ai_model_download_status,
+            ai_cmds::ai_model_download_cancel,
             ai_cmds::ai_report_export,
+            // 内置 llama-server 本地推理
+            llama::llama_start,
+            llama::llama_status,
+            llama::llama_stop,
             // EasyTier 组网
             easytier_cmds::easytier_config_get,
             easytier_cmds::easytier_config_save,
@@ -322,6 +331,7 @@ fn main() {
 /// 停扫描线程/实时会话、销毁视频子窗。
 fn shutdown(app: &tauri::AppHandle) {
     use tauri::Manager;
+    llama::shutdown(app);
     web_server::shutdown(app);
     let pst = app.state::<state::PlayerState>();
     *pst.playing_url.lock().unwrap_or_else(|e| e.into_inner()) = String::new();

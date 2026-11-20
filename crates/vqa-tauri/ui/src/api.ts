@@ -389,6 +389,7 @@ export interface AiModelCheckItem {
   size: number;
   sha256: string;
   url: string;
+  file_name?: string;
   notes: string;
   installed: boolean;
   installed_version: string;
@@ -397,8 +398,40 @@ export interface AiModelCheckItem {
 
 export interface AiModelCheck {
   index_url: string;
+  builtin?: boolean;
   checked_at: string;
   models: AiModelCheckItem[];
+}
+
+export interface AiDownloadStatus {
+  active: boolean;
+  cancelling: boolean;
+  done: boolean;
+  id: string;
+  name: string;
+  downloaded: number;
+  total: number;
+  percent: number;
+  speed_bps: number;
+  eta_secs: number;
+  error: string;
+  path: string;
+  sha256?: string;
+}
+
+export interface LlamaStatus {
+  engine_present: boolean;
+  engine_version: string;
+  running: boolean;
+  starting: boolean;
+  base_url: string;
+  model_id: string;
+  model_name: string;
+  model_path: string;
+  port: number;
+  pid: number;
+  error: string;
+  log_tail: string;
 }
 
 export const api = {
@@ -448,6 +481,13 @@ export const api = {
     invoke<AiModelCheck>("ai_model_check", { indexUrl: indexUrl ?? null }),
   aiModelImport: () => invoke<AiModelInfo>("ai_model_import"),
   aiModelRemove: (id: string) => invoke<void>("ai_model_remove", { id }),
+  aiModelDownload: (id: string, indexUrl?: string) =>
+    invoke<AiDownloadStatus>("ai_model_download", { id, indexUrl: indexUrl ?? null }),
+  aiModelDownloadStatus: () => invoke<AiDownloadStatus>("ai_model_download_status"),
+  aiModelDownloadCancel: () => invoke<AiDownloadStatus>("ai_model_download_cancel"),
+  llamaStart: (modelId: string) => invoke<LlamaStatus>("llama_start", { modelId }),
+  llamaStatus: () => invoke<LlamaStatus>("llama_status"),
+  llamaStop: () => invoke<LlamaStatus>("llama_stop"),
   aiReportExport: (name: string, content: string, ext: string) =>
     invoke<string>("ai_report_export", { name, content, ext }),
   // 播放器
