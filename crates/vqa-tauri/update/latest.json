@@ -1,11 +1,11 @@
 {
-    "version":  "0.2.55",
-    "notes":  "播放器新增多路同看：一次输入最多 4 路来源，同一界面同时播放；点击任意一路切换为唯一出声，双击进入放大播放页；单路与多路互斥，切换时自动停止另一套。",
-    "pub_date":  "2026-11-20T05:22:36Z",
+    "version":  "0.2.56",
+    "notes":  "内置 llama-server 与可选 GGUF 模型：主包不带模型；支持 Qwen2.5 1.5B / Qwen3 4B / Qwen3 0.6B 下载、导入、启用与停止；AI 计划按目标最小化裁剪。",
+    "pub_date":  "2026-11-20T07:37:31Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW9LS1RuOWhJaGpnT0NvM29PVWRBbjZXamlUQkQzVHFlVnNDbEdxcmlKVW8rN2UyQ2dOdGNZV212cXYvL3hjbGdRWi9VdGFva2pqWEREZVFJYmphdGdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MTUyMTU2CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi41NV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjU1CkdTUHJoTklRMGd6UVMxSFZac3hzNUNjLzFjNXRCYXNITk8zelJIanpkTmdndmNHNFlPekRGekhtS05wNEZva2NoVWZRanJGd2QwMVpYbVMxbFBXMUFRPT0K",
-                                             "url":  "https://github.com/meng587/vqa-rs/releases/download/v0.2.55/vqa-workbench-0.2.55-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW1MdjVPSlhmRWNxK2tsOFlHZzY2dXhCNS9kRzIzcGdoWk9vZFd2Y1RuWTNkNm1QNlZMM0FibDJ3akdUMFBkQ0hTazJYQkZDM1ZhQnI1aWd5aFcwYlFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MTYwMjUxCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi41Nl94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjU2Ck5qQlNVNkpiR1RGaHJOcHdHYkUzRXFETUIraVpHSmlSZUxMb3JMSFd2QjlvRjVFRjVXVHZGOXlOTXA3RTU0aHNTYlhMdnhDSHBMeURqalIxZ0I1SUF3PT0K",
+                                             "url":  "https://github.com/meng587/vqa-rs/releases/download/v0.2.56/vqa-workbench-0.2.56-setup.exe"
                                          }
                   }
 }
