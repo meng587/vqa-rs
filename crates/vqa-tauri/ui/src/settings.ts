@@ -14,6 +14,15 @@ const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
 export function initSettings() {
   buildDrawers();
+  if (isWebMode) {
+    for (const id of ["dr-p-snapb", "dr-p-recb", "dr-a-reportb"]) {
+      $(id)?.setAttribute("hidden", "");
+    }
+    for (const id of ["dr-p-snap", "dr-p-rec", "dr-a-report"]) {
+      const input = document.getElementById(id) as HTMLInputElement | null;
+      if (input) input.placeholder = "填写工作站本机绝对路径";
+    }
+  }
   wirePlayerDrawer();
   wireAnalysisDrawer();
   wireComplianceDrawer();
@@ -175,10 +184,11 @@ function buildDrawers() {
         </label>
       </div>
       <div class="setrow">
-        <span class="k">端口</span>
+        <span class="k">自定义端口</span>
         <input id="dr-g-port" class="drnum" type="number" min="1024" max="65535" step="1" value="8766" />
       </div>
       <div class="drhint">
+        端口可填 1024–65535，默认 8766。修改端口会重启 Web 服务并更新访问地址；端口被占用时会自动恢复到原端口。
         开启后，同一局域网内的电脑用浏览器访问下面的地址。播放器依赖桌面端 mpv 子窗口，Web 端只开放检测、控制与报告；直播转码和 EasyTier 也保留在桌面端。
       </div>
 
@@ -198,6 +208,8 @@ function buildDrawers() {
         <button class="md-export" id="dr-g-copy" type="button">复制访问链接</button>
         <button class="md-export" id="dr-g-open" type="button">本机打开</button>
         <button class="md-export" id="dr-g-reset" type="button">重置口令</button>
+        <button class="md-export" id="dr-g-firewall" type="button" disabled>放行防火墙</button>
+        <button class="md-export" id="dr-g-logout" type="button" hidden>退出登录</button>
       </div>
 
       <div class="setmsg" id="dr-g-msg"></div>
@@ -205,7 +217,7 @@ function buildDrawers() {
       <div class="drsec">说明</div>
       <div class="drhint">
         本机访问（127.0.0.1）免口令；局域网访问需要 8 位访问码。访问码重置或关闭开关后，已登录浏览器立即失效。
-        请仅在可信局域网内开启，不要直接映射到公网。
+        请仅在可信局域网内开启，不要直接映射到公网。若另一台电脑打不开，请检查 Windows 防火墙是否放行本程序或对应 TCP 端口（域/专用网络）。
       </div>
     </div>
     <div class="drfoot">
@@ -594,6 +606,7 @@ function wireGlobalDrawer() {
   const copyBtn = $("dr-g-copy") as HTMLButtonElement;
   const openBtn = $("dr-g-open") as HTMLButtonElement;
   const resetBtn = $("dr-g-reset") as HTMLButtonElement;
+  const firewallBtn = $("dr-g-firewall") as HTMLButtonElement;
   let current: WebStatus | null = null;
 
   const say = (t: string, kind: "" | "ok" | "err" = "") => {
@@ -626,11 +639,14 @@ function wireGlobalDrawer() {
     copyBtn.disabled = !st.running;
     openBtn.disabled = !st.running;
     resetBtn.disabled = !st.running;
+    firewallBtn.disabled = !st.running;
     if (!st.running) code.hidden = true;
   };
 
   $("global-set").addEventListener("click", async () => {
     open("dr-global");
+    $("dr-g-logout").hidden = !isWebMode;
+    $("dr-g-firewall").hidden = isWebMode;
     if (isWebMode) {
       on.disabled = true;
       port.disabled = true;
@@ -669,16 +685,21 @@ function wireGlobalDrawer() {
     try {
       const st = await api.webApply(on.checked, Math.round(p));
       render(st);
-      if (st.running) {
-        say(`已开启 · ${st.url} · 访问码 ${st.code}`, "ok");
-      } else if (st.error) {
+      if (st.error) {
         say(st.error, "err");
+      } else if (st.running) {
+        say(`已开启 · ${st.url} · 访问码 ${st.code}`, "ok");
       } else {
         say("已关闭局域网访问", "ok");
       }
     } catch (e) {
-      on.checked = !on.checked;
-      onText(on.checked);
+      // 端口失败时后端会尽量恢复旧端口；以实际状态为准，不能简单把开关翻回去。
+      try {
+        render(await api.webStatus());
+      } catch {
+        on.checked = !on.checked;
+        onText(on.checked);
+      }
       say(String(e), "err");
     } finally {
       saveBtn.disabled = false;
@@ -717,6 +738,23 @@ function wireGlobalDrawer() {
     } catch (e) {
       say(String(e), "err");
     }
+  });
+
+  firewallBtn.addEventListener("click", async () => {
+    if (isWebMode) return;
+    firewallBtn.disabled = true;
+    try {
+      const text = await api.webFirewallFix();
+      say(text, "ok");
+    } catch (e) {
+      say(`放行失败：${e}`, "err");
+    } finally {
+      firewallBtn.disabled = !current?.running;
+    }
+  });
+
+  $("dr-g-logout").addEventListener("click", () => {
+    window.location.href = "/logout";
   });
 }
 

@@ -280,6 +280,7 @@ fn main() {
             web_server::web_apply,
             web_server::web_reset_code,
             web_server::web_open,
+            web_server::web_firewall_fix,
         ])
         .build(tauri::generate_context!())
         .expect("tauri 应用构建失败")

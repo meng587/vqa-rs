@@ -3,7 +3,7 @@
 //! 告警由一致性页在异常时写入 `data/alarm/alarms.json`，证据片段异步录制。
 //! 本页只负责筛选、展示和人工闭环；检测本身在一致性页。
 
-import { AlarmRecord, AlarmSettings, api, BadSeg } from "./api";
+import { AlarmRecord, AlarmSettings, api, BadSeg, downloadUrl, isWebMode, webDownloadUrl } from "./api";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
 const esc = (s: unknown) =>
@@ -144,8 +144,11 @@ function renderDetail() {
     return;
   }
   const clipReady = r.clip_state === "ready" && r.clip_path;
+  const clipActions = isWebMode
+    ? `<button class="al-vbtn" id="al-vdl">下载片段</button>`
+    : `<button class="al-vbtn" id="al-vplay">回放</button><button class="al-vbtn" id="al-vdir">打开目录</button>`;
   const clipLine = clipReady
-    ? `<div class="al-vstrip"><div class="al-vcam">▶</div><div class="al-vmain"><b>证据片段 · ${r.clip_secs || 12}s · ${fmtBytes(r.clip_size)}</b><span title="${esc(r.clip_path)}">${esc(r.clip_path)}</span></div><button class="al-vbtn" id="al-vplay">回放</button><button class="al-vbtn" id="al-vdir">打开目录</button></div>`
+    ? `<div class="al-vstrip"><div class="al-vcam">▶</div><div class="al-vmain"><b>证据片段 · ${r.clip_secs || 12}s · ${fmtBytes(r.clip_size)}</b><span title="${esc(r.clip_path)}">${esc(r.clip_path)}</span></div>${clipActions}</div>`
     : r.clip_state === "recording"
       ? `<div class="al-vstrip"><div class="al-vcam" style="color:var(--warn)">●</div><div class="al-vmain"><b>证据片段正在录制</b><span>完成后可在这里回放</span></div></div>`
       : r.clip_state === "failed"
@@ -287,6 +290,10 @@ function renderDetail() {
   $("al-vdir")?.addEventListener("click", () => {
     if (!r.clip_path) return;
     api.reveal(r.clip_path).catch((e) => flash(`打开目录失败：${e}`));
+  });
+  $("al-vdl")?.addEventListener("click", () => {
+    if (!r.clip_path) return;
+    downloadUrl(webDownloadUrl.alarm(r.id));
   });
 }
 
@@ -552,6 +559,19 @@ export function initAlarm() {
     const p = ($<HTMLInputElement>("al-clipdir")?.value || "").trim();
     if (p) api.reveal(p).catch((e) => flash(`打开目录失败：${e}`));
   });
+
+  if (isWebMode) {
+    for (const id of ["al-logbrowse", "al-clipbrowse", "al-logopen", "al-clipopen"]) {
+      $(id)?.setAttribute("hidden", "");
+    }
+    for (const id of ["al-logdir", "al-clipdir"]) {
+      const input = $<HTMLInputElement>(id);
+      if (input) {
+        input.placeholder = "填写工作站本机绝对路径";
+        input.title = "Web 端不能打开工作站文件夹，请直接填写工作站上的路径";
+      }
+    }
+  }
 
   window.addEventListener("alarms-changed", () => {
     refresh(true);

@@ -18,6 +18,7 @@ const DOWNLOAD_CMDS = new Set([
 async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (!isWebMode) return tauriInvoke<T>(cmd, args);
   if (cmd === "browse_media_file") return (await webPickFile()) as T;
+  if (cmd === "browse_folder") return null as T;
   if (DOWNLOAD_CMDS.has(cmd)) return (await webDownload(cmd, args ?? {})) as T;
   const r = await fetch("/api/invoke", {
     method: "POST",
@@ -36,7 +37,7 @@ async function webPickFile(): Promise<string | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".ts,.mpg,.mpeg,.mp4,.mkv,.avi,.flv,.m2t,.mts";
+    input.accept = ".ts,.mpg,.mpeg,.mp4,.mkv,.avi,.flv,.m2t,.m2ts,.mts,.mov,.webm,.wmv";
     input.style.display = "none";
     document.body.appendChild(input);
     const done = (v: string | null) => {
@@ -108,6 +109,22 @@ async function webDownload(cmd: string, args: Record<string, unknown>): Promise<
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
   return name;
+}
+
+/** Web 端服务端产物下载地址（同源 Cookie 会一起带上）。 */
+export const webDownloadUrl = {
+  capture: (kind: "pcap" | "ts") => `/api/download/capture?kind=${kind}`,
+  alarm: (id: string) => `/api/download/alarm?id=${encodeURIComponent(id)}`,
+};
+
+/** 用临时 <a> 触发浏览器下载，不离开当前页面。 */
+export function downloadUrl(url: string): void {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 export interface WebStatus {
@@ -570,6 +587,7 @@ export const api = {
     invoke<WebStatus>("web_apply", { enabled, port }),
   webResetCode: () => invoke<string>("web_reset_code"),
   webOpen: () => invoke<void>("web_open"),
+  webFirewallFix: () => invoke<string>("web_firewall_fix"),
 };
 
 export interface Channel {

@@ -1,7 +1,7 @@
 //! 抓包分析页：绑定一路 UDP/RTP 业务流，写 pcap / TS 样本，并展示网络统计。
 //! 抓包线程在后端独立运行，离开页面不自动停止；导航灯持续显示运行状态。
 
-import { api, type CapturePacket, type CaptureSnapshot, type NicRow } from "./api";
+import { api, downloadUrl, isWebMode, webDownloadUrl, type CapturePacket, type CaptureSnapshot, type NicRow } from "./api";
 import { setNavLamp } from "./main";
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -190,7 +190,7 @@ function render(s: CaptureSnapshot | null): void {
   if (mlrEl) mlrEl.classList.toggle("is-bad", s.net.rtp && s.net.mlr_good_pct < 99.9);
 
   renderRows(s.packets);
-  disableFileActions(s.pcap_bytes <= 0, s.ts_bytes <= 0 || running);
+  disableFileActions(s.pcap_bytes <= 0 || running, s.ts_bytes <= 0 || running);
   const dirBtn = $<HTMLButtonElement>("c-dir-open");
   dirBtn.disabled = !s.out_dir;
   setBusyUi();
@@ -358,10 +358,26 @@ export function initCapture(): void {
   $<HTMLInputElement>("c-url").addEventListener("keydown", (ev) => {
     if (ev.key === "Enter" && !snap?.running) void toggleCapture();
   });
+  if (isWebMode) {
+    $("c-pcap-open").textContent = "下载";
+    $("c-ts-open").textContent = "下载";
+    $("c-ts-player").hidden = true;
+    $("c-dir-open").hidden = true;
+    $("c-note").textContent =
+      "只抓绑定的这一路 UDP/RTP 业务流，不做全网卡混杂抓包，因此无需 Npcap。pcap 保留原始 UDP 负载（含 RTP 头），TS 样本按 188 字节对齐，最多 64 MB。停止抓包后可下载 pcap / TS，或把 TS 直接送分析。";
+  }
   $<HTMLButtonElement>("c-pcap-open").addEventListener("click", () => {
+    if (isWebMode) {
+      downloadUrl(webDownloadUrl.capture("pcap"));
+      return;
+    }
     if (snap?.pcap_path) void api.reveal(snap.pcap_path).catch((e) => setError(String(e)));
   });
   $<HTMLButtonElement>("c-ts-open").addEventListener("click", () => {
+    if (isWebMode) {
+      downloadUrl(webDownloadUrl.capture("ts"));
+      return;
+    }
     if (snap?.ts_path) void api.reveal(snap.ts_path).catch((e) => setError(String(e)));
   });
   $<HTMLButtonElement>("c-dir-open").addEventListener("click", () => {

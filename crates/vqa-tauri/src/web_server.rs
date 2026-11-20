@@ -7,13 +7,18 @@
 //! - 局域网请求必须带访问码；本机回环地址免登录。
 
 use std::{
-    net::SocketAddr,
+    collections::HashMap,
+    net::{IpAddr, SocketAddr},
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, AtomicU16, Ordering},
         Arc, Mutex, RwLock,
     },
+    time::{Duration, Instant},
 };
+
+#[cfg(windows)]
+use std::{os::windows::process::CommandExt, process::Command};
 
 use axum::{
     body::Body,
@@ -29,6 +34,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::{AppHandle, Manager, State};
 use tokio::sync::oneshot;
+use tokio_util::io::ReaderStream;
 
 use crate::{alarm_cmds, burst_cmds, capture_cmds, commands, compliance_cmds, sync_cmds};
 
@@ -38,6 +44,12 @@ const DEFAULT_PORT: u16 = 8766;
 const CODE_KEY: &str = "web.access_code";
 const ENABLED_KEY: &str = "web.enabled";
 const PORT_KEY: &str = "web.port";
+const LOGIN_WINDOW: Duration = Duration::from_secs(600);
+const LOGIN_MAX_FAILS: u32 = 10;
+const UPLOAD_RETENTION_DAYS: u64 = 7;
+const UPLOAD_EXTS: &[&str] = &[
+    "ts", "mpg", "mpeg", "mp4", "mkv", "avi", "flv", "m2t", "m2ts", "mts", "mov", "webm", "wmv",
+];
 
 // ═══════════════════ 状态 ═══════════════════
 
@@ -198,11 +210,45 @@ fn lan_ip() -> Option<String> {
 struct Ctx {
     app: AppHandle,
     code: Arc<RwLock<String>>,
+    login_fails: Mutex<HashMap<IpAddr, (u32, Instant)>>,
 }
 
 impl Ctx {
     fn code(&self) -> String {
         self.code.read().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    fn login_blocked(&self, ip: IpAddr) -> bool {
+        let mut guard = self.login_fails.lock().unwrap_or_else(|e| e.into_inner());
+        let now = Instant::now();
+        if let Some((count, since)) = guard.get(&ip) {
+            if now.duration_since(*since) >= LOGIN_WINDOW {
+                guard.remove(&ip);
+                return false;
+            }
+            return *count >= LOGIN_MAX_FAILS;
+        }
+        false
+    }
+
+    fn note_login_fail(&self, ip: IpAddr) {
+        let mut guard = self.login_fails.lock().unwrap_or_else(|e| e.into_inner());
+        let now = Instant::now();
+        match guard.get_mut(&ip) {
+            Some((count, since)) if now.duration_since(*since) < LOGIN_WINDOW => {
+                *count = count.saturating_add(1);
+            }
+            _ => {
+                guard.insert(ip, (1, now));
+            }
+        }
+    }
+
+    fn clear_login_fails(&self, ip: IpAddr) {
+        self.login_fails
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&ip);
     }
 }
 
@@ -210,6 +256,7 @@ async fn start_server(app: AppHandle, port: u16) -> Result<WebStatus, String> {
     if !(1024..=65535).contains(&port) {
         return Err("端口范围应为 1024–65535".into());
     }
+    cleanup_web_uploads();
     let st = app.state::<WebState>();
     st.ensure_code();
     let current = st.running.load(Ordering::Relaxed);
@@ -231,6 +278,7 @@ async fn start_server(app: AppHandle, port: u16) -> Result<WebStatus, String> {
     let ctx = Arc::new(Ctx {
         app: app.clone(),
         code: st.code.clone(),
+        login_fails: Mutex::new(HashMap::new()),
     });
     let router = build_router(ctx.clone()).layer(DefaultBodyLimit::max(2 * 1024 * 1024 * 1024));
     let running = st.running.clone();
@@ -307,10 +355,30 @@ pub async fn web_apply(
         let _ = vqa_core::config::shared_set(PORT_KEY, json!(port));
         return Ok(status_of(&st));
     }
-    let status = start_server(app, port).await?;
-    let _ = vqa_core::config::shared_set(ENABLED_KEY, json!(true));
-    let _ = vqa_core::config::shared_set(PORT_KEY, json!(port));
-    Ok(status)
+    let was_running = st.running.load(Ordering::Relaxed);
+    let old_port = st.port.load(Ordering::Relaxed);
+    match start_server(app.clone(), port).await {
+        Ok(status) => {
+            let _ = vqa_core::config::shared_set(ENABLED_KEY, json!(true));
+            let _ = vqa_core::config::shared_set(PORT_KEY, json!(port));
+            Ok(status)
+        }
+        Err(e) => {
+            // 自定义端口失败时，把原服务恢复到旧端口，避免一个错误输入把远程访问停掉。
+            if was_running && old_port != port {
+                let rollback = start_server(app.clone(), old_port).await;
+                let st = app.state::<WebState>();
+                if let Err(re) = rollback {
+                    st.set_error(Some(format!("{e}；旧端口 {old_port} 恢复失败：{re}")));
+                } else {
+                    st.set_error(Some(format!("{e}；已恢复原端口 {old_port}")));
+                }
+            } else {
+                app.state::<WebState>().set_error(Some(e.clone()));
+            }
+            Err(e)
+        }
+    }
 }
 
 #[tauri::command]
@@ -330,7 +398,6 @@ pub fn web_open(st: State<'_, WebState>) -> Result<(), String> {
     let url = format!("{}/login?code={}", s.local_url, s.code);
     #[cfg(windows)]
     {
-        use std::os::windows::process::CommandExt;
         let mut c = std::process::Command::new("cmd");
         c.args(["/C", "start", "", &url]);
         c.creation_flags(0x0800_0000);
@@ -344,6 +411,82 @@ pub fn web_open(st: State<'_, WebState>) -> Result<(), String> {
     }
 }
 
+/// 在 Windows 防火墙里放行当前 Web 端口（专用网络入站）。
+/// 非管理员时通过 UAC 拉起 netsh；返回的是“已请求”，不是规则已生效。
+#[tauri::command]
+pub fn web_firewall_fix(st: State<'_, WebState>) -> Result<String, String> {
+    let port = status_of(&st).port;
+    add_firewall_rule(port)
+}
+
+#[cfg(windows)]
+fn add_firewall_rule(port: u16) -> Result<String, String> {
+    const NO_WINDOW: u32 = 0x0800_0000;
+    let rule_name = format!("VQA Web {port}");
+    let show = Command::new("netsh")
+        .args([
+            "advfirewall",
+            "firewall",
+            "show",
+            "rule",
+            &format!("name={rule_name}"),
+        ])
+        .creation_flags(NO_WINDOW)
+        .output();
+    if let Ok(out) = show {
+        let text = String::from_utf8_lossy(&out.stdout);
+        if out.status.success() && text.contains(&rule_name) {
+            return Ok(format!("防火墙已放行 TCP {port}（{rule_name}）"));
+        }
+    }
+
+    let add = Command::new("netsh")
+        .args([
+            "advfirewall",
+            "firewall",
+            "add",
+            "rule",
+            &format!("name={rule_name}"),
+            "dir=in",
+            "action=allow",
+            "protocol=TCP",
+            &format!("localport={port}"),
+            "profile=domain,private",
+            "enable=yes",
+        ])
+        .creation_flags(NO_WINDOW)
+        .output();
+    if let Ok(out) = add {
+        if out.status.success() {
+            return Ok(format!("防火墙已放行 TCP {port}（域/专用网络）"));
+        }
+    }
+
+    let ps = format!(
+        "Start-Process -FilePath netsh.exe -Verb RunAs -WindowStyle Hidden -ArgumentList @('advfirewall','firewall','add','rule','name=\"{rule_name}\"','dir=in','action=allow','protocol=TCP','localport={port}','profile=domain,private','enable=yes')"
+    );
+    let mut c = Command::new("powershell");
+    c.args([
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-WindowStyle",
+        "Hidden",
+        "-Command",
+        &ps,
+    ]);
+    c.creation_flags(NO_WINDOW);
+    c.spawn().map_err(|e| format!("请求管理员权限失败：{e}"))?;
+    Ok(format!(
+        "已请求管理员权限放行 TCP {port}，请在 UAC 窗口中确认"
+    ))
+}
+
+#[cfg(not(windows))]
+fn add_firewall_rule(_port: u16) -> Result<String, String> {
+    Err("当前平台不支持 Windows 防火墙规则".into())
+}
+
 // ═══════════════════ 路由与认证 ═══════════════════
 
 fn build_router(ctx: Arc<Ctx>) -> Router {
@@ -351,10 +494,14 @@ fn build_router(ctx: Arc<Ctx>) -> Router {
         .route("/health", get(|| async { "ok" }))
         .route("/favicon.ico", get(|| async { StatusCode::NO_CONTENT }))
         .route("/login", get(login_get).post(login_post))
+        .route("/logout", get(logout).post(logout))
         .route("/api/invoke", post(api_invoke))
         .route("/api/upload", post(api_upload))
+        .route("/api/download/capture", get(download_capture))
+        .route("/api/download/alarm", get(download_alarm))
         .fallback(static_file)
         .layer(middleware::from_fn_with_state(ctx.clone(), auth))
+        .layer(middleware::from_fn(security_headers))
         .with_state(ctx)
 }
 
@@ -394,17 +541,49 @@ async fn auth(
     Redirect::to("/login").into_response()
 }
 
+async fn security_headers(req: Request, next: Next) -> Response {
+    let mut resp = next.run(req).await;
+    let h = resp.headers_mut();
+    // 前端只加载同源资源；内联样式是现有页面大量使用的写法，单独放开 style。
+    h.insert(
+        header::CONTENT_SECURITY_POLICY,
+        HeaderValue::from_static(
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+        ),
+    );
+    h.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    h.insert(header::X_FRAME_OPTIONS, HeaderValue::from_static("DENY"));
+    h.insert(
+        header::REFERRER_POLICY,
+        HeaderValue::from_static("no-referrer"),
+    );
+    resp
+}
+
 #[derive(Deserialize)]
 struct LoginQuery {
     code: Option<String>,
 }
 
-async fn login_get(AxumState(ctx): AxumState<Arc<Ctx>>, Query(q): Query<LoginQuery>) -> Response {
+async fn login_get(
+    AxumState(ctx): AxumState<Arc<Ctx>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    Query(q): Query<LoginQuery>,
+) -> Response {
+    if ctx.login_blocked(addr.ip()) {
+        return too_many_logins();
+    }
     let want = ctx.code();
     if let Some(code) = q.code {
         if code == want {
+            ctx.clear_login_fails(addr.ip());
             return with_cookie(Redirect::to("/"), &want);
         }
+        ctx.note_login_fail(addr.ip());
+        return Html(login_page(true)).into_response();
     }
     Html(login_page(false)).into_response()
 }
@@ -414,19 +593,51 @@ struct LoginForm {
     code: String,
 }
 
-async fn login_post(AxumState(ctx): AxumState<Arc<Ctx>>, Form(f): Form<LoginForm>) -> Response {
+async fn login_post(
+    AxumState(ctx): AxumState<Arc<Ctx>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    Form(f): Form<LoginForm>,
+) -> Response {
+    if ctx.login_blocked(addr.ip()) {
+        return too_many_logins();
+    }
     let want = ctx.code();
     if f.code.trim() == want {
+        ctx.clear_login_fails(addr.ip());
         with_cookie(Redirect::to("/"), &want)
     } else {
+        ctx.note_login_fail(addr.ip());
         Html(login_page(true)).into_response()
     }
+}
+
+fn too_many_logins() -> Response {
+    (
+        StatusCode::TOO_MANY_REQUESTS,
+        [(header::RETRY_AFTER, "600")],
+        Html(
+            r#"<!doctype html><meta charset="utf-8"><title>访问受限</title>
+<body style="font:14px 'Microsoft YaHei',sans-serif;padding:40px;background:#f5efe3;color:#25211b">
+<h2 style="font-size:18px">尝试次数过多</h2><p>请等待几分钟后再试，或在桌面端重置访问码。</p></body>"#,
+        ),
+    )
+        .into_response()
+}
+
+async fn logout() -> Response {
+    let mut r = Redirect::to("/login").into_response();
+    if let Ok(v) = HeaderValue::from_str(
+        "vqa_web=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+    ) {
+        r.headers_mut().insert(header::SET_COOKIE, v);
+    }
+    r
 }
 
 fn with_cookie(resp: Redirect, code: &str) -> Response {
     let mut r = resp.into_response();
     if let Ok(v) = HeaderValue::from_str(&format!(
-        "vqa_web={code}; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800"
+        "vqa_web={code}; HttpOnly; SameSite=Strict; Path=/"
     )) {
         r.headers_mut().insert(header::SET_COOKIE, v);
     }
@@ -450,7 +661,7 @@ button:hover{{background:#2c5242}}.err{{margin:0 0 10px;color:#a33d32;font-size:
 </style></head><body><form class="card" method="post" action="/login">
 <div class="mark">视</div><h1>局域网访问</h1><p>请输入桌面端「设置 → 局域网访问」中显示的 8 位访问码。</p>
 {}<input name="code" inputmode="numeric" pattern="[0-9]{{4,12}}" maxlength="12" autocomplete="one-time-code" autofocus/>
-<button type="submit">进入检测工作台</button><div class="hint">访问码只用于本机局域网访问；关闭开关或重置口令后立即失效。</div>
+<button type="submit">进入检测工作台</button><div class="hint">登录状态仅在当前浏览器会话有效；关闭开关或重置口令后立即失效。若连续输错多次会暂时限制登录。</div>
 </form></body></html>"#,
         if failed {
             "<div class=\"err\">访问码不正确，请重试。</div>"
@@ -516,6 +727,9 @@ async fn api_upload(mut mp: Multipart) -> Response {
     while let Ok(Some(field)) = mp.next_field().await {
         let orig = field.file_name().unwrap_or("upload.ts").to_string();
         let name = sanitize_filename(&orig);
+        if !allowed_upload(&name) {
+            return api_err(StatusCode::BAD_REQUEST, format!("不支持的文件类型：{name}"));
+        }
         let ts = chrono::Local::now().format("%Y%m%d_%H%M%S_%3f");
         let dest = dir.join(format!("{ts}_{name}"));
         let data = match field.bytes().await {
@@ -530,6 +744,9 @@ async fn api_upload(mut mp: Multipart) -> Response {
         }
         saved = Some(dest);
         break;
+    }
+    if saved.is_some() {
+        std::thread::spawn(cleanup_web_uploads);
     }
     match saved {
         Some(p) => Json(json!({ "ok": true, "data": p.to_string_lossy() })).into_response(),
@@ -559,6 +776,158 @@ fn sanitize_filename(name: &str) -> String {
     } else {
         cleaned
     }
+}
+
+fn allowed_upload(name: &str) -> bool {
+    let ext = Path::new(name)
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    UPLOAD_EXTS.contains(&ext.as_str())
+}
+
+/// 清理过期的 Web 上传文件；只删除本服务自己的 web_uploads，不碰用户目录。
+fn cleanup_web_uploads() {
+    let dir = vqa_core::config::base_dir().join("web_uploads");
+    let Ok(rd) = std::fs::read_dir(&dir) else {
+        return;
+    };
+    let cutoff = std::time::SystemTime::now()
+        .checked_sub(Duration::from_secs(UPLOAD_RETENTION_DAYS * 86400));
+    let Some(cutoff) = cutoff else {
+        return;
+    };
+    for entry in rd.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Ok(meta) = entry.metadata() else {
+            continue;
+        };
+        let Ok(modified) = meta.modified() else {
+            continue;
+        };
+        if modified < cutoff {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+}
+
+// ═══════════════════ 下载（抓包 pcap/TS、告警证据片段） ═══════════════════
+
+#[derive(Deserialize)]
+struct CaptureDownloadQuery {
+    kind: String,
+}
+
+async fn download_capture(
+    AxumState(ctx): AxumState<Arc<Ctx>>,
+    Query(q): Query<CaptureDownloadQuery>,
+) -> Response {
+    let snapshot = capture_cmds::capture_status(ctx.app.state::<capture_cmds::CaptureState>());
+    let Some(snapshot) = snapshot else {
+        return api_err(StatusCode::NOT_FOUND, "当前没有抓包任务".into());
+    };
+    if snapshot.running {
+        return api_err(
+            StatusCode::CONFLICT,
+            "抓包仍在运行，请先停止抓包，待文件落盘后再下载".into(),
+        );
+    }
+    let (path, fallback) = match q.kind.as_str() {
+        "pcap" => (snapshot.pcap_path, "capture.pcap"),
+        "ts" => (snapshot.ts_path, "capture.ts"),
+        _ => return api_err(StatusCode::BAD_REQUEST, "下载类型只能是 pcap 或 ts".into()),
+    };
+    if path.trim().is_empty() {
+        return api_err(StatusCode::NOT_FOUND, "抓包产物尚未生成".into());
+    }
+    file_response(PathBuf::from(path), fallback, "no-store").await
+}
+
+#[derive(Deserialize)]
+struct AlarmDownloadQuery {
+    id: String,
+}
+
+async fn download_alarm(Query(q): Query<AlarmDownloadQuery>) -> Response {
+    let record = alarm_cmds::alarm_list().into_iter().find(|r| r.id == q.id);
+    let Some(record) = record else {
+        return api_err(StatusCode::NOT_FOUND, "告警记录不存在".into());
+    };
+    if record.clip_path.trim().is_empty() {
+        return api_err(StatusCode::NOT_FOUND, "告警证据片段尚未生成".into());
+    }
+    let fallback = format!("alarm_{}.ts", sanitize_filename(&record.id));
+    file_response(PathBuf::from(record.clip_path), &fallback, "no-store").await
+}
+
+async fn file_response(path: PathBuf, fallback: &str, cache: &str) -> Response {
+    let meta = match tokio::fs::metadata(&path).await {
+        Ok(m) if m.is_file() => m,
+        _ => return api_err(StatusCode::NOT_FOUND, "文件不存在或已被清理".into()),
+    };
+    let file = match tokio::fs::File::open(&path).await {
+        Ok(f) => f,
+        Err(e) => {
+            return api_err(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("打开文件失败：{e}"),
+            )
+        }
+    };
+    let name = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .map(sanitize_filename)
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| fallback.to_string());
+    let header_name: String = name
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_' | ' ' | '(' | ')') {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let header_name = if header_name.trim().is_empty() {
+        fallback.to_string()
+    } else {
+        header_name
+    };
+    let mime = match path
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "pcap" => "application/vnd.tcpdump.pcap",
+        "ts" | "m2ts" | "mts" => "video/mp2t",
+        "mp4" => "video/mp4",
+        "mkv" => "video/x-matroska",
+        _ => "application/octet-stream",
+    };
+    let len = meta.len();
+    let stream = ReaderStream::new(file);
+    let mut resp = Body::from_stream(stream).into_response();
+    let h = resp.headers_mut();
+    h.insert(header::CONTENT_TYPE, HeaderValue::from_static(mime));
+    if let Ok(v) = HeaderValue::from_str(&len.to_string()) {
+        h.insert(header::CONTENT_LENGTH, v);
+    }
+    if let Ok(v) = HeaderValue::from_str(&format!("attachment; filename=\"{header_name}\"")) {
+        h.insert(header::CONTENT_DISPOSITION, v);
+    }
+    h.insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_str(cache).unwrap_or(HeaderValue::from_static("no-store")),
+    );
+    resp
 }
 
 fn api_err(status: StatusCode, msg: String) -> Response {
