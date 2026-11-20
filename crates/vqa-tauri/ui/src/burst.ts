@@ -69,6 +69,8 @@ let pollList: Channel[] = [];
 let pollPos = 0;
 let pollStartedAt = 0;
 let snapshotTimer: number | null = null;
+/** 每次开新检测递增；用于丢弃停止/重开期间迟到的旧快照响应。 */
+let snapshotEpoch = 0;
 let modalOpen = false;
 let collapsed = true;
 const rowMeta = new Map<string, RowMeta>();
@@ -351,10 +353,17 @@ function renderEmptyState(s: BurstStats, series: number[]) {
   if (!el) return;
   el.hidden = series.length > 0;
   if (series.length === 0) {
-    el.textContent = running
+    el.textContent = running || starting || polling
       ? "等待首个检测窗口…"
       : "暂无数据 · 开始检测后显示最近 240 个窗口";
   }
+}
+
+/** 新一轮检测启动前先清空上一轮读数，避免旧峰值/突发次数被误读成本轮结果。 */
+function resetSnapshotForStart(url: string) {
+  snapshotEpoch += 1;
+  snapshot = { ...EMPTY, url, window_ms: settings.window_ms };
+  renderAll(snapshot);
 }
 
 function updateStatic(win: WinMs) {
@@ -579,8 +588,10 @@ function stopSnapshotTimer() {
 }
 
 async function pollSnapshot() {
+  const epoch = snapshotEpoch;
   try {
     const s = await api.burstSnapshot();
+    if (epoch !== snapshotEpoch) return; // 新一轮已开始，丢弃上一轮的迟到响应
     snapshot = s;
     renderAll(s);
     if (running) {
@@ -630,9 +641,11 @@ async function startContinuous() {
   }
   activeUrl = url;
   board?.selectByUrl(url);
+  updateRow(url, "run", "准备…");
   starting = true;
   syncLockUi();
   setStatus("running", url.startsWith("udp://") || url.startsWith("rtp://") ? "绑定端口…" : "启动本地文件回放…");
+  resetSnapshotForStart(url);
   try {
     const s = await api.burstStart(url, settings.nic, settings.ratio, settings.window_ms);
     await api.pushSourceHistory("burst", url).catch(() => undefined);
@@ -656,6 +669,7 @@ async function startContinuous() {
 
 async function stopSession(showStatus = true) {
   pollStop = true;
+  snapshotEpoch += 1;
   stopSnapshotTimer();
   if (!running && !starting) {
     if (polling) {
@@ -712,6 +726,7 @@ async function pollSelected(list: Channel[]) {
       "running",
       `轮询 ${pollPos}/${list.length} · ${ch.name || "未命名频道"} · 准备中`,
     );
+    resetSnapshotForStart(ch.url);
 
     try {
       await api.burstStart(ch.url, settings.nic, settings.ratio, settings.window_ms);
@@ -752,6 +767,7 @@ async function pollSelected(list: Channel[]) {
   polling = false;
   pollStop = false;
   running = false;
+  snapshotEpoch += 1;
   stopSnapshotTimer();
   syncLockUi();
   if (stopped) {
