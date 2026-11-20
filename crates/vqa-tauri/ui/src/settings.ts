@@ -20,8 +20,23 @@ export function initSettings() {
     }
     for (const id of ["dr-p-snap", "dr-p-rec", "dr-a-report"]) {
       const input = document.getElementById(id) as HTMLInputElement | null;
-      if (input) input.placeholder = "填写工作站本机绝对路径";
+      if (input) {
+        input.placeholder = "填写工作站本机绝对路径";
+        if (id === "dr-a-report") input.disabled = true;
+      }
     }
+    // 主机网卡只能由桌面端修改；Web 端只做只读展示。
+    const nicTip = "Web 端不能修改主机网卡，请在桌面端设置";
+    for (const id of ["p-nic", "a-nic", "k-nic", "v-nic", "c-nic", "b-set-nic"]) {
+      const el = document.getElementById(id) as HTMLSelectElement | null;
+      if (el) {
+        el.disabled = true;
+        el.title = nicTip;
+      }
+    }
+    // 抓包设置抽屉当前只有网卡一项，Web 端不提供入口。
+    const captureSet = document.getElementById("c-set");
+    if (captureSet) captureSet.hidden = true;
   }
   wirePlayerDrawer();
   wireAnalysisDrawer();
@@ -431,14 +446,20 @@ function wireAnalysisDrawer() {
     say("保存中…");
     try {
       const secs = Math.max(5, Math.min(600, Math.round(Number(poll.value) || 30)));
-      const p = await api.setAnalysisSettings(report.value.trim());
-      await api.uiSet("analysis.nic", nic.value);
+      if (!isWebMode) {
+        const p = await api.setAnalysisSettings(report.value.trim());
+        await api.uiSet("analysis.nic", nic.value);
+        report.value = p.report_dir;
+      }
       await api.uiSet("analysis.poll_secs", secs);
       poll.value = String(secs);
-      report.value = p.report_dir;
-      const nicText = nic.selectedOptions[0]?.textContent || "自动";
-      const where = p.report_dir ? `报告 → ${p.report_dir}` : "报告 → 每次导出弹保存对话框";
-      say(`已保存 · ${where} · 网卡 → ${nicText}`, "ok");
+      if (isWebMode) {
+        say(`已保存 · 轮询每路 ${secs} 秒 · 网卡与报告目录由桌面端设置`, "ok");
+      } else {
+        const nicText = nic.selectedOptions[0]?.textContent || "自动";
+        const where = report.value ? `报告 → ${report.value}` : "报告 → 每次导出弹保存对话框";
+        say(`已保存 · ${where} · 网卡 → ${nicText}`, "ok");
+      }
     } catch (e) {
       say(String(e), "err");
     } finally {
@@ -491,11 +512,15 @@ function wireComplianceDrawer() {
     say("保存中…");
     try {
       const secs = Math.max(5, Math.min(600, Math.round(Number(poll.value) || 30)));
-      await api.uiSet("compliance.nic", nic.value);
+      if (!isWebMode) await api.uiSet("compliance.nic", nic.value);
       await api.uiSet("compliance.poll_secs", secs);
       poll.value = String(secs);
-      const nicText = nic.selectedOptions[0]?.textContent || "自动";
-      say(`已保存 · 网卡 → ${nicText} · 轮询每路 ${secs} 秒`, "ok");
+      if (isWebMode) {
+        say(`已保存 · 轮询每路 ${secs} 秒 · 网卡由桌面端设置`, "ok");
+      } else {
+        const nicText = nic.selectedOptions[0]?.textContent || "自动";
+        say(`已保存 · 网卡 → ${nicText} · 轮询每路 ${secs} 秒`, "ok");
+      }
     } catch (e) {
       say(String(e), "err");
     } finally {
@@ -587,8 +612,11 @@ function wireAvSyncDrawer() {
       search.value = String(value.search);
       fps.value = String(value.fps);
       window.dispatchEvent(new CustomEvent("avsync-prefs-changed"));
+      const nicText = isWebMode
+        ? "网卡沿用桌面端"
+        : `网卡 → ${nic.selectedOptions[0]?.textContent || "自动"}`;
       say(
-        `已保存 · 网卡 → ${nic.selectedOptions[0]?.textContent || "自动"} · ` +
+        `已保存 · ${nicText} · ` +
           `时长 ${value.secs} 秒 · 范围 ±${value.search} ms · ${value.fps} fps`,
         "ok",
       );

@@ -1170,6 +1170,89 @@ fn is_web_write_denied(cmd: &str) -> bool {
     )
 }
 
+/// Web 端可见的模块频道键；播放器在 Web 端不开放，不纳入。
+const WEB_CHANNEL_MODULES: &[&str] = &["analysis", "compliance", "burst", "avsync"];
+
+/// Web 端允许读取的页面偏好键。只放页面实际会读的 UI 状态和只读网卡展示，
+/// 避免 `ui_pref_get("web.access_code")` 之类的配置文件读取。
+const WEB_UI_PREF_READ_KEYS: &[&str] = &[
+    "analysis.nic",
+    "compliance.nic",
+    "capture.prefs",
+    "analysis.poll_secs",
+    "compliance.poll_secs",
+    "player.poll_secs",
+    "analysis.ch.collapsed",
+    "compliance.ch.collapsed",
+    "player.ch.collapsed",
+    "burst.ch.collapsed",
+    "avsync.ch.collapsed",
+    "burst.settings",
+    "burst.window_ms",
+    "avsync.prefs",
+    "consist.prefs",
+    "consist.groups",
+    "channels.groups",
+];
+
+/// Web 端允许写入的页面偏好键。网卡键不在这里；`avsync.prefs` 和
+/// `burst.settings` 中的 `nic` 会在写入前替换为服务端已有值。
+const WEB_UI_PREF_WRITE_KEYS: &[&str] = &[
+    "analysis.poll_secs",
+    "compliance.poll_secs",
+    "player.poll_secs",
+    "analysis.ch.collapsed",
+    "compliance.ch.collapsed",
+    "player.ch.collapsed",
+    "burst.ch.collapsed",
+    "avsync.ch.collapsed",
+    "burst.settings",
+    "burst.window_ms",
+    "avsync.prefs",
+    "consist.prefs",
+    "consist.groups",
+];
+
+fn web_ui_channel_key(key: &str) -> bool {
+    if let Some(module) = key.strip_prefix("channels.") {
+        if WEB_CHANNEL_MODULES.contains(&module) {
+            return true;
+        }
+    }
+    if let Some(module) = key.strip_prefix("channels.groups.") {
+        if WEB_CHANNEL_MODULES.contains(&module) {
+            return true;
+        }
+    }
+    false
+}
+
+fn web_ui_pref_readable(key: &str) -> bool {
+    WEB_UI_PREF_READ_KEYS.contains(&key) || web_ui_channel_key(key)
+}
+
+fn web_ui_pref_writable(key: &str) -> bool {
+    WEB_UI_PREF_WRITE_KEYS.contains(&key) || web_ui_channel_key(key)
+}
+
+fn web_ui_nic_key(key: &str) -> bool {
+    matches!(key, "capture.prefs" | "analysis.nic" | "compliance.nic")
+}
+
+/// 保留服务端已有网卡，只接受浏览器传来的其他字段。
+fn keep_host_nic(value: Value, current: Option<&Value>) -> Result<Value, String> {
+    let mut value = value;
+    let obj = value
+        .as_object_mut()
+        .ok_or_else(|| "设置格式错误：需要对象".to_string())?;
+    let nic = current
+        .and_then(|v| v.get("nic"))
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    obj.insert("nic".to_string(), json!(nic));
+    Ok(value)
+}
+
 async fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, String> {
     if is_web_write_denied(cmd) {
         return Err("Web 端不开放本机配置写入、诊断收集或上传，请回到桌面端操作".into());
@@ -1185,9 +1268,30 @@ async fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, Str
         }
         "tool_paths" => commands::tool_paths(),
         "app_paths" => commands::app_paths(),
-        "ui_pref_get" => sync_cmds::ui_pref_get(s(args, "key")),
+        "ui_pref_get" => {
+            let key = s(args, "key");
+            if !web_ui_pref_readable(&key) {
+                return Err("Web 端不开放该配置键的读取，请回到桌面端操作".into());
+            }
+            sync_cmds::ui_pref_get(key)
+        }
         "ui_pref_set" => {
-            sync_cmds::ui_pref_set(s(args, "key"), a(args, "value").clone())?;
+            let key = s(args, "key");
+            if !web_ui_pref_writable(&key) {
+                return Err(if web_ui_nic_key(&key) {
+                    "Web 端不能修改主机网卡，请在桌面端设置".into()
+                } else {
+                    "Web 端不开放该配置键的写入，请回到桌面端操作".into()
+                });
+            }
+            let value = a(args, "value").clone();
+            let value = if matches!(key.as_str(), "avsync.prefs" | "burst.settings") {
+                let current = vqa_core::config::shared_get(&key);
+                keep_host_nic(value, current.as_ref())?
+            } else {
+                value
+            };
+            sync_cmds::ui_pref_set(key, value)?;
             json!(null)
         }
         "channels_get" => json!(sync_cmds::channels_get()),
@@ -1529,5 +1633,36 @@ mod tests {
         assert!(session_valid(&sessions, &token));
         revoke_session(&sessions, &token);
         assert!(!session_valid(&sessions, &token));
+    }
+
+    #[test]
+    fn web_ui_prefs_are_scoped() {
+        assert!(web_ui_pref_readable("analysis.nic"));
+        assert!(!web_ui_pref_writable("analysis.nic"));
+        assert!(web_ui_pref_readable("capture.prefs"));
+        assert!(!web_ui_pref_writable("capture.prefs"));
+        assert!(!web_ui_pref_readable("web.access_code"));
+        assert!(!web_ui_pref_writable("web.access_code"));
+        assert!(!web_ui_pref_readable("diag_token"));
+
+        assert!(web_ui_pref_readable("channels.groups"));
+        assert!(!web_ui_pref_writable("channels.groups"));
+        assert!(web_ui_pref_writable("channels.analysis"));
+        assert!(web_ui_pref_writable("channels.groups.avsync"));
+        assert!(!web_ui_pref_writable("channels.player"));
+        assert!(web_ui_pref_writable("avsync.prefs"));
+        assert!(web_ui_pref_writable("burst.settings"));
+        assert!(web_ui_pref_writable("analysis.poll_secs"));
+    }
+
+    #[test]
+    fn host_nic_is_kept_for_web_prefs() {
+        let current = json!({ "nic": "192.168.1.10", "secs": 20 });
+        let out = keep_host_nic(json!({ "nic": "10.0.0.1", "secs": 30 }), Some(&current)).unwrap();
+        assert_eq!(out["nic"].as_str(), Some("192.168.1.10"));
+        assert_eq!(out["secs"].as_u64(), Some(30));
+
+        let out = keep_host_nic(json!({ "nic": "10.0.0.1" }), None).unwrap();
+        assert_eq!(out["nic"].as_str(), Some(""));
     }
 }

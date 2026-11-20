@@ -71,7 +71,7 @@ function setBusyUi(): void {
   const url = $<HTMLInputElement>("c-url");
   const nic = $<HTMLSelectElement>("c-nic");
   url.disabled = running || busy;
-  nic.disabled = running || busy;
+  nic.disabled = running || busy || isWebMode;
 }
 
 function setError(msg: string): void {
