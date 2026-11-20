@@ -1,6 +1,126 @@
 //! Tauri 命令封装（前端 → Rust 后端）。
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+
+/** 浏览器直开时没有 Tauri IPC，走同源 /api/invoke。 */
+export const isWebMode =
+  typeof window !== "undefined" && !("__TAURI_INTERNALS__" in window);
+
+const DOWNLOAD_CMDS = new Set([
+  "report_export",
+  "report_export_b64",
+  "compliance_export_md",
+  "alarm_export",
+  "ai_report_export",
+  "diag_export",
+]);
+
+async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  if (!isWebMode) return tauriInvoke<T>(cmd, args);
+  if (cmd === "browse_media_file") return (await webPickFile()) as T;
+  if (DOWNLOAD_CMDS.has(cmd)) return (await webDownload(cmd, args ?? {})) as T;
+  const r = await fetch("/api/invoke", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cmd, args: args ?? {} }),
+  });
+  const body = await r.json().catch(() => null);
+  if (!r.ok || !body?.ok) {
+    throw new Error(body?.error || `请求失败（HTTP ${r.status}）`);
+  }
+  return body.data as T;
+}
+
+/** Web 端选择本地文件：上传到工作站临时目录，返回服务端绝对路径。 */
+async function webPickFile(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".ts,.mpg,.mpeg,.mp4,.mkv,.avi,.flv,.m2t,.mts";
+    input.style.display = "none";
+    document.body.appendChild(input);
+    const done = (v: string | null) => {
+      input.remove();
+      resolve(v);
+    };
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return done(null);
+      try {
+        const fd = new FormData();
+        fd.append("file", file, file.name);
+        const r = await fetch("/api/upload", { method: "POST", body: fd });
+        const body = await r.json().catch(() => null);
+        if (!r.ok || !body?.ok) throw new Error(body?.error || "上传失败");
+        done(body.data as string);
+      } catch (e) {
+        alert(`文件上传失败：${e}`);
+        done(null);
+      }
+    });
+    input.addEventListener("cancel", () => done(null));
+    input.click();
+  });
+}
+
+/** Web 端导出：浏览器下载而不是弹本机保存对话框。 */
+async function webDownload(cmd: string, args: Record<string, unknown>): Promise<string> {
+  let name = String(args.name || "");
+  let text = args.content as string | undefined;
+  let b64 = args.contentB64 as string | undefined;
+  let ext = String(args.ext || "");
+  if (cmd === "alarm_export") {
+    name = `告警记录_${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")}.json`;
+    ext = "json";
+  } else if (cmd === "diag_export") {
+    name = name || "诊断日志.txt";
+    ext = "txt";
+  } else if (cmd === "compliance_export_md") {
+    ext = ext || "md";
+  } else if (cmd === "ai_report_export") {
+    ext = ext || "md";
+  }
+  if (!name) name = `导出_${Date.now()}.${ext || "txt"}`;
+  if (!name.includes(".")) name = `${name}.${ext || "txt"}`;
+
+  const mime = ext === "docx"
+    ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    : ext === "html"
+      ? "text/html;charset=utf-8"
+      : ext === "json"
+        ? "application/json;charset=utf-8"
+        : "text/plain;charset=utf-8";
+  let blob: Blob;
+  if (b64) {
+    const raw = atob(b64);
+    const buf = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+    blob = new Blob([buf], { type: mime });
+  } else {
+    blob = new Blob([text ?? ""], { type: mime });
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  return name;
+}
+
+export interface WebStatus {
+  running: boolean;
+  enabled: boolean;
+  port: number;
+  code: string;
+  lan_ip: string | null;
+  url: string;
+  local_url: string;
+  login_url: string;
+  error: string | null;
+}
 
 export interface Snap {
   time_ms: number;
@@ -444,6 +564,12 @@ export const api = {
       maxGb: v.maxGb,
       autoClean: v.autoClean,
     }),
+  // 局域网 Web 访问（设置抽屉）
+  webStatus: () => invoke<WebStatus>("web_status"),
+  webApply: (enabled: boolean, port: number) =>
+    invoke<WebStatus>("web_apply", { enabled, port }),
+  webResetCode: () => invoke<string>("web_reset_code"),
+  webOpen: () => invoke<void>("web_open"),
 };
 
 export interface Channel {

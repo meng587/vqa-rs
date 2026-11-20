@@ -22,6 +22,7 @@ mod mpv_host;
 mod state;
 mod sync_cmds;
 mod preview;
+mod web_server;
 mod xcode_cmds;
 
 use tauri::Manager;
@@ -138,11 +139,12 @@ fn main() {
         .manage(state::ComplianceState::new())
         .manage(state::XcodeState::new())
         .manage(state::BurstState::new())
-            .manage(state::AvState::new())
-            .manage(state::ConsistState::new())
-            .manage(capture_cmds::CaptureState::new())
-            .manage(easytier_cmds::EasytierState::new())
-            .manage(preview::Preview::new())
+        .manage(state::AvState::new())
+        .manage(state::ConsistState::new())
+        .manage(capture_cmds::CaptureState::new())
+        .manage(easytier_cmds::EasytierState::new())
+        .manage(preview::Preview::new())
+        .manage(web_server::WebState::new())
         .setup(|app| {
             // 视频子窗：父 = 主窗口 HWND（WebView2 的同父兄弟，后建者 z 序在上）
             if let Some(win) = app.get_webview_window("main") {
@@ -157,6 +159,8 @@ fn main() {
                         .unwrap() = child;
                 }
             }
+            // 局域网 Web 访问按上次保存的开关自动恢复。
+            web_server::autostart(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -271,6 +275,11 @@ fn main() {
             alarm_cmds::alarm_settings_set,
             alarm_cmds::alarm_detect_log,
             alarm_cmds::alarm_export,
+            // 局域网 Web 访问
+            web_server::web_status,
+            web_server::web_apply,
+            web_server::web_reset_code,
+            web_server::web_open,
         ])
         .build(tauri::generate_context!())
         .expect("tauri 应用构建失败")
@@ -285,6 +294,7 @@ fn main() {
 /// 停扫描线程/实时会话、销毁视频子窗。
 fn shutdown(app: &tauri::AppHandle) {
     use tauri::Manager;
+    web_server::shutdown(app);
     let pst = app.state::<state::PlayerState>();
     *pst.playing_url.lock().unwrap() = String::new();
     if let Some(m) = pst.mpv.lock().unwrap().take() {

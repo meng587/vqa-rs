@@ -73,6 +73,7 @@
     <div class="btxt"><b>视听质量检测</b><small>VQA WORKBENCH / 3.0</small></div>
   </div>
   <div class="side-label"><span>工作台</span><span>WORKBENCH</span></div>
+  <div class="side-web" id="side-web" hidden>WEB 检测端 · 播放器请用桌面端</div>
   <nav id="nav" class="sidenav">
     <button class="mn is-on" data-goto="player" title="播放器"><span class="mn-ic" data-ic="monitorplay"></span><span class="mn-t">播放器</span><span class="lamp" id="lamp-player"></span></button>
     <button class="mn" data-goto="analysis" title="视频分析"><span class="mn-ic" data-ic="activity"></span><span class="mn-t">视频分析</span><span class="lamp" id="lamp-analysis"></span></button>
@@ -84,6 +85,8 @@
     <button class="mn" data-goto="consist" title="一致性比对"><span class="mn-ic" data-ic="repeat"></span><span class="mn-t">一致性比对</span><span class="lamp" id="lamp-consist"></span></button>
     <button class="mn" data-goto="easytier" title="EasyTier 组网"><span class="mn-ic" data-ic="network"></span><span class="mn-t">EasyTier 组网</span><span class="lamp" id="lamp-easytier"></span></button>
     <button class="mn" data-goto="about" title="关于"><span class="mn-ic" data-ic="info"></span><span class="mn-t">关于</span></button>
+    <div class="nav-sep" aria-hidden="true"></div>
+    <button class="mn" id="global-set" title="设置"><span class="mn-ic" data-ic="settings"></span><span class="mn-t">设置</span></button>
   </nav>
   <div class="side-bottom">
     <div class="dingnine side-dings" aria-hidden="true">
@@ -97,7 +100,7 @@
       <svg viewBox="0 0 24 24"><use href="#ding-glyph"/></svg>
       <svg viewBox="0 0 24 24"><use href="#ding-glyph"/></svg>
     </div>
-    <div class="side-status side-engine" title="引擎状态"><span class="dot" id="engine-dot"></span><div><b>引擎就绪</b><small>mpv 0.42</small></div></div>
+    <div class="side-status side-engine" title="引擎状态"><span class="dot" id="engine-dot"></span><div><b id="engine-title">引擎就绪</b><small id="engine-sub">mpv 0.42</small></div></div>
     <div class="side-meta"><span id="side-ver">v0.2.27 / LOCAL</span><button class="side-collapse txtbtn" id="side-collapse" title="收起导航" aria-label="收起导航"><span data-ic="chevronleft"></span><span class="btxt">收起</span></button></div>
   </div>
 </aside>

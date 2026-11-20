@@ -16,7 +16,7 @@ import { initFlow } from "./transfer";
 import { initAlarm, setAlarmViewActive } from "./alarm";
 import { initSettings } from "./settings";
 import { initMediaInfo } from "./mediainfo";
-import { api } from "./api";
+import { api, isWebMode } from "./api";
 import { SPEEDS } from "./constants";
 import { watchAddressInputs } from "./address";
 
@@ -193,7 +193,10 @@ api.appVersion().then((v) => {
   const tb = document.getElementById("tb-ver");
   if (tb) tb.textContent = `v${v}`;
   const sv = document.getElementById("side-ver");
-  if (sv) sv.textContent = `v${v} / LOCAL`;
+  if (sv) sv.textContent = `v${v} / ${isWebMode ? "WEB" : "LOCAL"}`;
+}).catch(() => {
+  const sv = document.getElementById("side-ver");
+  if (sv && isWebMode) sv.textContent = "WEB";
 });
 
 // ---- 路径行：单行省略 + 复制 / 打开 ----
@@ -504,22 +507,45 @@ document.getElementById("dg-upload")?.addEventListener("click", async () => {
 
 // ---- 页面初始化 ----
 initSettings();
-initPlayer();
+if (!isWebMode) {
+  initPlayer();
+  initXcode();
+  initEasytier();
+  initAI();
+}
 initAnalysis();
 initCompliance();
-initXcode();
 initBurst();
 initAvSync();
 initCapture();
-initAI();
 initFlow();
 initConsist();
 initAlarm();
 initMediaInfo();
-initEasytier();
 watchAddressInputs();
+
+if (isWebMode) {
+  document.body.classList.add("web-mode");
+  const sideWeb = document.getElementById("side-web");
+  if (sideWeb) sideWeb.hidden = false;
+  // Web 端依赖原生 mpv / 本地提权 / 本机文件对话框的功能不出现，避免点了才报错。
+  for (const page of ["player", "transcode", "easytier"]) {
+    document.querySelector(`#nav .mn[data-goto="${page}"]`)?.remove();
+  }
+  const upCheck = document.getElementById("up-check");
+  if (upCheck) (upCheck as HTMLElement).hidden = true;
+  const upInstall = document.getElementById("up-install");
+  if (upInstall) upInstall.hidden = true;
+  const upStatus = document.getElementById("up-status");
+  if (upStatus) upStatus.textContent = "Web 检测端不支持在线更新，请在桌面端升级";
+  const engineTitle = document.getElementById("engine-title");
+  if (engineTitle) engineTitle.textContent = "检测服务在线";
+  const engineSub = document.getElementById("engine-sub");
+  if (engineSub) engineSub.textContent = "Web API";
+}
+
 // 空态里的「选择 TS 文件」复用顶栏的浏览动作
 document.getElementById("a-empty-browse")?.addEventListener("click", () =>
   (document.getElementById("a-browse") as HTMLElement | null)?.click(),
 );
-goto("player");
+goto(isWebMode ? "analysis" : "player");

@@ -5,7 +5,7 @@
 //!   合规   → compliance.nic
 //! 抽屉不切换页面，改完立刻对新截图/录像/导出生效。
 
-import { api, NicRow } from "./api";
+import { api, isWebMode, NicRow, WebStatus } from "./api";
 import { icon } from "./icons";
 import { drawerHold } from "./drawer";
 import { setForceBridge } from "./flags";
@@ -18,6 +18,7 @@ export function initSettings() {
   wireAnalysisDrawer();
   wireComplianceDrawer();
   wireAvSyncDrawer();
+  wireGlobalDrawer();
 }
 
 // ═══════════════════ 抽屉骨架 ═══════════════════
@@ -159,11 +160,62 @@ function buildDrawers() {
       <button class="gradbtn" id="dr-v-save">保存</button>
       <button class="md-export" id="dr-v-reset">恢复默认</button>
     </div>
+  </aside>
+
+  <aside class="drawer" id="dr-global" hidden>
+    <div class="drhead"><b>设置</b><button class="iconbtn drx txtbtn" id="dr-g-x" title="关闭"></button></div>
+    <div class="drbody">
+      <div class="drsec">局域网访问</div>
+      <div class="setrow web-toggle-row">
+        <span class="k">访问开关</span>
+        <label class="web-switch">
+          <input type="checkbox" id="dr-g-on" />
+          <span class="web-switch-ui" aria-hidden="true"></span>
+          <span class="web-switch-t" id="dr-g-ontext">已关闭</span>
+        </label>
+      </div>
+      <div class="setrow">
+        <span class="k">端口</span>
+        <input id="dr-g-port" class="drnum" type="number" min="1024" max="65535" step="1" value="8766" />
+      </div>
+      <div class="drhint">
+        开启后，同一局域网内的电脑用浏览器访问下面的地址。播放器依赖桌面端 mpv 子窗口，Web 端只开放检测、控制与报告；直播转码和 EasyTier 也保留在桌面端。
+      </div>
+
+      <div class="web-access" id="dr-g-card">
+        <div class="web-access-head">
+          <span class="web-dot" id="dr-g-dot"></span>
+          <b id="dr-g-state">未开启</b>
+          <span class="web-code" id="dr-g-code" hidden>口令 <strong>--------</strong></span>
+        </div>
+        <div class="web-kv"><span>访问地址</span><code id="dr-g-url">—</code></div>
+        <div class="web-kv" id="dr-g-localrow" hidden><span>本机地址</span><code id="dr-g-local">—</code></div>
+        <div class="web-kv" id="dr-g-lanrow" hidden><span>局域网 IP</span><code id="dr-g-lan">—</code></div>
+        <div class="web-error" id="dr-g-error" hidden></div>
+      </div>
+
+      <div class="web-actions">
+        <button class="md-export" id="dr-g-copy" type="button">复制访问链接</button>
+        <button class="md-export" id="dr-g-open" type="button">本机打开</button>
+        <button class="md-export" id="dr-g-reset" type="button">重置口令</button>
+      </div>
+
+      <div class="setmsg" id="dr-g-msg"></div>
+
+      <div class="drsec">说明</div>
+      <div class="drhint">
+        本机访问（127.0.0.1）免口令；局域网访问需要 8 位访问码。访问码重置或关闭开关后，已登录浏览器立即失效。
+        请仅在可信局域网内开启，不要直接映射到公网。
+      </div>
+    </div>
+    <div class="drfoot">
+      <button class="gradbtn" id="dr-g-save">保存并应用</button>
+    </div>
   </aside>`;
   while (frag.firstElementChild) document.body.appendChild(frag.firstElementChild);
 
   // 关闭按钮与遮罩装配图标
-  for (const id of ["dr-p-x", "dr-a-x", "dr-k-x", "dr-v-x"]) $(id).innerHTML = `${icon("x", 14)}<span class="btxt">关闭</span>`;
+  for (const id of ["dr-p-x", "dr-a-x", "dr-k-x", "dr-v-x", "dr-g-x"]) $(id).innerHTML = `${icon("x", 14)}<span class="btxt">关闭</span>`;
   for (const id of ["dr-p-snapb", "dr-p-recb", "dr-a-reportb"]) $(id).innerHTML = `${icon("folder", 14)}<span class="btxt">选择</span>`;
   $("dr-mask").addEventListener("click", () => closeAll());
   window.addEventListener("keydown", (e) => {
@@ -186,8 +238,9 @@ function closeAll() {
   drawerHold("dr-analysis", false);
   drawerHold("dr-compliance", false);
   drawerHold("dr-avsync", false);
+  drawerHold("dr-global", false);
   $("dr-mask").hidden = true;
-  for (const id of ["dr-player", "dr-analysis", "dr-compliance", "dr-avsync"]) {
+  for (const id of ["dr-player", "dr-analysis", "dr-compliance", "dr-avsync", "dr-global"]) {
     const d = $(id);
     d.classList.remove("on");
     d.hidden = true;
@@ -522,4 +575,164 @@ function wireAvSyncDrawer() {
     fps.value = String(AV_DEFAULTS.fps);
     saveBtn.click();
   });
+}
+
+// ═══════════════════ 全局设置：局域网访问 ═══════════════════
+
+function wireGlobalDrawer() {
+  const on = $("dr-g-on") as HTMLInputElement;
+  const port = $("dr-g-port") as HTMLInputElement;
+  const saveBtn = $("dr-g-save") as HTMLButtonElement;
+  const msg = $("dr-g-msg") as HTMLElement;
+  const state = $("dr-g-state") as HTMLElement;
+  const dot = $("dr-g-dot") as HTMLElement;
+  const code = $("dr-g-code") as HTMLElement;
+  const url = $("dr-g-url") as HTMLElement;
+  const local = $("dr-g-local") as HTMLElement;
+  const lan = $("dr-g-lan") as HTMLElement;
+  const error = $("dr-g-error") as HTMLElement;
+  const copyBtn = $("dr-g-copy") as HTMLButtonElement;
+  const openBtn = $("dr-g-open") as HTMLButtonElement;
+  const resetBtn = $("dr-g-reset") as HTMLButtonElement;
+  let current: WebStatus | null = null;
+
+  const say = (t: string, kind: "" | "ok" | "err" = "") => {
+    msg.textContent = t;
+    msg.className = `setmsg${kind ? ` ${kind}` : ""}`;
+  };
+
+  const onText = (v: boolean) => {
+    $("dr-g-ontext").textContent = v ? "已开启" : "已关闭";
+    $("dr-g-ontext").className = `web-switch-t${v ? " is-on" : ""}`;
+  };
+
+  const render = (st: WebStatus) => {
+    current = st;
+    on.checked = st.running;
+    port.value = String(st.port);
+    onText(st.running);
+    state.textContent = st.running ? "正在提供 Web 访问" : "未开启";
+    dot.className = `web-dot${st.running ? " is-on" : ""}`;
+    $("dr-g-card").classList.toggle("is-on", st.running);
+    code.hidden = !st.running;
+    code.innerHTML = st.running ? `口令 <strong>${st.code}</strong>` : "";
+    url.textContent = st.running ? st.url : "—";
+    local.textContent = st.local_url;
+    local.parentElement!.hidden = !st.running;
+    lan.textContent = st.lan_ip ?? "未检测到局域网地址";
+    lan.parentElement!.hidden = !st.running || !st.lan_ip;
+    error.hidden = !st.error;
+    error.textContent = st.error ?? "";
+    copyBtn.disabled = !st.running;
+    openBtn.disabled = !st.running;
+    resetBtn.disabled = !st.running;
+    if (!st.running) code.hidden = true;
+  };
+
+  $("global-set").addEventListener("click", async () => {
+    open("dr-global");
+    if (isWebMode) {
+      on.disabled = true;
+      port.disabled = true;
+      saveBtn.disabled = true;
+      resetBtn.disabled = true;
+      openBtn.disabled = true;
+      copyBtn.disabled = true;
+      $("dr-g-ontext").textContent = "桌面端管理";
+      $("dr-g-state").textContent = "当前是 Web 检测端";
+      $("dr-g-card").classList.remove("is-on");
+      $("dr-g-url").textContent = window.location.origin;
+      say("局域网访问开关只能在桌面端修改。", "");
+      return;
+    }
+    say("读取状态…");
+    try {
+      const st = await api.webStatus();
+      render(st);
+      say("");
+    } catch (e) {
+      say(`读取失败：${e}`, "err");
+    }
+  });
+  $("dr-g-x").addEventListener("click", closeAll);
+  on.addEventListener("change", () => onText(on.checked));
+
+  saveBtn.addEventListener("click", async () => {
+    if (isWebMode) return;
+    const p = Number(port.value);
+    if (!Number.isFinite(p) || p < 1024 || p > 65535) {
+      say("端口范围应为 1024–65535", "err");
+      return;
+    }
+    saveBtn.disabled = true;
+    say(on.checked ? "正在开启…" : "正在关闭…");
+    try {
+      const st = await api.webApply(on.checked, Math.round(p));
+      render(st);
+      if (st.running) {
+        say(`已开启 · ${st.url} · 访问码 ${st.code}`, "ok");
+      } else if (st.error) {
+        say(st.error, "err");
+      } else {
+        say("已关闭局域网访问", "ok");
+      }
+    } catch (e) {
+      on.checked = !on.checked;
+      onText(on.checked);
+      say(String(e), "err");
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  resetBtn.addEventListener("click", async () => {
+    if (isWebMode) return;
+    resetBtn.disabled = true;
+    try {
+      const c = await api.webResetCode();
+      if (current) {
+        current.code = c;
+        current.login_url = current.login_url.replace(/code=[0-9]+/, `code=${c}`);
+      }
+      code.innerHTML = `口令 <strong>${c}</strong>`;
+      code.hidden = false;
+      say(`口令已重置为 ${c}，旧浏览器需重新登录`, "ok");
+    } catch (e) {
+      say(String(e), "err");
+    } finally {
+      resetBtn.disabled = false;
+    }
+  });
+
+  copyBtn.addEventListener("click", async () => {
+    if (!current?.running) return;
+    const ok = await copyText(current.login_url);
+    say(ok ? "访问链接已复制，可直接发给局域网同事" : "复制失败，请手动选中地址", ok ? "ok" : "err");
+  });
+
+  openBtn.addEventListener("click", async () => {
+    try {
+      await api.webOpen();
+      say("已在本机浏览器打开", "ok");
+    } catch (e) {
+      say(String(e), "err");
+    }
+  });
+}
+
+async function copyText(t: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(t);
+    return true;
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = t;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  }
 }

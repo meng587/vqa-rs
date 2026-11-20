@@ -525,6 +525,52 @@ table.dt tr:hover td { background: rgba(168, 121, 58, 0.05); }
 .setrow .drunit { flex: none; min-width: 30px; font-size: 11.5px; color: var(--faint); }
 .drfoot { display: flex; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--border); }
 
+/* ── 全局设置：局域网访问 ── */
+#dr-global{width:420px; max-width:calc(100vw - 36px)}
+.web-toggle-row{align-items:center}
+.web-switch{display:flex; align-items:center; gap:9px; cursor:pointer; user-select:none}
+.web-switch input{position:absolute; width:1px; height:1px; opacity:0; pointer-events:none}
+.web-switch-ui{
+  width:38px; height:21px; flex:none; border-radius:20px;
+  background:#d7cdbc; position:relative; transition:background .16s ease;
+  box-shadow:inset 0 1px 2px rgba(53,45,32,.12);
+}
+.web-switch-ui::after{
+  content:""; position:absolute; left:3px; top:3px; width:15px; height:15px;
+  border-radius:50%; background:#fffdf7; box-shadow:0 1px 3px rgba(39,32,22,.24);
+  transition:transform .16s ease;
+}
+.web-switch input:checked + .web-switch-ui{background:var(--bronze)}
+.web-switch input:checked + .web-switch-ui::after{transform:translateX(17px)}
+.web-switch input:focus-visible + .web-switch-ui{box-shadow:0 0 0 3px rgba(53,95,77,.14)}
+.web-switch-t{font:12px var(--sans); color:var(--faint); min-width:42px}
+.web-switch-t.is-on{color:var(--ok); font-weight:600}
+.web-access{
+  margin-top:12px; padding:11px 12px 10px;
+  border:1px solid var(--line2); border-radius:10px;
+  background:rgba(255,253,247,.66);
+  transition:border-color .16s ease, background .16s ease;
+}
+.web-access.is-on{border-color:rgba(53,95,77,.28); background:rgba(53,95,77,.045)}
+.web-access-head{display:flex; align-items:center; gap:7px; margin-bottom:9px; min-width:0}
+.web-access-head b{font:600 12px var(--sans); color:var(--ink); flex:1; min-width:0}
+.web-dot{width:7px; height:7px; flex:none; border-radius:50%; background:#b9ad9a}
+.web-dot.is-on{background:var(--ok); box-shadow:0 0 0 2px rgba(63,107,88,.12)}
+.web-code{flex:none; font:10px var(--sans); color:var(--faint); white-space:nowrap}
+.web-code strong{font:600 11px var(--mono); color:var(--copper); letter-spacing:.08em}
+.web-kv{display:flex; align-items:flex-start; gap:8px; padding:3px 0; min-width:0}
+.web-kv span{flex:0 0 54px; color:var(--faint); font:10.5px/1.6 var(--sans)}
+.web-kv code{flex:1; min-width:0; color:var(--mut); font:10.5px/1.6 var(--mono); word-break:break-all}
+.web-error{margin-top:7px; padding-top:7px; border-top:1px dashed rgba(163,61,50,.22); color:var(--bad); font:10.5px/1.6 var(--sans); word-break:break-all}
+.web-actions{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; margin-top:10px}
+.web-actions .md-export{padding:0 6px; height:32px; font-size:11px; justify-content:center}
+.web-actions .md-export:disabled{opacity:.45; cursor:not-allowed}
+.setrow .k{width:64px}
+#dr-global .setrow input{font-size:12.5px}
+#dr-global .drfoot .gradbtn{flex:1}
+#dr-global input:disabled{opacity:.55; cursor:not-allowed}
+#dr-global .drfoot .gradbtn:disabled{opacity:.45; cursor:not-allowed}
+
 /* ══════════ 媒体信息抽屉 ══════════ */
 .mi-hint{font-size:12px;color:var(--mut);line-height:1.75;padding:4px 0;}
 .mi-sec{margin:14px 0 6px;font-size:11.5px;color:var(--acc);letter-spacing:.02em;font-weight:600;}
@@ -1934,13 +1980,36 @@ body.side-collapsed{--side-w:64px}
 }
 .side-label span:first-child{color:var(--copper); letter-spacing:.16em}
 
+.side-web{
+  flex:none;
+  margin:8px 4px 0;
+  padding:6px 8px;
+  border:1px solid rgba(168,121,58,.22);
+  border-radius:7px;
+  background:rgba(217,180,106,.10);
+  color:var(--copper);
+  font:9.5px/1.45 var(--sans);
+  text-align:center;
+  letter-spacing:.02em;
+}
+
 nav#nav.sidenav{
   display:flex;
   flex-direction:column;
   gap:3px;
-  flex:none;
+  flex:1 1 auto;
+  min-height:0;
   margin-top:9px;
   min-width:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  scrollbar-width:thin;
+}
+.nav-sep{
+  flex:none;
+  height:1px;
+  margin:6px 8px;
+  background:rgba(168,121,58,.16);
 }
 .sidenav .mn{
   width:100%;
@@ -2073,6 +2142,7 @@ nav#nav.sidenav{
 body.side-collapsed .sidebar{padding:14px 8px 10px}
 body.side-collapsed .sidebar .btxt,
 body.side-collapsed .side-label,
+body.side-collapsed .side-web,
 body.side-collapsed .side-dings,
 body.side-collapsed .side-status,
 body.side-collapsed .side-meta > span{display:none}
