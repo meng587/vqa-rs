@@ -9,6 +9,9 @@ import { initXcode } from "./xcode";
 import { initBurst } from "./burst";
 import { initAvSync, leaveAvSync } from "./avsync";
 import { initConsist, leaveConsist, enterConsist } from "./consist";
+import { initEasytier, leaveEasytier, enterEasytier } from "./easytier";
+import { initCapture, leaveCapture, enterCapture } from "./capture";
+import { initAI } from "./ai";
 import { initFlow } from "./transfer";
 import { initAlarm, setAlarmViewActive } from "./alarm";
 import { initSettings } from "./settings";
@@ -28,7 +31,7 @@ document.querySelectorAll<HTMLElement>("[data-ic]").forEach((el) => {
 
 // ---- 侧栏路由 ----
 const pages = document.querySelectorAll<HTMLElement>(".pg");
-export type Page = "player" | "analysis" | "compliance" | "transcode" | "burst" | "avsync" | "consist" | "about";
+export type Page = "player" | "analysis" | "compliance" | "transcode" | "burst" | "avsync" | "capture" | "consist" | "easytier" | "about";
 type ConsistView = "compare" | "alarm";
 
 /** 页头文案：只做壳层，页面内保留唯一的主操作与参数入口。 */
@@ -39,7 +42,9 @@ const PAGE_CHROME: Record<Page, { kicker: string; title: string; sub: string; se
   transcode: { kicker: "LIVE TRANSCODE", title: "直播转码", sub: "输入 → 解码 → 转码 → 输出 全链路", seal: "转" },
   burst: { kicker: "BURST DETECT", title: "微突发检测", sub: "按设定时间窗检测瞬时拥塞", seal: "检" },
   avsync: { kicker: "A/V SYNC", title: "音画同步", sub: "音频包络与视频帧对齐，测量偏移", seal: "音" },
+  capture: { kicker: "STREAM CAPTURE", title: "抓包分析", sub: "UDP / RTP 业务流抓包 · pcap 与 TS 样本", seal: "包" },
   consist: { kicker: "CONSISTENCY", title: "一致性比对", sub: "同频道多来源双画面逐帧比对", seal: "鉴" },
+  easytier: { kicker: "VIRTUAL NETWORK", title: "EasyTier 组网", sub: "内置内核 / 虚拟局域网 / 跨网段联调", seal: "网" },
   about: { kicker: "ABOUT", title: "关于", sub: "版本 / 更新 / 诊断与工具链", seal: "关" },
 };
 
@@ -84,6 +89,8 @@ function goto(page: Page) {
     setAlarmViewActive(false);
     leaveConsist();
   }
+  if (prev === "easytier") leaveEasytier();
+  if (prev === "capture") leaveCapture();
   document.querySelectorAll<HTMLElement>("#nav .mn").forEach((b) => {
     b.classList.toggle("is-on", b.getAttribute("data-goto") === page);
   });
@@ -93,32 +100,17 @@ function goto(page: Page) {
   // 状态栏按页切换：播放器页显示指标与桥说明，其它页只显示页名
   document.body.dataset.page = page;
   if (page === "consist") showConsistView("compare");
+  if (page === "easytier") enterEasytier();
+  if (page === "capture") enterCapture();
   updatePageChrome(page);
   const sbTitle = document.getElementById("sb-title");
-  if (sbTitle) {
-    sbTitle.textContent =
-      page === "player"
-        ? "播放器"
-        : page === "analysis"
-          ? "视频分析"
-          : page === "compliance"
-            ? "合规检测"
-            : page === "transcode"
-              ? "直播转码"
-              : page === "burst"
-                ? "微突发检测"
-                : page === "avsync"
-                  ? "音画同步"
-                  : page === "consist"
-                    ? "一致性比对"
-                    : "关于";
-  }
+  if (sbTitle) sbTitle.textContent = PAGE_CHROME[page].title;
   (window as any).__currentPage = page;
   window.dispatchEvent(new CustomEvent("page-changed", { detail: page }));
 }
 
 /** nav 行状态灯：idle=熄 / running=绿闪 / error=红。 */
-export function setNavLamp(page: "player" | "analysis" | "compliance" | "transcode" | "burst" | "avsync" | "consist", state: "idle" | "running" | "error") {
+export function setNavLamp(page: "player" | "analysis" | "compliance" | "transcode" | "burst" | "avsync" | "capture" | "consist" | "easytier", state: "idle" | "running" | "error") {
   const lamp = document.getElementById(`lamp-${page}`);
   if (!lamp) return;
   lamp.className = `lamp${state === "running" ? " run" : state === "error" ? " err" : ""}`;
@@ -518,10 +510,13 @@ initCompliance();
 initXcode();
 initBurst();
 initAvSync();
+initCapture();
+initAI();
 initFlow();
 initConsist();
 initAlarm();
 initMediaInfo();
+initEasytier();
 watchAddressInputs();
 // 空态里的「选择 TS 文件」复用顶栏的浏览动作
 document.getElementById("a-empty-browse")?.addEventListener("click", () =>

@@ -80,7 +80,9 @@
     <button class="mn" data-goto="transcode" title="直播转码"><span class="mn-ic" data-ic="radiotower"></span><span class="mn-t">直播转码</span><span class="lamp" id="lamp-transcode"></span></button>
     <button class="mn" data-goto="burst" title="微突发检测"><span class="mn-ic" data-ic="gauge"></span><span class="mn-t">微突发检测</span><span class="lamp" id="lamp-burst"></span></button>
     <button class="mn" data-goto="avsync" title="音画同步"><span class="mn-ic" data-ic="audiolines"></span><span class="mn-t">音画同步</span><span class="lamp" id="lamp-avsync"></span></button>
+    <button class="mn" data-goto="capture" title="抓包分析"><span class="mn-ic" data-ic="scaneye"></span><span class="mn-t">抓包分析</span><span class="lamp" id="lamp-capture"></span></button>
     <button class="mn" data-goto="consist" title="一致性比对"><span class="mn-ic" data-ic="repeat"></span><span class="mn-t">一致性比对</span><span class="lamp" id="lamp-consist"></span></button>
+    <button class="mn" data-goto="easytier" title="EasyTier 组网"><span class="mn-ic" data-ic="network"></span><span class="mn-t">EasyTier 组网</span><span class="lamp" id="lamp-easytier"></span></button>
     <button class="mn" data-goto="about" title="关于"><span class="mn-ic" data-ic="info"></span><span class="mn-t">关于</span></button>
   </nav>
   <div class="side-bottom">
@@ -665,9 +667,104 @@
       </div>
     </section>
 
+    <!-- ══════════ 抓包分析页 ══════════ -->
+    <section class="pg cap-page" data-page="capture" hidden>
+      <div class="srcbar">
+        <span class="lbl lbl-src">来源</span>
+        <div class="srcbox">
+          <input class="src" id="c-url" data-role="url" placeholder="udp://@239.x.x.x:port 或 rtp://@host:port" spellcheck="false" autocomplete="off" />
+          <button class="iconbtn ghost histbtn txtbtn" id="c-hist" title="历史" type="button"><span data-ic="chevrondown"></span><span class="btxt">历史</span></button>
+          <div class="histpop" id="c-histpop" hidden></div>
+        </div>
+        <span class="lbl">网卡</span>
+        <select class="nic" id="c-nic" title="抓包绑定的本机网卡；组播建议选承载组播的内网口"></select>
+        <div class="vsep"></div>
+        <button class="gradbtn" id="c-act"><span data-ic="scanline"></span>开始抓包</button>
+        <div class="vsep"></div>
+        <div class="icogroup">
+          <button class="iconbtn ghost txtbtn tb-flow" id="c-flow" data-flow="capture" title="把当前抓包地址流转到其它模块" type="button"><span data-ic="route"></span><span class="btxt">流转</span></button>
+        </div>
+      </div>
+
+      <div class="cap-body">
+        <aside class="cap-side">
+          <div class="cap-card">
+            <div class="cap-state">
+              <i class="cap-dot" id="c-dot"></i>
+              <div class="cap-state-copy">
+                <b id="c-state">待机</b>
+                <span id="c-state-sub">填写 UDP / RTP 地址后开始抓包</span>
+              </div>
+              <span class="cap-timer" id="c-timer">00:00</span>
+            </div>
+            <div class="cap-meta">
+              <div><span>抓包地址</span><code id="c-live-url">—</code></div>
+              <div><span>绑定网卡</span><code id="c-live-nic">—</code></div>
+              <div><span>传输格式</span><code id="c-rtp">—</code></div>
+            </div>
+          </div>
+
+          <div class="cap-card">
+            <div class="cap-card-hd"><b>抓包产物</b><span>落到数据目录 captures</span></div>
+            <div class="cap-file">
+              <div class="cap-file-main"><span class="cap-kind">PCAP</span><b id="c-pcap-name">尚未生成</b></div>
+              <div class="cap-file-sub"><span id="c-pcap-size">0 B</span><button class="cap-mini" id="c-pcap-open" type="button" disabled>定位</button></div>
+            </div>
+            <div class="cap-file">
+              <div class="cap-file-main"><span class="cap-kind">TS</span><b id="c-ts-name">尚未生成</b></div>
+              <div class="cap-file-sub"><span id="c-ts-size">0 B</span><button class="cap-mini" id="c-ts-open" type="button" disabled>定位</button></div>
+            </div>
+            <div class="cap-samples">
+              <button class="cap-mini" id="c-ts-analysis" type="button" disabled>TS 送分析</button>
+              <button class="cap-mini" id="c-ts-player" type="button" disabled>TS 播放</button>
+            </div>
+            <div class="cap-dir">
+              <span id="c-outdir">—</span>
+              <button class="cap-mini" id="c-dir-open" type="button" disabled>打开目录</button>
+            </div>
+          </div>
+
+          <div class="cap-note" id="c-note">
+            只抓绑定的这一路 UDP/RTP 业务流，不做全网卡混杂抓包，因此无需 Npcap。pcap 保留原始 UDP 负载（含 RTP 头），可直接用外部 Wireshark 打开；TS 样本按 188 字节对齐，最多 64 MB。停止后可把样本直接送分析或播放。
+          </div>
+        </aside>
+
+        <div class="cap-main">
+          <div class="cap-error" id="c-err" hidden></div>
+          <div class="cap-kpis">
+            <div class="cap-kpi"><span>码率</span><b id="c-bitrate">—</b><em>Mbps</em></div>
+            <div class="cap-kpi"><span>抖动</span><b id="c-jitter">—</b><em>ms</em></div>
+            <div class="cap-kpi"><span>丢包率</span><b id="c-loss">—</b><em>%</em></div>
+            <div class="cap-kpi"><span>MDI-DF</span><b id="c-df">—</b><em>%</em></div>
+            <div class="cap-kpi"><span>MDI-MLR</span><b id="c-mlr">—</b><em>%</em></div>
+            <div class="cap-kpi"><span>已收数据报</span><b id="c-pkts">—</b><em>包</em></div>
+          </div>
+
+          <div class="cap-panel">
+            <div class="cap-panel-hd">
+              <div><b>最近数据报</b><span id="c-total">0 包</span></div>
+              <div class="cap-panel-tip">环形缓存最近 200 条，完整原始包在 pcap 中</div>
+            </div>
+            <div class="cap-tblwrap">
+              <table class="cap-table">
+                <thead>
+                  <tr><th>时间</th><th>来源</th><th>目的</th><th>长度</th><th>类型</th><th>摘要</th></tr>
+                </thead>
+                <tbody id="c-rows"></tbody>
+              </table>
+              <div class="cap-empty" id="c-empty">
+                <span data-ic="scaneye"></span>
+                <b>等待业务流</b>
+                <small>开始抓包后，这里按时间倒序列出最近收到的 UDP/RTP 数据报</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ══════════ 一致性比对页 ══════════ -->
-    <section class="pg cg-page" data-page="consist" hidden>
-      <div class="cg-top">
+    <section class="pg cg-page" data-page="consist" hidden>      <div class="cg-top">
         <div class="cg-tabs">
           <button class="cg-tab is-on" data-cgview="compare">一致性比对</button>
           <button class="cg-tab" data-cgview="alarm">告警处理<span class="cg-tab-badge" id="cg-alarmcount" hidden>0</span></button>
@@ -827,6 +924,105 @@
           <div class="al-mfoot"><button class="al-reset" id="al-set-reset">恢复默认</button><button class="al-ghost" id="al-set-cancel">取消</button><button class="al-grad" id="al-set-save">保存</button></div>
         </div>
       </div>
+      </div>
+    </section>
+
+    <!-- ══════════ EasyTier 组网页 ══════════ -->
+    <section class="pg et-page" data-page="easytier" hidden>
+      <div class="et-adminbar" id="et-adminbar" hidden>
+        <span class="et-adminic" data-ic="alert"></span>
+        <div><b>当前不是管理员权限</b><span>创建 TUN 虚拟网卡会失败；需要以管理员身份重启工作站，或仅使用 no-TUN 模式。</span></div>
+        <button class="et-adminbtn" id="et-elevate" type="button">以管理员身份重启</button>
+      </div>
+
+      <div class="et-body">
+        <aside class="et-side">
+          <div class="et-card et-config">
+            <div class="et-cardhd">
+              <div><b>组网参数</b><span>保存后下次启动沿用</span></div>
+              <span class="et-cfgflag" id="et-cfgflag">未修改</span>
+            </div>
+            <div class="et-form">
+              <label class="et-field et-full"><span>网络名称 <em>必填</em></span><input id="et-name" placeholder="例如：wuxian-vqa" spellcheck="false" autocomplete="off" /></label>
+              <label class="et-field et-full"><span>网络密钥 <em>必填</em></span><input id="et-secret" type="password" placeholder="同一虚拟网络的所有节点必须一致" spellcheck="false" autocomplete="off" /></label>
+              <div class="et-grid2">
+                <label class="et-field"><span>虚拟 IPv4</span><input id="et-ipv4" placeholder="10.144.144.2" spellcheck="false" autocomplete="off" /></label>
+                <label class="et-check et-checkbox"><input type="checkbox" id="et-dhcp" /><span class="et-box"></span><span>自动分配 IPv4</span></label>
+              </div>
+              <div class="et-grid2">
+                <label class="et-field"><span>主机名</span><input id="et-hostname" placeholder="例如：vqa-station-a" spellcheck="false" autocomplete="off" /></label>
+                <label class="et-field"><span>RPC 端口</span><input id="et-rpc" type="number" min="1024" max="65535" placeholder="15889" /></label>
+              </div>
+              <label class="et-field et-full"><span>对端节点 <small>每行一个</small></span><textarea id="et-peers" rows="2" placeholder="tcp://192.168.1.10:11010&#10;udp://10.0.0.2:11010" spellcheck="false"></textarea></label>
+              <label class="et-field et-full"><span>子网代理 <small>可选，每行一个</small></span><textarea id="et-proxy" rows="2" placeholder="192.168.3.0/24&#10;10.10.0.0/16" spellcheck="false"></textarea></label>
+              <label class="et-field et-full"><span>外部节点 <small>可选</small></span><input id="et-external" placeholder="tcp://public.easytier.cn:11010" spellcheck="false" autocomplete="off" /></label>
+              <div class="et-adv">
+                <div class="et-advhd">高级选项</div>
+                <label class="et-check"><input type="checkbox" id="et-nolisten" /><span class="et-box"></span><span>不监听入站端口</span></label>
+                <label class="et-check"><input type="checkbox" id="et-notun" /><span class="et-box"></span><span>no-TUN 模式（不创建虚拟网卡）</span></label>
+              </div>
+            </div>
+            <div class="et-cfgfoot">
+              <span id="et-savehint">参数只保存在本机</span>
+              <button class="et-savebtn" id="et-save" type="button">保存参数</button>
+            </div>
+          </div>
+        </aside>
+
+        <div class="et-main">
+          <div class="et-mainhd">
+            <div class="et-maincopy">
+              <span class="et-kicker">EASYTIER / VIRTUAL NETWORK</span>
+              <div><b>运行控制</b><span class="et-ver" id="et-ver">2.6.4</span><span>启动后实时显示节点状态与日志</span></div>
+            </div>
+            <div class="et-acts">
+              <span class="et-pill" id="et-pill"><i></i><span id="et-pilltext">未启动</span></span>
+              <span class="et-mode" id="et-mode">权限…</span>
+              <button class="iconbtn ghost txtbtn" id="et-refresh" type="button" title="刷新状态"><span data-ic="repeat"></span><span class="btxt">刷新</span></button>
+              <button class="gradbtn" id="et-start" type="button"><span data-ic="play"></span>启动组网</button>
+              <button class="iconbtn ghost txtbtn" id="et-stop" type="button" hidden><span data-ic="square"></span><span class="btxt">停止</span></button>
+            </div>
+          </div>
+          <div class="et-status" id="et-status">
+            <div class="et-statusmain">
+              <span class="et-orb" id="et-orb"></span>
+              <div class="et-statustext">
+                <b id="et-statebig">未启动</b>
+                <span id="et-statesub">填写网络名称与密钥后启动</span>
+              </div>
+            </div>
+            <div class="et-kpis">
+              <div><span>虚拟 IP</span><b id="et-k-ip">—</b></div>
+              <div><span>节点 ID</span><b id="et-k-id">—</b></div>
+              <div><span>公网地址</span><b id="et-k-pub">—</b></div>
+              <div><span>运行时长</span><b id="et-k-up">—</b></div>
+            </div>
+          </div>
+          <div class="et-error" id="et-error" hidden></div>
+
+          <div class="et-lower">
+            <div class="et-panel et-peers">
+              <div class="et-panelhd">
+                <div><b>对等节点</b><span id="et-peer-count">0 个连接</span></div>
+                <button class="et-minibtn" id="et-peer-refresh" type="button">刷新</button>
+              </div>
+              <div class="et-tablewrap">
+                <table class="et-table">
+                  <thead><tr><th>地址</th><th>主机</th><th>延迟</th><th>丢包</th><th>路径</th><th>NAT</th></tr></thead>
+                  <tbody id="et-peers-body"><tr class="et-empty"><td colspan="6">启动后显示已连接的 EasyTier 节点</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="et-panel et-logs">
+              <div class="et-panelhd">
+                <div><b>内核日志</b><span>实时输出</span></div>
+                <button class="et-minibtn" id="et-copy" type="button">复制</button>
+              </div>
+              <pre class="et-log" id="et-log">等待启动 EasyTier 内核…</pre>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 

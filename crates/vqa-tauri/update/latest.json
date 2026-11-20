@@ -1,11 +1,11 @@
 {
-  "version": "0.2.50",
-  "notes": "新增来源地址“流转”：播放器、视频分析、合规检测、直播转码、微突发、音画同步的当前来源，可单选/多选流转到其它模块并直接启动；运行中的目标只填地址，不打断原任务。播放器、视频分析、合规检测增加频道快选列表；轮询播放/扫描/检测支持设置每路时长，轮询结束后可汇总导出 Markdown/HTML/Word；来源栏统一为篆体“来源”+原输入框。",
-  "pub_date": "2026-11-19T17:16:14Z",
-  "platforms": {
-    "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXV5bmNwT0FjZmdkeFVBelhBQ1ZNZm9lV1ZBRGphYVd6MjgwL3kyM2RQeXpNd3BhYUFzUjRIMnozQVJjc3ZxTDVqNzJwdnphdVl2bnFqQXU1azZIWEE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MTA4NTc0CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi41MF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjUwCnRtSzRKTFBlRG00ZXp4dlp0MFFpbFRTYlVVVmMwZkhqeXFram05Rit2VU1Qam5LeUNRSDY0SmV1TUJzcnlGazE3d1VVZHN0cXFtbDhLYWxiYWN3dERBPT0K",
-      "url": "https://github.com/meng587/vqa-rs/releases/download/v0.2.50/vqa-workbench-0.2.50-setup.exe"
-    }
-  }
+    "version":  "0.2.51",
+    "notes":  "新增 AI 检测助手：用自然语言编排抓包、TS 分析、合规检测、微突发、音画同步、播放器抽检与 Markdown/HTML 报告；支持规则/本机/云端三种模式，模型文件由用户自行导入，应用只提示升级，不自动下载。新增抓包分析页：UDP/RTP 单路收流、pcap/TS 样本、MDI/丢包/抖动统计，并支持送分析/播放。新增 EasyTier 组网页与内置内核；保留来源流转、频道快选与轮询汇总。",
+    "pub_date":  "2026-11-20T00:46:09Z",
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW40MnN0VEUzdndvQ0k4a1lhcFpHUE9XVlpGdUdxUGduay9lOTRBeVphYTFrU0Vrd2hxQWxnODRkeFBIM3ZtVkpnVWp0K0lxRTcyMUY4c1lwc09xR0FjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MTM1NTY4CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi41MV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjUxCnBpZk04b3d4VTNibUVMYzJBTEZURFJ4SzlVMFFBR3VFM280bkc2cnFzWS9wekQ1eVFqNHAvVXViVkhCNnNqYzcxVHMvMTNYbGp1Yy9ic1VOa09BV0JnPT0K",
+                                             "url":  "https://github.com/meng587/vqa-rs/releases/download/v0.2.51/vqa-workbench-0.2.51-setup.exe"
+                                         }
+                  }
 }

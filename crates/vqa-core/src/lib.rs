@@ -20,6 +20,7 @@ pub mod avsync;
 pub mod bridge;
 pub mod bridge_par;
 pub mod burst;
+pub mod capture;
 pub mod compliance;
 pub mod consist;
 pub mod config;

@@ -85,6 +85,33 @@ export interface AnalysisSettings {
   report_note: string;
 }
 
+export interface EasytierConfig {
+  network_name: string;
+  network_secret: string;
+  ipv4: string;
+  dhcp: boolean;
+  peers: string[];
+  proxy_networks: string[];
+  external_node: string;
+  hostname: string;
+  rpc_port: number;
+  no_listener: boolean;
+  no_tun: boolean;
+}
+
+export interface EasytierStatus {
+  running: boolean;
+  admin: boolean;
+  version: string;
+  config: EasytierConfig;
+  uptime_secs: number;
+  pid: number | null;
+  node: any | null;
+  peers: any[];
+  log: string;
+  error: string | null;
+}
+
 export interface ScanProg {
   mode: number; // 0 待机 1 扫描中 2 实时中
   done: number;
@@ -137,6 +164,71 @@ export interface ProgRow {
   streams: string[];
 }
 
+// ── AI 编排与模型管理 ──
+
+export interface AiProviderCfg {
+  base_url: string;
+  model: string;
+  timeout_secs: number;
+}
+
+export interface AiConfig {
+  mode: "rule" | "local" | "cloud" | string;
+  local: AiProviderCfg;
+  cloud: AiProviderCfg;
+  models_index_url: string;
+  auto_check: boolean;
+}
+
+export interface AiStep {
+  id: string;
+  tool: string;
+  title: string;
+  args: Record<string, any>;
+  depends_on: string[];
+}
+
+export interface AiPlan {
+  goal: string;
+  summary: string;
+  source: string;
+  nic_ip: string;
+  provider: string;
+  steps: AiStep[];
+  warnings: string[];
+}
+
+export interface AiModelInfo {
+  id: string;
+  name: string;
+  path: string;
+  bytes: number;
+  sha256: string;
+  version: string;
+  imported_at: string;
+  source: string;
+  present: boolean;
+}
+
+export interface AiModelCheckItem {
+  id: string;
+  name: string;
+  version: string;
+  size: number;
+  sha256: string;
+  url: string;
+  notes: string;
+  installed: boolean;
+  installed_version: string;
+  update_available: boolean;
+}
+
+export interface AiModelCheck {
+  index_url: string;
+  checked_at: string;
+  models: AiModelCheckItem[];
+}
+
 export const api = {
   // 通用
   appVersion: () => invoke<string>("app_version"),
@@ -163,6 +255,29 @@ export const api = {
     }>("app_paths"),
   /** 在资源管理器里打开目录 / 定位文件 */
   reveal: (path: string) => invoke<void>("reveal_path", { path }),
+  // 抓包分析（UDP/RTP 业务流，不依赖 Npcap）
+  captureStart: (url: string, nicIp: string) =>
+    invoke<CaptureSnapshot>("capture_start", { url, nicIp }),
+  captureStop: () => invoke<CaptureSnapshot | null>("capture_stop"),
+  captureStatus: () => invoke<CaptureSnapshot | null>("capture_status"),
+  // AI 编排（只走 API，不操作页面）
+  aiConfigGet: () => invoke<AiConfig>("ai_config_get"),
+  aiConfigSet: (cfg: AiConfig) => invoke<AiConfig>("ai_config_set", { cfg }),
+  aiPlan: (goal: string, source: string, nicIp: string, apiKey?: string) =>
+    invoke<AiPlan>("ai_plan", { goal, source, nicIp, apiKey: apiKey ?? null }),
+  aiTest: (mode: string, baseUrl: string, model: string, apiKey?: string) =>
+    invoke<{ ok: boolean; provider: string; model?: string; latency_ms?: number; reply?: string; error?: string; message?: string }>(
+      "ai_test",
+      { mode, baseUrl, model, apiKey: apiKey ?? null },
+    ),
+  aiTools: () => invoke<any[]>("ai_tools"),
+  aiModelList: () => invoke<AiModelInfo[]>("ai_model_list"),
+  aiModelCheck: (indexUrl?: string) =>
+    invoke<AiModelCheck>("ai_model_check", { indexUrl: indexUrl ?? null }),
+  aiModelImport: () => invoke<AiModelInfo>("ai_model_import"),
+  aiModelRemove: (id: string) => invoke<void>("ai_model_remove", { id }),
+  aiReportExport: (name: string, content: string, ext: string) =>
+    invoke<string>("ai_report_export", { name, content, ext }),
   // 播放器
   play: (url: string, nicIp: string, forceBridge: boolean) =>
     invoke<void>("player_play", { url, nicIp, forceBridge }),
@@ -228,6 +343,14 @@ export const api = {
   analysisSettings: () => invoke<AnalysisSettings>("analysis_settings_get"),
   setAnalysisSettings: (reportDir: string) =>
     invoke<AnalysisSettings>("analysis_settings_set", { reportDir }),
+  // EasyTier 组网（随包内置 core/cli）
+  easytierConfigGet: () => invoke<EasytierConfig>("easytier_config_get"),
+  easytierConfigSave: (cfg: EasytierConfig) =>
+    invoke<void>("easytier_config_save", { cfg }),
+  easytierStart: (cfg: EasytierConfig) => invoke<void>("easytier_start", { cfg }),
+  easytierStop: () => invoke<void>("easytier_stop"),
+  easytierStatus: () => invoke<EasytierStatus>("easytier_status"),
+  easytierRestartElevated: () => invoke<void>("easytier_restart_elevated"),
   // 媒体信息（ffprobe 全量）
   mediaInfo: (path: string) => invoke<MediaInfo>("media_info", { path }),
   // 合规检测（依据 广电办发〔2024〕253 号）
@@ -541,6 +664,31 @@ export interface CNet {
   mlr_good_pct: number;
   rtp: boolean;
   packets: number;
+}
+
+/** 抓包页最近数据报 */
+export interface CapturePacket {
+  ts_ms: number;
+  src: string;
+  dst: string;
+  len: number;
+  kind: string;
+  summary: string;
+}
+
+export interface CaptureSnapshot {
+  running: boolean;
+  url: string;
+  nic_ip: string;
+  out_dir: string;
+  pcap_path: string;
+  ts_path: string;
+  pcap_bytes: number;
+  ts_bytes: number;
+  started_secs: number;
+  net: CNet;
+  packets: CapturePacket[];
+  error: string | null;
 }
 
 /** 检测依据条目（253 号文"三、检测依据"原文） */

@@ -2,7 +2,7 @@
 //! 目标模块只负责“接收地址 + 按自己的当前设置启动”，流转层不直接操作各模块的启停按钮，
 //! 避免把正在运行的目标误点成停止。
 
-export type FlowModule = "player" | "analysis" | "compliance" | "transcode" | "burst" | "avsync";
+export type FlowModule = "player" | "analysis" | "compliance" | "transcode" | "burst" | "avsync" | "capture";
 
 export interface FlowOutcome {
   state: "started" | "filled" | "failed";
@@ -29,6 +29,7 @@ const SOURCE_INPUTS: Record<FlowModule, string> = {
   transcode: "x-in",
   burst: "b-url",
   avsync: "av-src",
+  capture: "c-url",
 };
 
 const TARGETS: FlowTargetMeta[] = [

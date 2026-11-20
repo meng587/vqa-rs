@@ -54,7 +54,12 @@
       "../../bin/swresample-6.dll": "bin/swresample-6.dll",
       "../../bin/swscale-9.dll": "bin/swscale-9.dll",
       "../../bin/vkit_davs2.exe": "bin/vkit_davs2.exe",
-      "../../bin/diag_secret.json": "bin/diag_secret.json"
+      "../../bin/diag_secret.json": "bin/diag_secret.json",
+      "../../bin/easytier/easytier-core.exe": "bin/easytier-core.exe",
+      "../../bin/easytier/easytier-cli.exe": "bin/easytier-cli.exe",
+      "../../bin/easytier/wintun.dll": "bin/wintun.dll",
+      "../../bin/easytier/Packet.dll": "bin/Packet.dll",
+      "../../bin/easytier/WinDivert64.sys": "bin/WinDivert64.sys"
     }
   }
 }

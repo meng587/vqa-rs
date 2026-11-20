@@ -9,10 +9,13 @@
 #![windows_subsystem = "windows"]
 
 mod commands;
+mod ai_cmds;
 mod alarm_cmds;
 mod burst_cmds;
+mod capture_cmds;
 mod compliance_cmds;
 mod diag;
+mod easytier_cmds;
 mod events;
 mod mediainfo;
 mod mpv_host;
@@ -137,6 +140,8 @@ fn main() {
         .manage(state::BurstState::new())
             .manage(state::AvState::new())
             .manage(state::ConsistState::new())
+            .manage(capture_cmds::CaptureState::new())
+            .manage(easytier_cmds::EasytierState::new())
             .manage(preview::Preview::new())
         .setup(|app| {
             // 视频子窗：父 = 主窗口 HWND（WebView2 的同父兄弟，后建者 z 序在上）
@@ -227,6 +232,28 @@ fn main() {
             sync_cmds::consist_start,
             sync_cmds::consist_progress,
             sync_cmds::consist_stop,
+            // 抓包分析
+            capture_cmds::capture_start,
+            capture_cmds::capture_stop,
+            capture_cmds::capture_status,
+            // AI 编排与模型管理
+            ai_cmds::ai_config_get,
+            ai_cmds::ai_config_set,
+            ai_cmds::ai_plan,
+            ai_cmds::ai_test,
+            ai_cmds::ai_tools,
+            ai_cmds::ai_model_list,
+            ai_cmds::ai_model_check,
+            ai_cmds::ai_model_import,
+            ai_cmds::ai_model_remove,
+            ai_cmds::ai_report_export,
+            // EasyTier 组网
+            easytier_cmds::easytier_config_get,
+            easytier_cmds::easytier_config_save,
+            easytier_cmds::easytier_start,
+            easytier_cmds::easytier_stop,
+            easytier_cmds::easytier_status,
+            easytier_cmds::easytier_restart_elevated,
             sync_cmds::channels_get,
             sync_cmds::channels_save,
             sync_cmds::ui_pref_get,
@@ -277,4 +304,16 @@ fn shutdown(app: &tauri::AppHandle) {
         l.stop();
     }
     drop(ast);
+    // 抓包线程退出前先把会话停掉，保证 pcap/TS 都 flush 到磁盘。
+    let cst = app.state::<capture_cmds::CaptureState>();
+    if let Some(mut s) = cst.session.lock().unwrap().take() {
+        s.stop();
+    }
+    drop(cst);
+    // EasyTier 内核随工作站退出而停止，避免留下孤儿进程持续占用 TUN/RPC。
+    let est = app.state::<easytier_cmds::EasytierState>();
+    if let Some(mut c) = est.child.lock().unwrap().take() {
+        let _ = c.kill();
+        let _ = c.wait();
+    };
 }
