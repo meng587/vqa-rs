@@ -6979,7 +6979,7 @@ dependencies = [
 
 [[package]]
 name = "vqa-tauri"
-version = "0.2.52"
+version = "0.2.53"
 dependencies = [
  "axum",
  "base64 0.22.1",
