@@ -38,17 +38,24 @@ export function initChannelPicker(opts: PickerOptions): ChannelBoard | null {
 
   const setCollapsed = (on: boolean, persist = true) => {
     body?.classList.toggle("is-ch-collapsed", on);
-    rail?.setAttribute("aria-expanded", String(!on));
+    if (rail) {
+      rail.setAttribute("aria-expanded", String(!on));
+      rail.setAttribute("aria-label", on ? "展开频道列表" : "收起频道列表");
+      rail.title = on ? "展开频道列表" : "收起频道列表";
+    }
     if (persist) api.uiSet(opts.collapsedKey, on).catch(() => {});
     window.setTimeout(() => window.dispatchEvent(new Event("resize")), 30);
   };
 
+  // 频道列表默认收起；只有用户主动展开过才记住展开状态。
+  setCollapsed(true, false);
+
   const loadCollapsed = async () => {
     try {
       const value = await api.uiGet(opts.collapsedKey);
-      setCollapsed(!!value, false);
+      setCollapsed(value === null || value === undefined ? true : !!value, false);
     } catch {
-      /* 默认展开 */
+      setCollapsed(true, false);
     }
   };
 

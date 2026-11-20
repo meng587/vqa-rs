@@ -13,7 +13,7 @@ let prevTimer = 0;
 let prevKey = "";
 let lastName = "";
 let lastResult: AvSyncResult | null = null;
-let chCollapsed = false;
+let chCollapsed = true;
 const AV_CH_COLLAPSED_KEY = "avsync.ch.collapsed";
 
 function setChannelCollapsed(on: boolean, persist = true) {
@@ -21,7 +21,11 @@ function setChannelCollapsed(on: boolean, persist = true) {
   const body = document.getElementById("av-body");
   const rail = document.getElementById("av-ch-rail") as HTMLButtonElement | null;
   body?.classList.toggle("is-ch-collapsed", on);
-  if (rail) rail.setAttribute("aria-expanded", String(!on));
+  if (rail) {
+    rail.setAttribute("aria-expanded", String(!on));
+    rail.setAttribute("aria-label", on ? "展开频道列表" : "收起频道列表");
+    rail.title = on ? "展开频道列表" : "收起频道列表";
+  }
   if (persist) api.uiSet(AV_CH_COLLAPSED_KEY, on).catch(() => {});
   window.setTimeout(() => drawCurve(lastResult), 30);
 }
@@ -29,9 +33,9 @@ function setChannelCollapsed(on: boolean, persist = true) {
 async function loadChannelCollapsed() {
   try {
     const v = await api.uiGet(AV_CH_COLLAPSED_KEY);
-    setChannelCollapsed(!!v, false);
+    setChannelCollapsed(v === null || v === undefined ? true : !!v, false);
   } catch {
-    /* 默认展开 */
+    setChannelCollapsed(true, false);
   }
 }
 
@@ -358,6 +362,7 @@ export function initAvSync() {
 
   const host = $<HTMLElement>("av-chboard");
   if (host) {
+    setChannelCollapsed(true, false);
     board = new ChannelBoard(host, {
       owner: "av",
       title: "频道列表",

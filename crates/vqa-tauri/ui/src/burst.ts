@@ -69,7 +69,7 @@ let pollPos = 0;
 let pollStartedAt = 0;
 let snapshotTimer: number | null = null;
 let modalOpen = false;
-let collapsed = false;
+let collapsed = true;
 const rowMeta = new Map<string, RowMeta>();
 
 function esc(s: string): string {
@@ -423,7 +423,11 @@ function setChannelCollapsed(on: boolean, persist = true) {
   const body = $<HTMLElement>("b-body");
   const rail = $<HTMLButtonElement>("b-ch-rail");
   body?.classList.toggle("is-ch-collapsed", on);
-  if (rail) rail.setAttribute("aria-expanded", String(!on));
+  if (rail) {
+    rail.setAttribute("aria-expanded", String(!on));
+    rail.setAttribute("aria-label", on ? "展开频道列表" : "收起频道列表");
+    rail.title = on ? "展开频道列表" : "收起频道列表";
+  }
   if (persist) api.uiSet(COLLAPSED_KEY, on).catch(() => {});
   window.setTimeout(() => drawSpark(snapshot), 30);
 }
@@ -846,7 +850,7 @@ export function initBurst() {
   });
 
   bindModal();
-  setChannelCollapsed(false, false);
+  setChannelCollapsed(true, false);
 
   renderKpi(EMPTY);
   renderSummary(EMPTY);
@@ -858,9 +862,9 @@ export function initBurst() {
     await Promise.all([loadNics(), loadSettings(), loadBurstChannels()]);
     try {
       const v = await api.uiGet(COLLAPSED_KEY);
-      setChannelCollapsed(!!v, false);
+      setChannelCollapsed(v === null || v === undefined ? true : !!v, false);
     } catch {
-      /* 默认展开 */
+      /* 默认收起 */
     }
   })();
 
