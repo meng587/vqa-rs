@@ -11,6 +11,7 @@ import {
   ChannelBoard,
   RowState,
 } from "./channels";
+import { wireSourceHistory } from "./source-history";
 import { registerFlowTarget } from "./transfer";
 
 const $ = <T extends HTMLElement>(id: string): T | null =>
@@ -145,14 +146,6 @@ function spanLabel(ms: number): string {
     return `${s >= 10 ? s.toFixed(0) : s.toFixed(1)}s`;
   }
   return `${Math.round(ms)}ms`;
-}
-
-function updateCurrentLabel() {
-  const el = $<HTMLElement>("b-current-name");
-  const box = $<HTMLElement>("b-current");
-  const ch = channels.find((c) => c.url === activeUrl);
-  if (el) el.textContent = ch ? ch.name || "未命名频道" : activeUrl ? "手动来源" : "未选择";
-  box?.classList.toggle("on", !!activeUrl);
 }
 
 function updateCfgChips() {
@@ -400,7 +393,6 @@ function renderAll(s: BurstStats) {
   renderKpi(s);
   drawSpark(s);
   renderSummary(s);
-  updateCurrentLabel();
 }
 
 function getRowMeta(url: string): RowMeta {
@@ -445,7 +437,6 @@ async function loadBurstChannels() {
     }
   }
   board.selectByUrl(activeUrl);
-  updateCurrentLabel();
   syncLockUi();
 }
 
@@ -639,12 +630,12 @@ async function startContinuous() {
   }
   activeUrl = url;
   board?.selectByUrl(url);
-  updateCurrentLabel();
   starting = true;
   syncLockUi();
   setStatus("running", url.startsWith("udp://") || url.startsWith("rtp://") ? "绑定端口…" : "启动本地文件回放…");
   try {
     const s = await api.burstStart(url, settings.nic, settings.ratio, settings.window_ms);
+    await api.pushSourceHistory("burst", url).catch(() => undefined);
     starting = false;
     running = true;
     snapshot = s;
@@ -724,6 +715,7 @@ async function pollSelected(list: Channel[]) {
 
     try {
       await api.burstStart(ch.url, settings.nic, settings.ratio, settings.window_ms);
+      await api.pushSourceHistory("burst", ch.url).catch(() => undefined);
       running = true;
       pollStartedAt = Date.now();
       snapshot = { ...EMPTY, url: ch.url, window_ms: settings.window_ms };
@@ -787,6 +779,13 @@ function bindModal() {
 }
 
 export function initBurst() {
+  const histInput = $<HTMLInputElement>("b-url");
+  const histBtn = $<HTMLButtonElement>("b-hist");
+  const histPop = $<HTMLElement>("b-histpop");
+  if (histInput && histBtn && histPop) {
+    wireSourceHistory({ input: histInput, button: histBtn, pop: histPop, key: "burst" });
+  }
+
   const host = $<HTMLElement>("b-chboard");
   if (host) {
     board = new ChannelBoard(host, {
@@ -808,7 +807,6 @@ export function initBurst() {
         activeUrl = ch.url;
         const input = $<HTMLInputElement>("b-url");
         if (input) input.value = ch.url;
-        updateCurrentLabel();
         syncLockUi();
       },
       onDetect: (ch) => {
@@ -816,7 +814,6 @@ export function initBurst() {
         activeUrl = ch.url;
         const input = $<HTMLInputElement>("b-url");
         if (input) input.value = ch.url;
-        updateCurrentLabel();
         void startContinuous();
       },
       onPoll: (list) => {
@@ -834,8 +831,8 @@ export function initBurst() {
     if (input) input.value = path;
     activeUrl = path;
     board?.selectByUrl(path);
-    updateCurrentLabel();
     syncLockUi();
+    api.pushSourceHistory("burst", path).catch(() => undefined);
   });
   $<HTMLButtonElement>("b-stop")?.addEventListener("click", () => void stopSession());
   $<HTMLButtonElement>("b-settings")?.addEventListener("click", openSettings);
@@ -846,7 +843,6 @@ export function initBurst() {
   $<HTMLInputElement>("b-url")?.addEventListener("input", () => {
     activeUrl = currentUrl();
     board?.selectByUrl(activeUrl);
-    updateCurrentLabel();
     syncLockUi();
   });
 

@@ -3,6 +3,7 @@
 import { api, AvSyncResult, Channel } from "./api";
 import { ChannelBoard, RunOutcome } from "./channels";
 import { icon } from "./icons";
+import { wireSourceHistory } from "./source-history";
 import { registerFlowTarget } from "./transfer";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
@@ -211,6 +212,7 @@ async function runOnce(src: string, job = "main", focus = true): Promise<AvSyncR
       { source: src, secs, search_ms: search, fps: p.fps, nic_ip: p.nic },
       job,
     );
+    await api.pushSourceHistory("avsync", src).catch(() => undefined);
   } catch (e: any) {
     st("error", String(e));
     return null;
@@ -346,12 +348,22 @@ async function loadPrefs() {
 }
 
 export function initAvSync() {
+  const histInput = $<HTMLInputElement>("av-src");
+  const histBtn = $<HTMLButtonElement>("av-hist");
+  const histPop = $<HTMLElement>("av-histpop");
+  if (histInput && histBtn && histPop) {
+    wireSourceHistory({ input: histInput, button: histBtn, pop: histPop, key: "avsync" });
+  }
+
   const b = $<HTMLButtonElement>("av-browse");
   if (b) {
     b.innerHTML = `${icon("folder", 15)}<span class="btxt">浏览</span>`;
     b.addEventListener("click", async () => {
       const p = await api.browse();
-      if (p && $<HTMLInputElement>("av-src")) $<HTMLInputElement>("av-src")!.value = p;
+      if (p && $<HTMLInputElement>("av-src")) {
+        $<HTMLInputElement>("av-src")!.value = p;
+        api.pushSourceHistory("avsync", p).catch(() => undefined);
+      }
     });
   }
   $<HTMLButtonElement>("av-act")?.addEventListener("click", startManual);
