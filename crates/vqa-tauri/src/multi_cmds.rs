@@ -309,17 +309,24 @@ fn retire(mpvs: Vec<std::sync::Arc<Mpv>>) {
 
 /// 对齐每一格的视频子窗。前端每帧/窗口尺寸变化时调用。
 ///
-/// 先把所有子窗移出屏幕，再按本次传入的矩形放回可见格——这样前端切到放大页、
-/// 退出同看、换宫格数量时不会留下上一次的残影窗口。
+/// 只移动本次快照里出现过的格；没出现在 `rects` 里的格才移出屏幕。不要在每次
+/// 调用前把所有子窗统一移出屏幕再放回：`tick` 每 500ms 会调一次，那样四个
+/// 正在播放的 mpv 子窗会周期性隐藏/显示，表现为画面一闪一闪。
 #[tauri::command]
 pub fn multi_place(ms: State<'_, MultiState>, rects: Vec<MultiRect>) {
     let mut slots = ms.slots.lock().unwrap_or_else(|e| e.into_inner());
-    for s in slots.iter_mut() {
-        s.child.place(-20000, -20000, 1, 1, false);
-    }
+    let mut supplied = vec![false; slots.len()];
     for r in rects {
         if let Some(s) = slots.get_mut(r.slot) {
+            if let Some(flag) = supplied.get_mut(r.slot) {
+                *flag = true;
+            }
             s.child.place(r.x, r.y, r.w, r.h, r.visible);
+        }
+    }
+    for (i, s) in slots.iter_mut().enumerate() {
+        if !supplied.get(i).copied().unwrap_or(false) {
+            s.child.place(-20000, -20000, 1, 1, false);
         }
     }
 }
