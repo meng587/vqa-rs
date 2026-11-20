@@ -25,7 +25,7 @@ pub fn avsync_start(st: State<'_, AvState>, cfg: AvSyncCfg, job: Option<String>)
     let (tx, rx) = std::sync::mpsc::channel::<AvSyncResult>();
     {
         // 占用检查与置位必须成对完成，否则并发起任务时会一起冲破并发上限
-        let _gate = st.gate.lock().unwrap();
+        let _gate = st.gate.lock().unwrap_or_else(|e| e.into_inner());
         if j.running.load(Ordering::Relaxed) {
             return Err("该任务已在运行".into());
         }
@@ -35,9 +35,9 @@ pub fn avsync_start(st: State<'_, AvState>, cfg: AvSyncCfg, job: Option<String>)
         j.cancel.store(false, Ordering::Relaxed);
         j.pct.store(1, Ordering::Relaxed);
         j.running.store(true, Ordering::Relaxed);
-        *j.rx.lock().unwrap() = Some(rx);
-        *j.err.lock().unwrap() = None;
-        *j.last.lock().unwrap() = None;
+        *j.rx.lock().unwrap_or_else(|e| e.into_inner()) = Some(rx);
+        *j.err.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        *j.last.lock().unwrap_or_else(|e| e.into_inner()) = None;
     }
 
     let pct = j.pct.clone();
@@ -54,7 +54,7 @@ pub fn avsync_start(st: State<'_, AvState>, cfg: AvSyncCfg, job: Option<String>)
                 let _ = tx.send(r);
             }
             Err(_) => {
-                *errh.lock().unwrap() = Some("分析线程异常退出，请重试".into());
+                *errh.lock().unwrap_or_else(|e| e.into_inner()) = Some("分析线程异常退出，请重试".into());
             }
         }
         running.store(false, Ordering::Relaxed);
@@ -72,7 +72,7 @@ pub struct AvPoll {
 
 #[tauri::command]
 pub fn avsync_progress(st: State<'_, AvState>, job: Option<String>) -> AvPoll {
-    let j = st.jobs.lock().unwrap().get(&jid(job)).cloned();
+    let j = st.jobs.lock().unwrap_or_else(|e| e.into_inner()).get(&jid(job)).cloned();
     let Some(j) = j else {
         return AvPoll {
             running: false,
@@ -81,22 +81,22 @@ pub fn avsync_progress(st: State<'_, AvState>, job: Option<String>) -> AvPoll {
             err: None,
         };
     };
-    if let Some(rx) = j.rx.lock().unwrap().take() {
+    if let Some(rx) = j.rx.lock().unwrap_or_else(|e| e.into_inner()).take() {
         match rx.try_recv() {
             Ok(r) => {
                 if !r.ok {
-                    *j.err.lock().unwrap() = r.err.clone();
+                    *j.err.lock().unwrap_or_else(|e| e.into_inner()) = r.err.clone();
                 }
-                *j.last.lock().unwrap() = Some(r);
+                *j.last.lock().unwrap_or_else(|e| e.into_inner()) = Some(r);
             }
             Err(std::sync::mpsc::TryRecvError::Empty) => {
-                *j.rx.lock().unwrap() = Some(rx);
+                *j.rx.lock().unwrap_or_else(|e| e.into_inner()) = Some(rx);
             }
             Err(std::sync::mpsc::TryRecvError::Disconnected) => {}
         }
     }
-    let result = j.last.lock().unwrap().clone();
-    let err = j.err.lock().unwrap().clone();
+    let result = j.last.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let err = j.err.lock().unwrap_or_else(|e| e.into_inner()).clone();
     AvPoll {
         running: j.running.load(Ordering::Relaxed),
         pct: j.pct.load(Ordering::Relaxed),
@@ -109,7 +109,7 @@ pub fn avsync_progress(st: State<'_, AvState>, job: Option<String>) -> AvPoll {
 #[tauri::command]
 pub fn avsync_stop(st: State<'_, AvState>, job: Option<String>) {
     let all = job.as_deref().map(|s| s.is_empty() || s == "all").unwrap_or(true);
-    let jobs = st.jobs.lock().unwrap();
+    let jobs = st.jobs.lock().unwrap_or_else(|e| e.into_inner());
     if all {
         for j in jobs.values() {
             j.cancel.store(true, Ordering::Relaxed);
@@ -129,7 +129,7 @@ pub fn consist_start(st: State<'_, ConsistState>, cfg: ConsistCfg, job: Option<S
     let j = st.job(&jid(job));
     let (tx, rx) = std::sync::mpsc::channel::<ConsistResult>();
     {
-        let _gate = st.gate.lock().unwrap();
+        let _gate = st.gate.lock().unwrap_or_else(|e| e.into_inner());
         if j.running.load(Ordering::Relaxed) {
             return Err("该任务已在运行".into());
         }
@@ -139,9 +139,9 @@ pub fn consist_start(st: State<'_, ConsistState>, cfg: ConsistCfg, job: Option<S
         j.cancel.store(false, Ordering::Relaxed);
         j.pct.store(1, Ordering::Relaxed);
         j.running.store(true, Ordering::Relaxed);
-        *j.rx.lock().unwrap() = Some(rx);
-        *j.err.lock().unwrap() = None;
-        *j.last.lock().unwrap() = None;
+        *j.rx.lock().unwrap_or_else(|e| e.into_inner()) = Some(rx);
+        *j.err.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        *j.last.lock().unwrap_or_else(|e| e.into_inner()) = None;
     }
 
     let pct = j.pct.clone();
@@ -158,7 +158,7 @@ pub fn consist_start(st: State<'_, ConsistState>, cfg: ConsistCfg, job: Option<S
                 let _ = tx.send(r);
             }
             Err(_) => {
-                *errh.lock().unwrap() = Some("比对线程异常退出，请重试".into());
+                *errh.lock().unwrap_or_else(|e| e.into_inner()) = Some("比对线程异常退出，请重试".into());
             }
         }
         running.store(false, Ordering::Relaxed);
@@ -176,7 +176,7 @@ pub struct ConsistPoll {
 
 #[tauri::command]
 pub fn consist_progress(st: State<'_, ConsistState>, job: Option<String>) -> ConsistPoll {
-    let j = st.jobs.lock().unwrap().get(&jid(job)).cloned();
+    let j = st.jobs.lock().unwrap_or_else(|e| e.into_inner()).get(&jid(job)).cloned();
     let Some(j) = j else {
         return ConsistPoll {
             running: false,
@@ -185,22 +185,22 @@ pub fn consist_progress(st: State<'_, ConsistState>, job: Option<String>) -> Con
             err: None,
         };
     };
-    if let Some(rx) = j.rx.lock().unwrap().take() {
+    if let Some(rx) = j.rx.lock().unwrap_or_else(|e| e.into_inner()).take() {
         match rx.try_recv() {
             Ok(r) => {
                 if !r.ok {
-                    *j.err.lock().unwrap() = r.err.clone();
+                    *j.err.lock().unwrap_or_else(|e| e.into_inner()) = r.err.clone();
                 }
-                *j.last.lock().unwrap() = Some(r);
+                *j.last.lock().unwrap_or_else(|e| e.into_inner()) = Some(r);
             }
             Err(std::sync::mpsc::TryRecvError::Empty) => {
-                *j.rx.lock().unwrap() = Some(rx);
+                *j.rx.lock().unwrap_or_else(|e| e.into_inner()) = Some(rx);
             }
             Err(std::sync::mpsc::TryRecvError::Disconnected) => {}
         }
     }
-    let result = j.last.lock().unwrap().clone();
-    let err = j.err.lock().unwrap().clone();
+    let result = j.last.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let err = j.err.lock().unwrap_or_else(|e| e.into_inner()).clone();
     ConsistPoll {
         running: j.running.load(Ordering::Relaxed),
         pct: j.pct.load(Ordering::Relaxed),
@@ -212,7 +212,7 @@ pub fn consist_progress(st: State<'_, ConsistState>, job: Option<String>) -> Con
 #[tauri::command]
 pub fn consist_stop(st: State<'_, ConsistState>, job: Option<String>) {
     let all = job.as_deref().map(|s| s.is_empty() || s == "all").unwrap_or(true);
-    let jobs = st.jobs.lock().unwrap();
+    let jobs = st.jobs.lock().unwrap_or_else(|e| e.into_inner());
     if all {
         for j in jobs.values() {
             j.cancel.store(true, Ordering::Relaxed);

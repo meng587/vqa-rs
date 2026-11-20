@@ -543,7 +543,7 @@ if (isWebMode) {
     const b = document.getElementById(id);
     if (b) b.hidden = true;
   }
-  if (dgStatus) dgStatus.textContent = "Web 检测端不提供诊断包导出/上传，请回桌面端操作。";
+  if (dgStatus) dgStatus.textContent = "Web 检测端不提供诊断包收集/导出/上传，请回桌面端操作。";
   const engineTitle = document.getElementById("engine-title");
   if (engineTitle) engineTitle.textContent = "检测服务在线";
   const engineSub = document.getElementById("engine-sub");

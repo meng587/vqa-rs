@@ -232,13 +232,13 @@ impl PlayerState {
     }
 
     pub fn set_hint(&self, s: impl Into<String>) {
-        *self.hint.lock().unwrap() =
+        *self.hint.lock().unwrap_or_else(|e| e.into_inner()) =
             Some((s.into(), std::time::Instant::now(), std::time::Duration::from_secs(3)));
     }
 
     /// 自定义时效的提示（转码等待期等长场景）
     pub fn set_hint_for(&self, s: impl Into<String>, secs: u64) {
-        *self.hint.lock().unwrap() =
+        *self.hint.lock().unwrap_or_else(|e| e.into_inner()) =
             Some((s.into(), std::time::Instant::now(), std::time::Duration::from_secs(secs)));
     }
 }
@@ -275,7 +275,7 @@ impl AnalysisState {
     }
 
     pub fn log_push(&self, s: impl Into<String>) {
-        let mut log = self.log.lock().unwrap();
+        let mut log = self.log.lock().unwrap_or_else(|e| e.into_inner());
         log.push_back(s.into());
         while log.len() > 500 {
             log.pop_front();
@@ -388,7 +388,7 @@ impl AvState {
 
     /// 取任务槽（没有就建一个）。任务 id 由前端复用，槽位数量有限。
     pub fn job(&self, id: &str) -> std::sync::Arc<AvJob> {
-        let mut g = self.jobs.lock().unwrap();
+        let mut g = self.jobs.lock().unwrap_or_else(|e| e.into_inner());
         g.entry(id.to_string())
             .or_insert_with(|| std::sync::Arc::new(AvJob::new()))
             .clone()
@@ -447,7 +447,7 @@ impl ConsistState {
     }
 
     pub fn job(&self, id: &str) -> std::sync::Arc<ConsistJob> {
-        let mut g = self.jobs.lock().unwrap();
+        let mut g = self.jobs.lock().unwrap_or_else(|e| e.into_inner());
         g.entry(id.to_string())
             .or_insert_with(|| std::sync::Arc::new(ConsistJob::new()))
             .clone()

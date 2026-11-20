@@ -46,6 +46,8 @@ const ENABLED_KEY: &str = "web.enabled";
 const PORT_KEY: &str = "web.port";
 const LOGIN_WINDOW: Duration = Duration::from_secs(600);
 const LOGIN_MAX_FAILS: u32 = 10;
+const API_WINDOW: Duration = Duration::from_secs(60);
+const API_MAX_REQUESTS: u32 = 4000;
 const SESSION_TTL: Duration = Duration::from_secs(12 * 60 * 60);
 const SESSION_MAX: usize = 1024;
 const UPLOAD_RETENTION_DAYS: u64 = 7;
@@ -264,6 +266,7 @@ struct Ctx {
     code: Arc<RwLock<String>>,
     sessions: Arc<Mutex<HashMap<String, Instant>>>,
     login_fails: Mutex<HashMap<IpAddr, (u32, Instant)>>,
+    api_hits: Mutex<HashMap<IpAddr, (u32, Instant)>>,
 }
 
 impl Ctx {
@@ -303,6 +306,28 @@ impl Ctx {
             .unwrap_or_else(|e| e.into_inner())
             .remove(&ip);
     }
+
+    fn api_allowed(&self, ip: IpAddr) -> bool {
+        let mut guard = self.api_hits.lock().unwrap_or_else(|e| e.into_inner());
+        let now = Instant::now();
+        if let Some((count, since)) = guard.get_mut(&ip) {
+            if now.duration_since(*since) >= API_WINDOW {
+                *count = 1;
+                *since = now;
+                return true;
+            }
+            if *count >= API_MAX_REQUESTS {
+                return false;
+            }
+            *count = count.saturating_add(1);
+            return true;
+        }
+        guard.insert(ip, (1, now));
+        if guard.len() > 4096 {
+            guard.retain(|_, (_, since)| now.duration_since(*since) < API_WINDOW);
+        }
+        true
+    }
 }
 
 async fn start_server(app: AppHandle, port: u16) -> Result<WebStatus, String> {
@@ -333,8 +358,9 @@ async fn start_server(app: AppHandle, port: u16) -> Result<WebStatus, String> {
         code: st.code.clone(),
         sessions: st.sessions.clone(),
         login_fails: Mutex::new(HashMap::new()),
+        api_hits: Mutex::new(HashMap::new()),
     });
-    let router = build_router(ctx.clone()).layer(DefaultBodyLimit::max(2 * 1024 * 1024 * 1024));
+    let router = build_router(ctx.clone()).layer(DefaultBodyLimit::max(64 * 1024 * 1024));
     let running = st.running.clone();
     let error = st.error.clone();
     running.store(true, Ordering::Relaxed);
@@ -492,7 +518,45 @@ fn add_firewall_rule(port: u16) -> Result<String, String> {
     if let Ok(out) = show {
         let text = String::from_utf8_lossy(&out.stdout);
         if out.status.success() && text.contains(&rule_name) {
-            return Ok(format!("防火墙已放行 TCP {port}（{rule_name}）"));
+            // 老版本建的规则可能还是 RemoteIP=Any，先尝试就地收紧。
+            let set = Command::new("netsh")
+                .args([
+                    "advfirewall",
+                    "firewall",
+                    "set",
+                    "rule",
+                    &format!("name={rule_name}"),
+                    "new",
+                    "remoteip=localsubnet",
+                    "profile=domain,private",
+                    "enable=yes",
+                ])
+                .creation_flags(NO_WINDOW)
+                .output();
+            if let Ok(out) = set {
+                if out.status.success() {
+                    return Ok(format!("防火墙规则 {rule_name} 已收紧为仅本地子网"));
+                }
+            }
+            let ps = format!(
+                "Start-Process -FilePath netsh.exe -Verb RunAs -WindowStyle Hidden -ArgumentList @('advfirewall','firewall','set','rule','name=\"{rule_name}\"','new','remoteip=localsubnet','profile=domain,private','enable=yes')"
+            );
+            let mut c = Command::new("powershell");
+            c.args([
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-WindowStyle",
+                "Hidden",
+                "-Command",
+                &ps,
+            ]);
+            c.creation_flags(NO_WINDOW);
+            c.spawn()
+                .map_err(|e| format!("请求管理员权限失败：{e}"))?;
+            return Ok(format!(
+                "已请求管理员权限把 TCP {port} 规则收紧为仅本地子网，请在 UAC 窗口中确认"
+            ));
         }
     }
 
@@ -507,6 +571,7 @@ fn add_firewall_rule(port: u16) -> Result<String, String> {
             "action=allow",
             "protocol=TCP",
             &format!("localport={port}"),
+            "remoteip=localsubnet",
             "profile=domain,private",
             "enable=yes",
         ])
@@ -514,12 +579,12 @@ fn add_firewall_rule(port: u16) -> Result<String, String> {
         .output();
     if let Ok(out) = add {
         if out.status.success() {
-            return Ok(format!("防火墙已放行 TCP {port}（域/专用网络）"));
+            return Ok(format!("防火墙已放行 TCP {port}（仅本地子网）"));
         }
     }
 
     let ps = format!(
-        "Start-Process -FilePath netsh.exe -Verb RunAs -WindowStyle Hidden -ArgumentList @('advfirewall','firewall','add','rule','name=\"{rule_name}\"','dir=in','action=allow','protocol=TCP','localport={port}','profile=domain,private','enable=yes')"
+        "Start-Process -FilePath netsh.exe -Verb RunAs -WindowStyle Hidden -ArgumentList @('advfirewall','firewall','add','rule','name=\"{rule_name}\"','dir=in','action=allow','protocol=TCP','localport={port}','remoteip=localsubnet','profile=domain,private','enable=yes')"
     );
     let mut c = Command::new("powershell");
     c.args([
@@ -772,7 +837,14 @@ async fn static_file(uri: axum::http::Uri) -> Response {
 
 // ═══════════════════ 上传（供 Web 端选本地 TS 文件） ═══════════════════
 
-async fn api_upload(mut mp: Multipart) -> Response {
+async fn api_upload(
+    AxumState(ctx): AxumState<Arc<Ctx>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    mut mp: Multipart,
+) -> Response {
+    if !ctx.api_allowed(addr.ip()) {
+        return api_err(StatusCode::TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试".into());
+    }
     let dir = vqa_core::config::base_dir().join("web_uploads");
     if let Err(e) = tokio::fs::create_dir_all(&dir).await {
         return api_err(
@@ -781,7 +853,7 @@ async fn api_upload(mut mp: Multipart) -> Response {
         );
     }
     let mut saved: Option<PathBuf> = None;
-    while let Ok(Some(field)) = mp.next_field().await {
+    if let Ok(Some(field)) = mp.next_field().await {
         let orig = field.file_name().unwrap_or("upload.ts").to_string();
         let name = sanitize_filename(&orig);
         if !allowed_upload(&name) {
@@ -800,7 +872,6 @@ async fn api_upload(mut mp: Multipart) -> Response {
             );
         }
         saved = Some(dest);
-        break;
     }
     if saved.is_some() {
         std::thread::spawn(cleanup_web_uploads);
@@ -842,6 +913,50 @@ fn allowed_upload(name: &str) -> bool {
         .unwrap_or("")
         .to_ascii_lowercase();
     UPLOAD_EXTS.contains(&ext.as_str())
+}
+
+/// Web 端本地来源白名单：只允许本次上传目录，或频道库里已经配置过的本地路径。
+/// 网络地址（udp/rtp/rtsp/http/https 等）放行；`file:` 一律拒绝，避免把
+/// `/api/invoke` 变成任意本机文件读取入口。
+fn web_source_allowed(src: &str) -> bool {
+    let src = src.trim();
+    if src.is_empty() {
+        return false;
+    }
+    let lower = src.to_ascii_lowercase();
+    if lower.starts_with("file:") {
+        return false;
+    }
+    if src.contains("://") {
+        return true;
+    }
+    let path = Path::new(src);
+    if !path.is_absolute() {
+        return false;
+    }
+    let Ok(canon) = path.canonicalize() else {
+        return false;
+    };
+    if let Ok(upload) = vqa_core::config::base_dir()
+        .join("web_uploads")
+        .canonicalize()
+    {
+        if canon.starts_with(&upload) {
+            return true;
+        }
+    }
+    for ch in sync_cmds::channels_get() {
+        let url = ch.url.trim();
+        if url.contains("://") {
+            continue;
+        }
+        if let Ok(p) = Path::new(url).canonicalize() {
+            if p == canon {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// 清理过期的 Web 上传文件；只删除本服务自己的 web_uploads，不碰用户目录。
@@ -1025,7 +1140,17 @@ fn b(args: &Value, key: &str) -> bool {
     a(args, key).as_bool().unwrap_or(false)
 }
 
-async fn api_invoke(AxumState(ctx): AxumState<Arc<Ctx>>, Json(req): Json<InvokeReq>) -> Response {
+async fn api_invoke(
+    AxumState(ctx): AxumState<Arc<Ctx>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    Json(req): Json<InvokeReq>,
+) -> Response {
+    if !ctx.api_allowed(addr.ip()) {
+        return api_err(
+            StatusCode::TOO_MANY_REQUESTS,
+            "请求过于频繁，请稍后再试".into(),
+        );
+    }
     match dispatch(&ctx.app, &req.cmd, &req.args).await {
         Ok(v) => Json(json!({ "ok": true, "data": v })).into_response(),
         Err(e) => Json(json!({ "ok": false, "error": e })).into_response(),
@@ -1036,6 +1161,7 @@ fn is_web_write_denied(cmd: &str) -> bool {
     matches!(
         cmd,
         "diag_upload"
+            | "diag_collect"
             | "channels_save"
             | "thresholds_set"
             | "player_settings_set"
@@ -1046,7 +1172,7 @@ fn is_web_write_denied(cmd: &str) -> bool {
 
 async fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, String> {
     if is_web_write_denied(cmd) {
-        return Err("Web 端不开放本机配置写入或诊断上传，请回到桌面端操作".into());
+        return Err("Web 端不开放本机配置写入、诊断收集或上传，请回到桌面端操作".into());
     }
     let out = match cmd {
         // ── 通用 / 配置 ──
@@ -1095,18 +1221,24 @@ async fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, Str
                 "report_dir"
             ))?)
         }
-        "media_info" => commands::media_info(s(args, "path"))?,
-        "diag_collect" => commands::diag_collect(
-            app.state::<crate::state::PlayerState>(),
-            app.state::<crate::state::AnalysisState>(),
-        ),
+        "media_info" => {
+            let path = s(args, "path");
+            if !web_source_allowed(&path) {
+                return Err("Web 端只允许网络来源、本次上传文件或频道库中的本地来源".into());
+            }
+            commands::media_info(path)?
+        }
         "diag_has_token" => json!(commands::diag_has_token()),
 
         // ── 视频分析 ──
         "analysis_start" => {
+            let url = s(args, "url");
+            if !web_source_allowed(&url) {
+                return Err("Web 端只允许网络来源、本次上传文件或频道库中的本地来源".into());
+            }
             commands::analysis_start(
                 app.state::<crate::state::AnalysisState>(),
-                s(args, "url"),
+                url,
                 s2(args, "nicIp", "nic_ip"),
             )?;
             json!(null)
@@ -1130,13 +1262,23 @@ async fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, Str
         ),
 
         // ── 合规检测 ──
+        "compliance_basis" => json!(compliance_cmds::compliance_basis()),
+        "compliance_doc" => compliance_cmds::compliance_doc(),
         "compliance_check" => {
-            compliance_cmds::compliance_check(s(args, "path"), s(args, "kind")).await?
+            let path = s(args, "path");
+            if !web_source_allowed(&path) {
+                return Err("Web 端只允许网络来源、本次上传文件或频道库中的本地来源".into());
+            }
+            compliance_cmds::compliance_check(path, s(args, "kind")).await?
         }
         "compliance_live_start" => {
+            let url = s(args, "url");
+            if !web_source_allowed(&url) {
+                return Err("Web 端只允许网络来源、本次上传文件或频道库中的本地来源".into());
+            }
             compliance_cmds::compliance_live_start(
                 app.state::<crate::state::ComplianceState>(),
-                s(args, "url"),
+                url,
                 s2(args, "nicIp", "nic_ip"),
                 s(args, "kind"),
             )
@@ -1153,16 +1295,22 @@ async fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, Str
         }
 
         // ── 微突发 ──
-        "burst_start" => json!(
-            burst_cmds::burst_start(
-                app.state::<crate::state::BurstState>(),
-                s(args, "url"),
-                s2(args, "nicIp", "nic_ip"),
-                f(args, "ratio"),
-                u(args, "windowMs"),
+        "burst_start" => {
+            let url = s(args, "url");
+            if !web_source_allowed(&url) {
+                return Err("Web 端只允许网络来源、本次上传文件或频道库中的本地来源".into());
+            }
+            json!(
+                burst_cmds::burst_start(
+                    app.state::<crate::state::BurstState>(),
+                    url,
+                    s2(args, "nicIp", "nic_ip"),
+                    f(args, "ratio"),
+                    u(args, "windowMs"),
+                )
+                .await?
             )
-            .await?
-        ),
+        }
         "burst_snapshot" => json!(burst_cmds::burst_snapshot(
             app.state::<crate::state::BurstState>()
         )),
@@ -1172,8 +1320,11 @@ async fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, Str
 
         // ── 音画同步 / 一致性 ──
         "avsync_start" => {
-            let cfg = serde_json::from_value(a(args, "cfg").clone())
+            let cfg: vqa_core::avsync::AvSyncCfg = serde_json::from_value(a(args, "cfg").clone())
                 .map_err(|e| format!("参数无效：{e}"))?;
+            if !web_source_allowed(&cfg.source) {
+                return Err("Web 端只允许网络来源、本次上传文件或频道库中的本地来源".into());
+            }
             sync_cmds::avsync_start(
                 app.state::<crate::state::AvState>(),
                 cfg,
@@ -1193,8 +1344,11 @@ async fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, Str
             json!(null)
         }
         "consist_start" => {
-            let cfg = serde_json::from_value(a(args, "cfg").clone())
+            let cfg: vqa_core::consist::ConsistCfg = serde_json::from_value(a(args, "cfg").clone())
                 .map_err(|e| format!("参数无效：{e}"))?;
+            if !web_source_allowed(&cfg.reference) || !web_source_allowed(&cfg.target) {
+                return Err("Web 端只允许网络来源、本次上传文件或频道库中的本地来源".into());
+            }
             sync_cmds::consist_start(
                 app.state::<crate::state::ConsistState>(),
                 cfg,
@@ -1215,11 +1369,17 @@ async fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, Str
         }
 
         // ── 抓包 ──
-        "capture_start" => json!(capture_cmds::capture_start(
-            app.state::<capture_cmds::CaptureState>(),
-            s(args, "url"),
-            s2(args, "nicIp", "nic_ip"),
-        )?),
+        "capture_start" => {
+            let url = s(args, "url");
+            if !web_source_allowed(&url) {
+                return Err("Web 端只允许网络来源、本次上传文件或频道库中的本地来源".into());
+            }
+            json!(capture_cmds::capture_start(
+                app.state::<capture_cmds::CaptureState>(),
+                url,
+                s2(args, "nicIp", "nic_ip"),
+            )?)
+        }
         "capture_stop" => json!(capture_cmds::capture_stop(
             app.state::<capture_cmds::CaptureState>()
         )?),
@@ -1229,10 +1389,14 @@ async fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, Str
 
         // ── 检测画面预览 ──
         "preview_start" => {
+            let src = s(args, "src");
+            if !web_source_allowed(&src) {
+                return Err("Web 端只允许网络来源、本次上传文件或频道库中的本地来源".into());
+            }
             sync_cmds::preview_start(
                 app.state::<crate::preview::Preview>(),
                 s(args, "owner"),
-                s(args, "src"),
+                src,
                 s2(args, "nicIp", "nic_ip"),
             )?;
             json!(null)
@@ -1261,9 +1425,13 @@ async fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, Str
             s(args, "note"),
         )?),
         "alarm_capture" => {
+            let source = s(args, "source");
+            if !web_source_allowed(&source) {
+                return Err("Web 端只允许网络来源、本次上传文件或频道库中的本地来源".into());
+            }
             alarm_cmds::alarm_capture(
                 s2(args, "recordId", "record_id"),
-                s(args, "source"),
+                source,
                 u(args, "seconds") as u32,
                 args.get("startS").and_then(|v| v.as_f64()),
             )?;
@@ -1330,4 +1498,36 @@ async fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, Str
         _ => return Err(format!("Web 端暂不支持命令 {cmd}")),
     };
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn web_source_rejects_local_and_file_urls() {
+        assert!(web_source_allowed("udp://239.1.1.1:5000"));
+        assert!(web_source_allowed("rtp://239.1.1.1:5000"));
+        assert!(web_source_allowed("http://example.com/a.m3u8"));
+        assert!(!web_source_allowed("file:///C:/Windows/System32/drivers/etc/hosts"));
+        assert!(!web_source_allowed("C:\\Windows\\System32\\drivers\\etc\\hosts"));
+        assert!(!web_source_allowed("..\\..\\Windows\\win.ini"));
+    }
+
+    #[test]
+    fn upload_extension_whitelist() {
+        assert!(allowed_upload("a.mp4"));
+        assert!(allowed_upload("a.TS"));
+        assert!(!allowed_upload("a.exe"));
+        assert!(!allowed_upload("a"));
+    }
+
+    #[test]
+    fn session_is_revoked_on_logout() {
+        let sessions = Mutex::new(HashMap::new());
+        let token = issue_session(&sessions);
+        assert!(session_valid(&sessions, &token));
+        revoke_session(&sessions, &token);
+        assert!(!session_valid(&sessions, &token));
+    }
 }

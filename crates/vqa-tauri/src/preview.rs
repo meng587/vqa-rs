@@ -37,7 +37,7 @@ impl Slot {
 
     pub fn stop(&self) {
         self.cancel.store(true, Ordering::Relaxed);
-        if let Some(mut c) = self.child.lock().unwrap().take() {
+        if let Some(mut c) = self.child.lock().unwrap_or_else(|e| e.into_inner()).take() {
             let _ = c.kill();
             let _ = c.wait();
         }
@@ -53,7 +53,7 @@ impl Slot {
         self.stop();
         // stop() 把 cancel 置 true，重开要复位
         self.cancel.store(false, Ordering::Relaxed);
-        *self.latest.lock().unwrap() = None;
+        *self.latest.lock().unwrap_or_else(|e| e.into_inner()) = None;
         let ff: PathBuf =
             vqa_core::tools::find_ffmpeg().ok_or_else(|| "未找到 ffmpeg（请检查 bin 目录）".to_string())?;
 
@@ -76,7 +76,7 @@ impl Slot {
             .stderr(Stdio::null());
         let mut child = cmd.spawn().map_err(|e| format!("预览启动失败: {e}"))?;
         let mut so = child.stdout.take().ok_or_else(|| "预览无输出".to_string())?;
-        *self.child.lock().unwrap() = Some(child);
+        *self.child.lock().unwrap_or_else(|e| e.into_inner()) = Some(child);
         self.running.store(true, Ordering::Relaxed);
 
         let running = self.running.clone();

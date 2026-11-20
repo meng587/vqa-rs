@@ -73,7 +73,7 @@ pub async fn xcode_start(st: State<'_, XcodeState>, cfg: XcodeCfg) -> Result<Xco
         return Err("输出为空".into());
     }
     {
-        let g = st.sess.lock().unwrap();
+        let g = st.sess.lock().unwrap_or_else(|e| e.into_inner());
         if g.as_ref().map(|s| s.alive()).unwrap_or(false) {
             return Err("已有一路转码在跑，请先停止".into());
         }
@@ -84,14 +84,14 @@ pub async fn xcode_start(st: State<'_, XcodeState>, cfg: XcodeCfg) -> Result<Xco
             .map_err(|e| format!("线程异常：{e}"))?
             .map_err(|e| format!("{e}"))?;
     let snap = sess.snapshot();
-    *st.sess.lock().unwrap() = Some(sess);
-    *st.err.lock().unwrap() = None;
+    *st.sess.lock().unwrap_or_else(|e| e.into_inner()) = Some(sess);
+    *st.err.lock().unwrap_or_else(|e| e.into_inner()) = None;
     Ok(snap)
 }
 
 #[tauri::command]
 pub fn xcode_snapshot(st: State<'_, XcodeState>) -> XcodeStats {
-    match st.sess.lock().unwrap().as_ref() {
+    match st.sess.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
         Some(s) => s.snapshot(),
         None => XcodeStats::default(),
     }
@@ -99,7 +99,7 @@ pub fn xcode_snapshot(st: State<'_, XcodeState>) -> XcodeStats {
 
 #[tauri::command]
 pub fn xcode_stop(st: State<'_, XcodeState>) -> XcodeStats {
-    if let Some(s) = st.sess.lock().unwrap().take() {
+    if let Some(s) = st.sess.lock().unwrap_or_else(|e| e.into_inner()).take() {
         s.stop();
         let mut snap = s.snapshot();
         snap.running = false;

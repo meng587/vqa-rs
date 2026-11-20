@@ -102,7 +102,7 @@ pub fn reveal_path(path: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn thresholds_get(st: State<AnalysisState>) -> serde_json::Value {
-    let ov = st.overrides.lock().unwrap();
+    let ov = st.overrides.lock().unwrap_or_else(|e| e.into_inner());
     serde_json::to_value(&ov.map).unwrap_or(serde_json::json!({}))
 }
 
@@ -112,8 +112,8 @@ pub fn thresholds_get(st: State<AnalysisState>) -> serde_json::Value {
 #[tauri::command]
 pub fn diag_collect(pst: State<PlayerState>, ast: State<AnalysisState>) -> serde_json::Value {
     let player = player_snapshot(pst);
-    let mode = *ast.mode.lock().unwrap();
-    let err = ast.live_err.lock().unwrap().clone();
+    let mode = *ast.mode.lock().unwrap_or_else(|e| e.into_inner());
+    let err = ast.live_err.lock().unwrap_or_else(|e| e.into_inner()).clone();
     let summary = analysis_block(&ast);
     let (name, content) = crate::diag::collect(&player, mode, err, &summary);
     serde_json::json!({ "name": name, "content": content })
@@ -121,14 +121,14 @@ pub fn diag_collect(pst: State<PlayerState>, ast: State<AnalysisState>) -> serde
 
 /// 分析结果摘要（诊断包用）：把"扫出来的质量问题"带走，不留只留模式号。
 fn analysis_block(ast: &AnalysisState) -> String {
-    if let Some(l) = ast.live.lock().unwrap().as_ref() {
+    if let Some(l) = ast.live.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
         let bytes = l.with_core(|c| c.bytes).unwrap_or(0);
         return format!(
             "实时分析中（模式 2）：已接收 {:.1} MB\n（实时流的 TR101 290 计数不随诊断包导出，需停止后看分析页）",
             bytes as f64 / 1048576.0
         );
     }
-    let res = ast.result.lock().unwrap().clone();
+    let res = ast.result.lock().unwrap_or_else(|e| e.into_inner()).clone();
     let Some(r) = res else {
         return "（尚未扫描）".to_string();
     };
@@ -247,7 +247,7 @@ pub fn diag_has_token() -> bool {
 
 #[tauri::command]
 pub fn thresholds_set(st: State<AnalysisState>, map: std::collections::HashMap<String, f64>) {
-    let mut ov = st.overrides.lock().unwrap();
+    let mut ov = st.overrides.lock().unwrap_or_else(|e| e.into_inner());
     *ov = vqa_core::tsfile::TrOverrides { map };
 }
 
@@ -263,14 +263,14 @@ pub fn place_video(
     h: i32,
     visible: bool,
 ) {
-    if let Some(c) = st.child.lock().unwrap().as_mut() {
+    if let Some(c) = st.child.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
         c.place(x, y, w, h, visible);
     }
 }
 
 /// 收掉抽节目模式的 ffmpeg 子进程（mpv 会因 stdin EOF 回 idle）
 fn kill_feed(st: &PlayerState) {
-    if let Some(mut c) = st.feed.lock().unwrap().take() {
+    if let Some(mut c) = st.feed.lock().unwrap_or_else(|e| e.into_inner()).take() {
         let _ = c.kill();
         let _ = c.wait();
     }
@@ -285,7 +285,7 @@ impl Drop for PrewarmMark {
     fn drop(&mut self) {
         use tauri::Manager;
         let st = self.0.state::<PlayerState>();
-        let mut u = st.prewarm_url.lock().unwrap();
+        let mut u = st.prewarm_url.lock().unwrap_or_else(|e| e.into_inner());
         if *u == self.1 {
             u.clear();
         }
@@ -314,19 +314,19 @@ pub fn player_prewarm(
     {
         // 同一个文件已经在预热：不重来（每重起一次都作废已转好的分片）
         let st = app.state::<PlayerState>();
-        if let Some((u, _)) = st.prewarm.lock().unwrap().as_ref() {
+        if let Some((u, _)) = st.prewarm.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
             if u == &cleaned {
                 return Ok(());
             }
         }
         // 已经在播这个文件：没必要再起一座并行的桥抢 NVENC
-        let playing = st.playing_url.lock().unwrap().clone();
+        let playing = st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).clone();
         if !playing.is_empty() && playing == cleaned {
             return Ok(());
         }
         // 打上"正在预热"标记：这 1~2 秒里用户点播放，player_play 会等桥就位再接手，
         // 不会另起一条链同时写同一个缓存文件
-        *st.prewarm_url.lock().unwrap() = cleaned.clone();
+        *st.prewarm_url.lock().unwrap_or_else(|e| e.into_inner()) = cleaned.clone();
     }
     let app2 = app.clone();
     std::thread::Builder::new()
@@ -372,7 +372,7 @@ pub fn player_prewarm(
                     let st = app2.state::<PlayerState>();
                     // 这段时间用户可能已经点了播放（桥被认领走）或换了文件：只在
                     // 槽里还空着、且没在播同一个文件时才存下，免得两份同时写缓存
-                    let playing = st.playing_url.lock().unwrap().clone();
+                    let playing = st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).clone();
                     if !playing.is_empty() && playing == cleaned {
                         crate::events::ev("prewarm", "已在播放，丢弃这次预热");
                         return;
@@ -384,7 +384,7 @@ pub fn player_prewarm(
                     }
                     {
                         // 槽里若不是同一个文件（更晚的预热占了位），别覆盖
-                        let mut pw = st.prewarm.lock().unwrap();
+                        let mut pw = st.prewarm.lock().unwrap_or_else(|e| e.into_inner());
                         match pw.as_ref() {
                             Some((u, _)) if u != &cleaned => return,
                             _ => {}
@@ -395,7 +395,7 @@ pub fn player_prewarm(
                     loop {
                         std::thread::sleep(std::time::Duration::from_millis(500));
                         let st2 = app2.state::<PlayerState>();
-                        let mut pw = st2.prewarm.lock().unwrap();
+                        let mut pw = st2.prewarm.lock().unwrap_or_else(|e| e.into_inner());
                         let (ours, p) = match pw.as_ref() {
                             Some((u, b)) if u == &cleaned => (true, b.progress()),
                             _ => (false, String::new()),
@@ -464,15 +464,15 @@ pub fn player_play(
     // 8K 自动降级的“锁”：同一个源再次起播时，继续用上一次的降级宽度。
     // 否则用户看到丢帧后重新点“开始”，又会从 8K 直放开始，来回循环。
     let auto_scale = {
-        let locked_url = st.auto_scale_url.lock().unwrap().clone();
+        let locked_url = st.auto_scale_url.lock().unwrap_or_else(|e| e.into_inner()).clone();
         if locked_url == cleaned {
-            *st.auto_scale_w.lock().unwrap()
+            *st.auto_scale_w.lock().unwrap_or_else(|e| e.into_inner())
         } else {
-            *st.auto_scale_url.lock().unwrap() = String::new();
-            *st.auto_scale_w.lock().unwrap() = 0;
-            *st.bridge_auto_restarts.lock().unwrap() = 0;
-            *st.bridge_stderr_last.lock().unwrap() = String::new();
-            *st.auto_decoder.lock().unwrap() = String::new();
+            *st.auto_scale_url.lock().unwrap_or_else(|e| e.into_inner()) = String::new();
+            *st.auto_scale_w.lock().unwrap_or_else(|e| e.into_inner()) = 0;
+            *st.bridge_auto_restarts.lock().unwrap_or_else(|e| e.into_inner()) = 0;
+            *st.bridge_stderr_last.lock().unwrap_or_else(|e| e.into_inner()) = String::new();
+            *st.auto_decoder.lock().unwrap_or_else(|e| e.into_inner()) = String::new();
             0
         }
     };
@@ -485,7 +485,7 @@ pub fn player_play(
         let mut waited_ms = 0u64;
         loop {
             {
-                let mut pw = st.prewarm.lock().unwrap();
+                let mut pw = st.prewarm.lock().unwrap_or_else(|e| e.into_inner());
                 match pw.as_ref() {
                     Some((u, _)) if u == &cleaned => {
                         let b = pw.take().map(|(_, b)| b);
@@ -499,7 +499,7 @@ pub fn player_play(
                     None => {}
                 }
             }
-            let pending = st.prewarm_url.lock().unwrap().clone();
+            let pending = st.prewarm_url.lock().unwrap_or_else(|e| e.into_inner()).clone();
             if pending == cleaned && waited_ms < 3000 {
                 std::thread::sleep(std::time::Duration::from_millis(100));
                 waited_ms += 100;
@@ -509,27 +509,27 @@ pub fn player_play(
         }
     };
     // 停旧桥、清错误
-    *st.bridge.lock().unwrap() = None;
-    *st.bridge_note.lock().unwrap() = String::new();
-    *st.bridge_url.lock().unwrap() = String::new();
-    *st.bridge_since.lock().unwrap() = None;
-    *st.bridge_had_picture.lock().unwrap() = false;
-    *st.bridge_loaded.lock().unwrap() = false;
-    *st.bridge_ready_at.lock().unwrap() = None;
-    *st.preparing.lock().unwrap() = true;
-    *st.err.lock().unwrap() = None;
-    *st.playing_url.lock().unwrap() = cleaned.clone();
-    *st.last_nic_ip.lock().unwrap() = nic_ip.clone();
-    *st.loaded_at.lock().unwrap() = None;
-    *st.video_retry_done.lock().unwrap() = false;
-    *st.live_idle_since.lock().unwrap() = None;
-    *st.live_retry_left.lock().unwrap() = 3;
-    *st.live_had_picture.lock().unwrap() = false;
-    *st.live_last_time.lock().unwrap() = 0;
-    *st.live_stall_since.lock().unwrap() = None;
+    *st.bridge.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *st.bridge_note.lock().unwrap_or_else(|e| e.into_inner()) = String::new();
+    *st.bridge_url.lock().unwrap_or_else(|e| e.into_inner()) = String::new();
+    *st.bridge_since.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *st.bridge_had_picture.lock().unwrap_or_else(|e| e.into_inner()) = false;
+    *st.bridge_loaded.lock().unwrap_or_else(|e| e.into_inner()) = false;
+    *st.bridge_ready_at.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *st.preparing.lock().unwrap_or_else(|e| e.into_inner()) = true;
+    *st.err.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *st.playing_url.lock().unwrap_or_else(|e| e.into_inner()) = cleaned.clone();
+    *st.last_nic_ip.lock().unwrap_or_else(|e| e.into_inner()) = nic_ip.clone();
+    *st.loaded_at.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *st.video_retry_done.lock().unwrap_or_else(|e| e.into_inner()) = false;
+    *st.live_idle_since.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *st.live_retry_left.lock().unwrap_or_else(|e| e.into_inner()) = 3;
+    *st.live_had_picture.lock().unwrap_or_else(|e| e.into_inner()) = false;
+    *st.live_last_time.lock().unwrap_or_else(|e| e.into_inner()) = 0;
+    *st.live_stall_since.lock().unwrap_or_else(|e| e.into_inner()) = None;
 
     let (tx, rx) = std::sync::mpsc::channel();
-    *st.probe_rx.lock().unwrap() = Some(rx);
+    *st.probe_rx.lock().unwrap_or_else(|e| e.into_inner()) = Some(rx);
 
     let mpv_exe = vqa_core::tools::find_mpv().ok_or("未找到 mpv.exe（bin/mpv/mpv.exe）")?;
     let wid = st
@@ -541,14 +541,14 @@ pub fn player_play(
 
     // 起播放器（懒启动； wid 在窗口创建时就绪）
     let mpv = {
-        let mut guard = st.mpv.lock().unwrap();
+        let mut guard = st.mpv.lock().unwrap_or_else(|e| e.into_inner());
         if guard.is_none() {
             *guard = Some(vqa_core::player::Mpv::launch(&mpv_exe, wid)?);
         }
         guard.as_ref().unwrap().clone()
     };
     // 循环播放是跨 loadfile 的开关，重新起播后要再下发一次
-    if *st.loop_file.lock().unwrap() {
+    if *st.loop_file.lock().unwrap_or_else(|e| e.into_inner()) {
         let _ = mpv.set_prop("loop-file", serde_json::Value::String("inf".into()));
     }
     crate::events::ev("player", &format!("起播 {cleaned}"));
@@ -557,12 +557,12 @@ pub fn player_play(
     // ★ 已锁定 8K 降级宽度：直接起降级桥，不再探测/直放。
     //   这是避免“降级 → 重新起播 → 又直放 8K → 再降级”循环的关键。
     if auto_scale > 0 {
-        *st.preparing.lock().unwrap() = false;
+        *st.preparing.lock().unwrap_or_else(|e| e.into_inner()) = false;
         crate::events::ev(
             "player",
             &format!("按上次降级宽度 {auto_scale} 直接起桥"),
         );
-        *st.bridge_auto_restarts.lock().unwrap() = 0;
+        *st.bridge_auto_restarts.lock().unwrap_or_else(|e| e.into_inner()) = 0;
         return start_auto_bridge(&st, &cleaned, &nic_ip, auto_scale);
     }
 
@@ -603,10 +603,10 @@ fn start_auto_bridge(
     // ★ 重启桥时必须先停掉旧桥：旧 ffmpeg 还占着 udp 输入端口，
     //   新桥会报 "No such device or address" 起不来。Drop 会 kill+wait。
     //   同时先把旧桥 stderr 尾部留下来——旧句柄一 drop，退出原因就没了。
-    if let Some(old) = st.bridge.lock().unwrap().take() {
+    if let Some(old) = st.bridge.lock().unwrap_or_else(|e| e.into_inner()).take() {
         let tail = old.stderr_tail();
         if !tail.trim().is_empty() {
-            *st.bridge_stderr_last.lock().unwrap() = tail.clone();
+            *st.bridge_stderr_last.lock().unwrap_or_else(|e| e.into_inner()) = tail.clone();
             vqa_core::config::log_line(
                 "bridge",
                 &format!("旧桥 stderr 尾部：{}", tail.trim()),
@@ -614,7 +614,7 @@ fn start_auto_bridge(
         }
         drop(old);
     }
-    let q = st.probe_info.lock().unwrap().clone();
+    let q = st.probe_info.lock().unwrap_or_else(|e| e.into_inner()).clone();
     let probe_missing = q.is_none();
     let audio_lead = q.as_ref().map(|x| x.audio_lead()).unwrap_or(0.0);
     let avs3 = q
@@ -624,7 +624,7 @@ fn start_auto_bridge(
             c.contains("avs3") || c == "uavs3d"
         })
         .unwrap_or(false);
-    let known_decoder = st.auto_decoder.lock().unwrap().clone();
+    let known_decoder = st.auto_decoder.lock().unwrap_or_else(|e| e.into_inner()).clone();
     // 探测失败时不能赌一种解码器：8K AVS3 必须 libuavs3d，8K H.264
     // 又必须默认解码器。已经成功起过桥的解码器优先复用，避免每次重启
     // 都先拿错的解码器试一遍（8K AVS3 上默认解码器必失败）。
@@ -678,26 +678,26 @@ fn start_auto_bridge(
     })?;
     let bridge_url = b.url();
     let enc = vqa_core::bridge::pick_h264_encoder(&ffmpeg);
-    *st.auto_decoder.lock().unwrap() =
+    *st.auto_decoder.lock().unwrap_or_else(|e| e.into_inner()) =
         used_decoder.unwrap_or("default").to_string();
-    *st.bridge.lock().unwrap() = Some(Box::new(b));
-    *st.bridge_enc.lock().unwrap() = enc;
-    *st.bridge_note.lock().unwrap() =
+    *st.bridge.lock().unwrap_or_else(|e| e.into_inner()) = Some(Box::new(b));
+    *st.bridge_enc.lock().unwrap_or_else(|e| e.into_inner()) = enc;
+    *st.bridge_note.lock().unwrap_or_else(|e| e.into_inner()) =
         format!("8K 自动降级：转码输出 {scale_w} 宽 / 25fps");
-    *st.bridge_url.lock().unwrap() = bridge_url.clone();
-    *st.bridge_since.lock().unwrap() = Some(std::time::Instant::now());
-    *st.bridge_loaded.lock().unwrap() = true;
-    *st.bridge_ready_at.lock().unwrap() = Some(std::time::Instant::now());
-    *st.bridge_had_picture.lock().unwrap() = false;
-    *st.bridge_retry_left.lock().unwrap() = 0;
-    *st.preparing.lock().unwrap() = false;
-    *st.loaded_at.lock().unwrap() = None;
-    *st.video_retry_done.lock().unwrap() = false;
-    *st.auto_scale_url.lock().unwrap() = url.to_string();
-    *st.auto_scale_w.lock().unwrap() = scale_w;
-    *st.bridge_dead_since.lock().unwrap() = None;
-    *st.err.lock().unwrap() = None;
-    if let Some(m) = st.mpv.lock().unwrap().as_ref() {
+    *st.bridge_url.lock().unwrap_or_else(|e| e.into_inner()) = bridge_url.clone();
+    *st.bridge_since.lock().unwrap_or_else(|e| e.into_inner()) = Some(std::time::Instant::now());
+    *st.bridge_loaded.lock().unwrap_or_else(|e| e.into_inner()) = true;
+    *st.bridge_ready_at.lock().unwrap_or_else(|e| e.into_inner()) = Some(std::time::Instant::now());
+    *st.bridge_had_picture.lock().unwrap_or_else(|e| e.into_inner()) = false;
+    *st.bridge_retry_left.lock().unwrap_or_else(|e| e.into_inner()) = 0;
+    *st.preparing.lock().unwrap_or_else(|e| e.into_inner()) = false;
+    *st.loaded_at.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *st.video_retry_done.lock().unwrap_or_else(|e| e.into_inner()) = false;
+    *st.auto_scale_url.lock().unwrap_or_else(|e| e.into_inner()) = url.to_string();
+    *st.auto_scale_w.lock().unwrap_or_else(|e| e.into_inner()) = scale_w;
+    *st.bridge_dead_since.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *st.err.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    if let Some(m) = st.mpv.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
         let _ = m.loadfile(&bridge_url);
     }
     st.set_hint_for(format!("8K 已转入 {scale_w} 宽 / 25fps 转码播放"), 30);
@@ -710,19 +710,19 @@ fn start_auto_bridge(
 
 #[tauri::command]
 pub fn player_adaptive_scale(st: State<PlayerState>, scale_w: u32) -> Result<(), String> {
-    let url = st.playing_url.lock().unwrap().clone();
+    let url = st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).clone();
     if url.is_empty() {
         return Err("当前没有在播的源".into());
     }
     if scale_w == 0 {
         return Err("降级宽度无效".into());
     }
-    let nic_ip = st.last_nic_ip.lock().unwrap().clone();
+    let nic_ip = st.last_nic_ip.lock().unwrap_or_else(|e| e.into_inner()).clone();
     vqa_core::config::log_line(
         "player",
         &format!("adaptive-scale 请求：scale_w={scale_w} url={url}"),
     );
-    *st.bridge_auto_restarts.lock().unwrap() = 0;
+    *st.bridge_auto_restarts.lock().unwrap_or_else(|e| e.into_inner()) = 0;
     start_auto_bridge(&st, &url, &nic_ip, scale_w)
 }
 
@@ -893,28 +893,28 @@ fn decide_bridge(
 #[tauri::command]
 pub fn player_stop(st: State<PlayerState>) {
     kill_feed(&st);
-    *st.playing_url.lock().unwrap() = String::new();
-    *st.last_nic_ip.lock().unwrap() = String::new();
-    *st.bridge.lock().unwrap() = None;
-    *st.bridge_enc.lock().unwrap() = String::new();
-    *st.bridge_note.lock().unwrap() = String::new();
-    *st.bridge_url.lock().unwrap() = String::new();
-    *st.bridge_since.lock().unwrap() = None;
-    *st.preparing.lock().unwrap() = false;
-    *st.loaded_at.lock().unwrap() = None;
-    *st.video_retry_done.lock().unwrap() = false;
-    *st.live_idle_since.lock().unwrap() = None;
-    *st.live_retry_left.lock().unwrap() = 0;
-    *st.live_had_picture.lock().unwrap() = false;
-    *st.live_last_time.lock().unwrap() = 0;
-    *st.live_stall_since.lock().unwrap() = None;
-    *st.auto_scale_url.lock().unwrap() = String::new();
-    *st.auto_scale_w.lock().unwrap() = 0;
-    *st.bridge_dead_since.lock().unwrap() = None;
-    *st.bridge_auto_restarts.lock().unwrap() = 0;
-    *st.bridge_stderr_last.lock().unwrap() = String::new();
-    *st.auto_decoder.lock().unwrap() = String::new();
-    if let Some(m) = st.mpv.lock().unwrap().as_ref() {
+    *st.playing_url.lock().unwrap_or_else(|e| e.into_inner()) = String::new();
+    *st.last_nic_ip.lock().unwrap_or_else(|e| e.into_inner()) = String::new();
+    *st.bridge.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *st.bridge_enc.lock().unwrap_or_else(|e| e.into_inner()) = String::new();
+    *st.bridge_note.lock().unwrap_or_else(|e| e.into_inner()) = String::new();
+    *st.bridge_url.lock().unwrap_or_else(|e| e.into_inner()) = String::new();
+    *st.bridge_since.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *st.preparing.lock().unwrap_or_else(|e| e.into_inner()) = false;
+    *st.loaded_at.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *st.video_retry_done.lock().unwrap_or_else(|e| e.into_inner()) = false;
+    *st.live_idle_since.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *st.live_retry_left.lock().unwrap_or_else(|e| e.into_inner()) = 0;
+    *st.live_had_picture.lock().unwrap_or_else(|e| e.into_inner()) = false;
+    *st.live_last_time.lock().unwrap_or_else(|e| e.into_inner()) = 0;
+    *st.live_stall_since.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *st.auto_scale_url.lock().unwrap_or_else(|e| e.into_inner()) = String::new();
+    *st.auto_scale_w.lock().unwrap_or_else(|e| e.into_inner()) = 0;
+    *st.bridge_dead_since.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *st.bridge_auto_restarts.lock().unwrap_or_else(|e| e.into_inner()) = 0;
+    *st.bridge_stderr_last.lock().unwrap_or_else(|e| e.into_inner()) = String::new();
+    *st.auto_decoder.lock().unwrap_or_else(|e| e.into_inner()) = String::new();
+    if let Some(m) = st.mpv.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
         let _ = m.stop();
     }
 }
@@ -924,7 +924,7 @@ pub fn player_pause_toggle(st: State<PlayerState>) -> Result<Option<bool>, Strin
     let mut replay_via_play = false;
     let mut paused_after = None;
     {
-        let guard = st.mpv.lock().unwrap();
+        let guard = st.mpv.lock().unwrap_or_else(|e| e.into_inner());
         let m = guard.as_ref().ok_or_else(|| "播放器尚未启动".to_string())?;
         // 不能只信 snap.paused：轮询/属性事件可能滞后。直接向 mpv 查真实状态。
         let idle = m
@@ -933,13 +933,13 @@ pub fn player_pause_toggle(st: State<PlayerState>) -> Result<Option<bool>, Strin
         if idle {
             // ★ 起播管线进行中（探测/桥转码）：不要动——此时把原始 AVS2
             //   喂给官方 mpv（无 AVS2 解码器）会秒退，UI 卡在"已播完"
-            if *st.preparing.lock().unwrap() {
+            if *st.preparing.lock().unwrap_or_else(|e| e.into_inner()) {
                 return Ok(None);
             }
             // 重播：桥模式用桥产物（TS 文件/流地址），直放用原地址
-            let bridge_u = st.bridge_url.lock().unwrap().clone();
+            let bridge_u = st.bridge_url.lock().unwrap_or_else(|e| e.into_inner()).clone();
             let url = if bridge_u.is_empty() {
-                st.playing_url.lock().unwrap().clone()
+                st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).clone()
             } else {
                 bridge_u
             };
@@ -965,7 +965,7 @@ pub fn player_pause_toggle(st: State<PlayerState>) -> Result<Option<bool>, Strin
         }
     }
     if replay_via_play {
-        let u2 = st.playing_url.lock().unwrap().clone();
+        let u2 = st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).clone();
         if !u2.is_empty() {
             player_play(st, u2, String::new(), false)?;
         }
@@ -976,7 +976,7 @@ pub fn player_pause_toggle(st: State<PlayerState>) -> Result<Option<bool>, Strin
 
 #[tauri::command]
 pub fn player_seek(st: State<PlayerState>, fraction: f64) {
-    if let Some(m) = st.mpv.lock().unwrap().as_ref() {
+    if let Some(m) = st.mpv.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
         let _ = m.seek_percent(fraction * 100.0);
     }
 }
@@ -990,7 +990,7 @@ pub fn player_seek(st: State<PlayerState>, fraction: f64) {
 /// `lines` 为空 = 收起。
 #[tauri::command]
 pub fn player_osd(st: State<PlayerState>, lines: Vec<String>, res_x: u32, res_y: u32) {
-    let Some(m) = st.mpv.lock().unwrap().clone() else {
+    let Some(m) = st.mpv.lock().unwrap_or_else(|e| e.into_inner()).clone() else {
         return;
     };
     if lines.is_empty() {
@@ -1068,21 +1068,21 @@ fn build_info_osd(lines: &[String], rx: u32, ry: u32) -> String {
 
 #[tauri::command]
 pub fn player_set_volume(st: State<PlayerState>, volume: f64) {
-    if let Some(m) = st.mpv.lock().unwrap().as_ref() {
+    if let Some(m) = st.mpv.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
         let _ = m.set_volume(volume);
     }
 }
 
 #[tauri::command]
 pub fn player_set_mute(st: State<PlayerState>, mute: bool) {
-    if let Some(m) = st.mpv.lock().unwrap().as_ref() {
+    if let Some(m) = st.mpv.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
         let _ = m.set_mute(mute);
     }
 }
 
 #[tauri::command]
 pub fn player_set_speed(st: State<PlayerState>, speed: f64) {
-    if let Some(m) = st.mpv.lock().unwrap().as_ref() {
+    if let Some(m) = st.mpv.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
         let _ = m.set_speed(speed);
     }
 }
@@ -1091,8 +1091,8 @@ pub fn player_set_speed(st: State<PlayerState>, speed: f64) {
 /// 但仍在 player_play 里补发一次——避免重启播放器后被重置。
 #[tauri::command]
 pub fn player_set_loop(st: State<PlayerState>, on: bool) {
-    *st.loop_file.lock().unwrap() = on;
-    if let Some(m) = st.mpv.lock().unwrap().as_ref() {
+    *st.loop_file.lock().unwrap_or_else(|e| e.into_inner()) = on;
+    if let Some(m) = st.mpv.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
         let _ = m.set_prop(
             "loop-file",
             serde_json::Value::String(if on { "inf" } else { "no" }.into()),
@@ -1121,18 +1121,18 @@ pub fn player_set_program(
     if program < 1 {
         return Err("节目序号无效".into());
     }
-    if st.bridge.lock().unwrap().is_some() {
+    if st.bridge.lock().unwrap_or_else(|e| e.into_inner()).is_some() {
         return Err("桥转码中不支持切节目（请先停止）".into());
     }
     let ff = vqa_core::tools::find_ffmpeg().ok_or("未找到 ffmpeg.exe")?;
     let mpv_exe = vqa_core::tools::find_mpv().ok_or("未找到 mpv.exe（bin/mpv/mpv.exe）")?;
-    let wid = st.child.lock().unwrap().as_ref().map(|c| c.hwnd());
+    let wid = st.child.lock().unwrap_or_else(|e| e.into_inner()).as_ref().map(|c| c.hwnd());
 
     // 收掉旧的播放器与抽流进程，避免两条管道抢读同一个组播源
-    if let Some(old) = st.mpv.lock().unwrap().take() {
+    if let Some(old) = st.mpv.lock().unwrap_or_else(|e| e.into_inner()).take() {
         drop(old);
     }
-    if let Some(mut c) = st.feed.lock().unwrap().take() {
+    if let Some(mut c) = st.feed.lock().unwrap_or_else(|e| e.into_inner()).take() {
         let _ = c.kill();
         let _ = c.wait();
     }
@@ -1156,11 +1156,11 @@ pub fn player_set_program(
 
     let (mpv, ff_child) = vqa_core::player::Mpv::launch_feed(&mpv_exe, wid, &ff, &args)?;
     // 循环播放是跨 loadfile 的开关：新起的播放器要再下发一次，否则切节目就丢了
-    if *st.loop_file.lock().unwrap() {
+    if *st.loop_file.lock().unwrap_or_else(|e| e.into_inner()) {
         let _ = mpv.set_prop("loop-file", serde_json::Value::String("inf".into()));
     }
-    *st.feed.lock().unwrap() = Some(ff_child);
-    *st.mpv.lock().unwrap() = Some(mpv);
+    *st.feed.lock().unwrap_or_else(|e| e.into_inner()) = Some(ff_child);
+    *st.mpv.lock().unwrap_or_else(|e| e.into_inner()) = Some(mpv);
     st.set_hint_for(format!("正在切到节目 {program}（重新抽流，约 1-2 秒）"), 6);
     crate::events::ev("player", &format!("切节目 {program}（抽流模式）"));
     Ok(())
@@ -1253,19 +1253,19 @@ pub fn player_snapshot_save(st: State<PlayerState>) -> Result<String, String> {
     let _ = std::fs::create_dir_all(&dir);
     let ts = chrono::Local::now().format("%Y%m%d_%H%M%S");
     let path = dir.join(format!("snap_{ts}.png"));
-    let m = st.mpv.lock().unwrap().clone().ok_or("播放器未运行")?;
+    let m = st.mpv.lock().unwrap_or_else(|e| e.into_inner()).clone().ok_or("播放器未运行")?;
     m.screenshot(&path).map_err(|e| format!("{e}"))?;
     Ok(path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
 pub fn player_record_toggle(st: State<PlayerState>) -> Result<String, String> {
-    let mut rec = st.recording.lock().unwrap();
-    let m = st.mpv.lock().unwrap().clone().ok_or("播放器未运行")?;
+    let mut rec = st.recording.lock().unwrap_or_else(|e| e.into_inner());
+    let m = st.mpv.lock().unwrap_or_else(|e| e.into_inner()).clone().ok_or("播放器未运行")?;
     if *rec {
         let _ = m.stop_record();
         *rec = false;
-        let path = st.rec_path.lock().unwrap().take();
+        let path = st.rec_path.lock().unwrap_or_else(|e| e.into_inner()).take();
         Ok(path
             .map(|p| format!("已录制 {}", p.display()))
             .unwrap_or_else(|| "已停止录制".into()))
@@ -1275,7 +1275,7 @@ pub fn player_record_toggle(st: State<PlayerState>) -> Result<String, String> {
         let ts = chrono::Local::now().format("%Y%m%d_%H%M%S");
         let path = dir.join(format!("rec_{ts}.ts"));
         m.record(&path).map_err(|e| format!("{e}"))?;
-        *st.rec_path.lock().unwrap() = Some(path);
+        *st.rec_path.lock().unwrap_or_else(|e| e.into_inner()) = Some(path);
         *rec = true;
         Ok("录制中（stream-record 直拷）".into())
     }
@@ -1285,7 +1285,7 @@ pub fn player_record_toggle(st: State<PlayerState>) -> Result<String, String> {
 #[tauri::command]
 pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
     // 1) 管道排空（保活必需）
-    let mpv_arc = st.mpv.lock().unwrap().clone();
+    let mpv_arc = st.mpv.lock().unwrap_or_else(|e| e.into_inner()).clone();
     let mut died = false;
     if let Some(m) = &mpv_arc {
         m.poll();
@@ -1293,13 +1293,13 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
     }
 
     // 2) 收割探针消息
-    let rx = st.probe_rx.lock().unwrap().take();
+    let rx = st.probe_rx.lock().unwrap_or_else(|e| e.into_inner()).take();
     if let Some(rx) = rx {
         loop {
             match rx.try_recv() {
                 Ok(ProbeMsg::Info(q)) => {
                     if let Some(q) = q {
-                        *st.probe_info.lock().unwrap() = Some(q);
+                        *st.probe_info.lock().unwrap_or_else(|e| e.into_inner()) = Some(q);
                     }
                 }
                 Ok(ProbeMsg::Bridging(msg)) => {
@@ -1307,24 +1307,24 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                     st.set_hint_for(msg, 300);
                 }                Ok(ProbeMsg::Outcome(launch)) => {
                     // 起播管线结束（无论结果）：等待态解除
-                    *st.preparing.lock().unwrap() = false;
+                    *st.preparing.lock().unwrap_or_else(|e| e.into_inner()) = false;
                     match launch {
                     Launch::Direct => {
                         if let Some(m) = &mpv_arc {
-                            let url = st.playing_url.lock().unwrap().clone();
+                            let url = st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).clone();
                             if !url.is_empty() {
-                                let q = st.probe_info.lock().unwrap().clone();
+                                let q = st.probe_info.lock().unwrap_or_else(|e| e.into_inner()).clone();
                                 let opts = direct_load_opts(&url, q.as_ref());
                                 let _ = m.loadfile_with_opts(&url, opts);
-                                *st.loaded_at.lock().unwrap() = Some(std::time::Instant::now());
-                                *st.video_retry_done.lock().unwrap() = false;
+                                *st.loaded_at.lock().unwrap_or_else(|e| e.into_inner()) = Some(std::time::Instant::now());
+                                *st.video_retry_done.lock().unwrap_or_else(|e| e.into_inner()) = false;
                                 st.set_hint("已加载");
                                 crate::events::ev("player", "直放（无需转码）");
                             }
                         }
                     }
                     Launch::Bridged { url, reason, auto_scale, bridge } => {
-                        if st.playing_url.lock().unwrap().is_empty() {
+                        if st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).is_empty() {
                             // 用户已停止：起好的桥直接丢弃（Drop 会 kill 子进程）
                             drop(bridge);
                         } else if let Some(m) = &mpv_arc {
@@ -1344,24 +1344,24 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                                 );
                             } else {
                                 let _ = m.loadfile(&url);
-                                *st.bridge_loaded.lock().unwrap() = true;
+                                *st.bridge_loaded.lock().unwrap_or_else(|e| e.into_inner()) = true;
                                 let _ = m.show_text(&reason, 4000);
                             }
                             crate::events::ev(
                                 "bridge",
                                 &format!("桥就绪 → {reason}{}", if preload { "（预转中）" } else { "" }),
                             );
-                            *st.bridge_note.lock().unwrap() = reason;
-                            *st.bridge_url.lock().unwrap() = url.clone();
-                            *st.bridge_since.lock().unwrap() = Some(std::time::Instant::now());
-                            *st.bridge.lock().unwrap() = Some(bridge);
+                            *st.bridge_note.lock().unwrap_or_else(|e| e.into_inner()) = reason;
+                            *st.bridge_url.lock().unwrap_or_else(|e| e.into_inner()) = url.clone();
+                            *st.bridge_since.lock().unwrap_or_else(|e| e.into_inner()) = Some(std::time::Instant::now());
+                            *st.bridge.lock().unwrap_or_else(|e| e.into_inner()) = Some(bridge);
                             // 正常探测到 8K 时也在这里起 4K 桥；同样记住降级宽度，
                             // 桥进程中途退出后 watchdog 才能按同一宽度自动重启。
                             if auto_scale > 0 {
-                                *st.auto_scale_url.lock().unwrap() =
-                                    st.playing_url.lock().unwrap().clone();
-                                *st.auto_scale_w.lock().unwrap() = auto_scale;
-                                *st.bridge_dead_since.lock().unwrap() = None;
+                                *st.auto_scale_url.lock().unwrap_or_else(|e| e.into_inner()) =
+                                    st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).clone();
+                                *st.auto_scale_w.lock().unwrap_or_else(|e| e.into_inner()) = auto_scale;
+                                *st.bridge_dead_since.lock().unwrap_or_else(|e| e.into_inner()) = None;
                             }
                             // 记录本次桥用的编码器（决定"转到什么"展示）。
                             // pick_h264_encoder 内部有进程级缓存，起桥时已算过，
@@ -1369,14 +1369,14 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                             let enc = vqa_core::tools::find_ffmpeg()
                                 .map(|f| vqa_core::bridge::pick_h264_encoder(&f))
                                 .unwrap_or_default();
-                            *st.bridge_enc.lock().unwrap() = enc;
+                            *st.bridge_enc.lock().unwrap_or_else(|e| e.into_inner()) = enc;
                         } else {
                             drop(bridge);
                         }
                     }
                     Launch::Failed(msg) => {
                         crate::events::ev("player-err", &format!("起播失败：{msg}"));
-                        *st.err.lock().unwrap() = Some(msg.clone());
+                        *st.err.lock().unwrap_or_else(|e| e.into_inner()) = Some(msg.clone());
                         // ★ AVS2 源不回退直放：mpv 内置 davs2 不支持 10-bit
                         //   （"Un-supported bit-depth 10"），直放必崩 mpv。
                         //   只显示桥失败原因，让用户看错误行。
@@ -1389,15 +1389,15 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                             .unwrap_or(false);
                         if !is_avs2 {
                             if let Some(m) = &mpv_arc {
-                                let url = st.playing_url.lock().unwrap().clone();
+                                let url = st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).clone();
                                 if !url.is_empty() {
                                     // 回退直放
-                                    let q = st.probe_info.lock().unwrap().clone();
+                                    let q = st.probe_info.lock().unwrap_or_else(|e| e.into_inner()).clone();
                                     let opts = direct_load_opts(&url, q.as_ref());
                                     let _ = m.loadfile_with_opts(&url, opts);
-                                    *st.loaded_at.lock().unwrap() =
+                                    *st.loaded_at.lock().unwrap_or_else(|e| e.into_inner()) =
                                         Some(std::time::Instant::now());
-                                    *st.video_retry_done.lock().unwrap() = false;
+                                    *st.video_retry_done.lock().unwrap_or_else(|e| e.into_inner()) = false;
                                 }
                             }
                         }
@@ -1406,7 +1406,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                 },
                 Err(_) => {
                     // 管道空了：放回（起播管线运行期间每帧重试）
-                    *st.probe_rx.lock().unwrap() = Some(rx);
+                    *st.probe_rx.lock().unwrap_or_else(|e| e.into_inner()) = Some(rx);
                     break;
                 }
             }
@@ -1418,27 +1418,27 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
     //      重复点播都会把整片转码作废重来，越点越等不到。
     //      转完这一刻才 loadfile：UDP 里已经有整片数据，mpv 一打开就有流。
     {
-        let prog = st.bridge.lock().unwrap().as_ref().map(|b| b.progress());
+        let prog = st.bridge.lock().unwrap_or_else(|e| e.into_inner()).as_ref().map(|b| b.progress());
         if let Some(prog) = prog {
             if prog.starts_with("预转") || prog.starts_with("准备中") {
-                *st.preparing.lock().unwrap() = true;
+                *st.preparing.lock().unwrap_or_else(|e| e.into_inner()) = true;
                 st.set_hint_for(format!("{prog} · 首片转完即播放"), 300);
             } else {
-                *st.preparing.lock().unwrap() = false;
-                if !*st.bridge_loaded.lock().unwrap() {
+                *st.preparing.lock().unwrap_or_else(|e| e.into_inner()) = false;
+                if !*st.bridge_loaded.lock().unwrap_or_else(|e| e.into_inner()) {
                     // ★ 原先这里硬等 600ms"让流稳定"，那是在没有发送门限的年代
                     //   补的；现在 send_loop 在 mpv 绑端口前只放 GO_PRIME（256KB）
                     //   探测字节、等 go() 才全速发，mpv 打开时流还停在开头，
                     //   不需要再白等这 0.6 秒。首片一拼完就 loadfile。
-                    let u = st.bridge_url.lock().unwrap().clone();
+                    let u = st.bridge_url.lock().unwrap_or_else(|e| e.into_inner()).clone();
                     if !u.is_empty() {
                         if let Some(m) = &mpv_arc {
                             let _ = m.loadfile(&u);
                             st.set_hint_for("首片就绪，开始播放", 30);
                             crate::events::ev("player", "首片就绪 → 加载播放");
                         }
-                        *st.bridge_loaded.lock().unwrap() = true;
-                        *st.bridge_since.lock().unwrap() = Some(std::time::Instant::now());
+                        *st.bridge_loaded.lock().unwrap_or_else(|e| e.into_inner()) = true;
+                        *st.bridge_since.lock().unwrap_or_else(|e| e.into_inner()) = Some(std::time::Instant::now());
                     }
                 }
             }
@@ -1448,7 +1448,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
     // 2.4b) loadfile 之后约 700ms，mpv 才真正绑上 UDP 端口。这之后才放开发送，
     //       否则前面发的都被当成"没人接收"丢掉，mpv 从流中段起播（时长少 2 秒、
     //       音画起点错位）。顺手做幂等，每帧调一次也无妨。
-    if *st.bridge_loaded.lock().unwrap() {
+    if *st.bridge_loaded.lock().unwrap_or_else(|e| e.into_inner()) {
         let due = st
             .bridge_since
             .lock()
@@ -1456,7 +1456,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
             .map(|t| t.elapsed().as_millis() > 700)
             .unwrap_or(false);
         if due {
-            if let Some(b) = st.bridge.lock().unwrap().as_ref() {
+            if let Some(b) = st.bridge.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
                 b.go();
             }
         }
@@ -1472,7 +1472,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
             .as_ref()
             .map(|b| b.is_file())
             .unwrap_or(false);
-        let retry_left = *st.bridge_retry_left.lock().unwrap();
+        let retry_left = *st.bridge_retry_left.lock().unwrap_or_else(|e| e.into_inner());
         // 预转期间 UDP 里还没有数据：这时候 loadfile 只会让 mpv 读到 0 字节
         // 然后判"无法识别格式"，白白烧掉重试次数。
         let preloading = st
@@ -1505,12 +1505,12 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                 .map(|t| t.elapsed() >= std::time::Duration::from_secs(2))
                 .unwrap_or(true);
             if idle && due {
-                let url = st.bridge_url.lock().unwrap().clone();
-                if !url.is_empty() && !st.playing_url.lock().unwrap().is_empty() {
+                let url = st.bridge_url.lock().unwrap_or_else(|e| e.into_inner()).clone();
+                if !url.is_empty() && !st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).is_empty() {
                     if let Some(m) = &mpv_arc {
                         let _ = m.loadfile(&url);
-                        *st.bridge_retry_left.lock().unwrap() = retry_left - 1;
-                        *st.bridge_last_retry.lock().unwrap() =
+                        *st.bridge_retry_left.lock().unwrap_or_else(|e| e.into_inner()) = retry_left - 1;
+                        *st.bridge_last_retry.lock().unwrap_or_else(|e| e.into_inner()) =
                             Some(std::time::Instant::now());
                         crate::events::ev(
                             "bridge",
@@ -1519,7 +1519,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                         st.set_hint(format!("等待转码桥出流…（{}）", retry_left - 1));
                     }
                 } else {
-                    *st.bridge_retry_left.lock().unwrap() = 0;
+                    *st.bridge_retry_left.lock().unwrap_or_else(|e| e.into_inner()) = 0;
                 }
             }
         }
@@ -1529,7 +1529,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
     {
         let idle = mpv_arc.as_ref().map(|m| m.snapshot().idle).unwrap_or(true);
         if !idle {
-            *st.bridge_had_picture.lock().unwrap() = true;
+            *st.bridge_had_picture.lock().unwrap_or_else(|e| e.into_inner()) = true;
         }
     }
 
@@ -1537,8 +1537,8 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
     //       界面看起来就是“播一会儿自己退了”。直播源先自动重启一次；
     //       第二次仍退出就明确报错，不再静默黑屏。
     {
-        let playing = !st.playing_url.lock().unwrap().is_empty();
-        let url = st.playing_url.lock().unwrap().clone();
+        let playing = !st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).is_empty();
+        let url = st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).clone();
         let low = url.to_ascii_lowercase();
         let live = low.starts_with("udp://")
             || low.starts_with("rtp://")
@@ -1547,7 +1547,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
             || low.starts_with("rtmps://")
             || low.starts_with("srt://")
             || low.starts_with("mms://");
-        let bridge_dead = if playing && live && !*st.preparing.lock().unwrap() {
+        let bridge_dead = if playing && live && !*st.preparing.lock().unwrap_or_else(|e| e.into_inner()) {
             st.bridge
                 .lock()
                 .unwrap()
@@ -1560,24 +1560,24 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
         if bridge_dead {
             // 先把死桥的 stderr 留下来，再让 start_auto_bridge 接管旧句柄。
             let tail = {
-                let b = st.bridge.lock().unwrap();
+                let b = st.bridge.lock().unwrap_or_else(|e| e.into_inner());
                 b.as_ref().map(|b| b.stderr_tail()).unwrap_or_default()
             };
             if !tail.trim().is_empty() {
-                *st.bridge_stderr_last.lock().unwrap() = tail.clone();
+                *st.bridge_stderr_last.lock().unwrap_or_else(|e| e.into_inner()) = tail.clone();
                 vqa_core::config::log_line(
                     "bridge",
                     &format!("桥进程退出 stderr：{}", tail.trim()),
                 );
             }
-            let since = *st.bridge_dead_since.lock().unwrap();
+            let since = *st.bridge_dead_since.lock().unwrap_or_else(|e| e.into_inner());
             let due = since
                 .map(|t| t.elapsed() >= std::time::Duration::from_secs(3))
                 .unwrap_or(false);
             if due {
-                let scale = *st.auto_scale_w.lock().unwrap();
+                let scale = *st.auto_scale_w.lock().unwrap_or_else(|e| e.into_inner());
                 if scale > 0 {
-                    let restarts = *st.bridge_auto_restarts.lock().unwrap();
+                    let restarts = *st.bridge_auto_restarts.lock().unwrap_or_else(|e| e.into_inner());
                     // 第一次按原宽度重启；还退出就把 4K 降到 1920，再退到
                     // 1280。8K 源在弱机上 4K 实时编码不一定撑得住，降一档
                     // 比直接显示“反复退出、已停止播放”更有用。
@@ -1591,12 +1591,12 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                         scale
                     };
                     if restarts < 2 {
-                        *st.bridge_auto_restarts.lock().unwrap() = restarts + 1;
-                        *st.bridge_dead_since.lock().unwrap() = None;
-                        *st.auto_scale_w.lock().unwrap() = next_scale;
-                        let nic = st.last_nic_ip.lock().unwrap().clone();
+                        *st.bridge_auto_restarts.lock().unwrap_or_else(|e| e.into_inner()) = restarts + 1;
+                        *st.bridge_dead_since.lock().unwrap_or_else(|e| e.into_inner()) = None;
+                        *st.auto_scale_w.lock().unwrap_or_else(|e| e.into_inner()) = next_scale;
+                        let nic = st.last_nic_ip.lock().unwrap_or_else(|e| e.into_inner()).clone();
                         // 先收掉已经死掉的桥，避免两座桥同时占同一个端口/解码器
-                        *st.bridge.lock().unwrap() = None;
+                        *st.bridge.lock().unwrap_or_else(|e| e.into_inner()) = None;
                         crate::events::ev(
                             "bridge",
                             &format!(
@@ -1605,13 +1605,13 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                             ),
                         );
                         if let Err(e) = start_auto_bridge(&st, &url, &nic, next_scale) {
-                            *st.err.lock().unwrap() =
+                            *st.err.lock().unwrap_or_else(|e| e.into_inner()) =
                                 Some(format!("转码桥重启失败：{e}"));
                         }
                     } else {
-                        *st.bridge.lock().unwrap() = None;
-                        let stderr = st.bridge_stderr_last.lock().unwrap().clone();
-                        *st.err.lock().unwrap() = Some(if stderr.trim().is_empty() {
+                        *st.bridge.lock().unwrap_or_else(|e| e.into_inner()) = None;
+                        let stderr = st.bridge_stderr_last.lock().unwrap_or_else(|e| e.into_inner()).clone();
+                        *st.err.lock().unwrap_or_else(|e| e.into_inner()) = Some(if stderr.trim().is_empty() {
                             "转码桥进程反复退出，已停止播放。请检查源或降低输出宽度后重试"
                                 .into()
                         } else {
@@ -1622,17 +1622,17 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                         });
                     }
                 } else {
-                    *st.bridge.lock().unwrap() = None;
-                    *st.err.lock().unwrap() = Some(
+                    *st.bridge.lock().unwrap_or_else(|e| e.into_inner()) = None;
+                    *st.err.lock().unwrap_or_else(|e| e.into_inner()) = Some(
                         "转码桥进程反复退出，已停止播放。请检查源或降低输出宽度后重试"
                             .into(),
                     );
                 }
             } else if since.is_none() {
-                *st.bridge_dead_since.lock().unwrap() = Some(std::time::Instant::now());
+                *st.bridge_dead_since.lock().unwrap_or_else(|e| e.into_inner()) = Some(std::time::Instant::now());
             }
         } else {
-            *st.bridge_dead_since.lock().unwrap() = None;
+            *st.bridge_dead_since.lock().unwrap_or_else(|e| e.into_inner()) = None;
         }
     }
 
@@ -1646,8 +1646,8 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
             .as_ref()
             .map(|b| b.is_file())
             .unwrap_or(false);
-        let had_picture = *st.bridge_had_picture.lock().unwrap();
-        let retry_left = *st.bridge_retry_left.lock().unwrap();
+        let had_picture = *st.bridge_had_picture.lock().unwrap_or_else(|e| e.into_inner());
+        let retry_left = *st.bridge_retry_left.lock().unwrap_or_else(|e| e.into_inner());
         // 预转期间本来就"没有画面"（还没开始发流），不能按 2 分钟判死
         let preloading = st
             .bridge
@@ -1660,7 +1660,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
             })
             .unwrap_or(false);
         if retry_left == 0 && !file_bridge && !had_picture && !preloading {
-            let bridge_on = !st.bridge_note.lock().unwrap().is_empty();
+            let bridge_on = !st.bridge_note.lock().unwrap_or_else(|e| e.into_inner()).is_empty();
             // ★ 计时 2 分钟：起播瞬间 mpv 短暂 idle 是正常的（loadfile 异步
             //   生效），不立即判死；只有桥就绪超过 2 分钟仍无画面才是真失败
             let waited = st
@@ -1670,14 +1670,14 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                 .map(|t| t.elapsed() >= std::time::Duration::from_secs(120))
                 .unwrap_or(false);
             let idle = mpv_arc.as_ref().map(|m| m.snapshot().idle).unwrap_or(true);
-            if bridge_on && waited && idle && !st.playing_url.lock().unwrap().is_empty() {
-                let mode = st.bridge_note.lock().unwrap().clone();
-                *st.err.lock().unwrap() = Some(format!(
+            if bridge_on && waited && idle && !st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).is_empty() {
+                let mode = st.bridge_note.lock().unwrap_or_else(|e| e.into_inner()).clone();
+                *st.err.lock().unwrap_or_else(|e| e.into_inner()) = Some(format!(
                     "转码桥（{mode}）超过 2 分钟未出画面——本机解码性能可能不足以实时转码该规格（如 4K 10-bit AVS2）。可尝试较低分辨率/8-bit 的源"
                 ));
                 // 停桥止血（Drop kill 子进程）
-                *st.bridge.lock().unwrap() = None;
-                *st.bridge_retry_left.lock().unwrap() = u32::MAX / 2; // 不再重复报
+                *st.bridge.lock().unwrap_or_else(|e| e.into_inner()) = None;
+                *st.bridge_retry_left.lock().unwrap_or_else(|e| e.into_inner()) = u32::MAX / 2; // 不再重复报
             }
         }
     }
@@ -1688,15 +1688,15 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
             "mpv",
             &format!(
                 "mpv 进程退出（播放中={}）",
-                !st.playing_url.lock().unwrap().is_empty()
+                !st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).is_empty()
             ),
         );
-        *st.mpv.lock().unwrap() = None;
-        *st.bridge_since.lock().unwrap() = None;
+        *st.mpv.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        *st.bridge_since.lock().unwrap_or_else(|e| e.into_inner()) = None;
         // 若正处于桥重连等待期，按桥的报错情况分级诊断
-        let was_bridge_wait = *st.bridge_retry_left.lock().unwrap() > 0
-            && *st.bridge_retry_left.lock().unwrap() < u32::MAX / 2;
-        *st.bridge_retry_left.lock().unwrap() = 0;
+        let was_bridge_wait = *st.bridge_retry_left.lock().unwrap_or_else(|e| e.into_inner()) > 0
+            && *st.bridge_retry_left.lock().unwrap_or_else(|e| e.into_inner()) < u32::MAX / 2;
+        *st.bridge_retry_left.lock().unwrap_or_else(|e| e.into_inner()) = 0;
         let bridge_tail = st
             .bridge
             .lock()
@@ -1704,9 +1704,9 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
             .as_ref()
             .map(|b| b.stderr_tail().trim().to_string())
             .unwrap_or_default();
-        *st.bridge.lock().unwrap() = None;
-        let existing = st.err.lock().unwrap().clone();
-        *st.err.lock().unwrap() = Some(if was_bridge_wait && bridge_tail.is_empty() {
+        *st.bridge.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        let existing = st.err.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        *st.err.lock().unwrap_or_else(|e| e.into_inner()) = Some(if was_bridge_wait && bridge_tail.is_empty() {
             "源内容播放完毕（转码桥正常结束）".into()
         } else if was_bridge_wait {
             format!("mpv 已退出；转码桥报错：{bridge_tail}")
@@ -1725,10 +1725,10 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
     //      video-params 宽高仍为 0。这里等 2 秒自动重载一次（等价于用户把手
     //      动切高清再切回 8K），不用用户自己发现再操作。
     if let (Some(s), Some(m)) = (snap.as_ref(), mpv_arc.as_ref()) {
-        let bridge_on = !st.bridge_note.lock().unwrap().is_empty();
-        let playing = !st.playing_url.lock().unwrap().is_empty();
+        let bridge_on = !st.bridge_note.lock().unwrap_or_else(|e| e.into_inner()).is_empty();
+        let playing = !st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).is_empty();
         if playing && !s.idle && !bridge_on && s.width == 0 && !s.audio_codec.is_empty() {
-            let retried = *st.video_retry_done.lock().unwrap();
+            let retried = *st.video_retry_done.lock().unwrap_or_else(|e| e.into_inner());
             let due = st
                 .loaded_at
                 .lock()
@@ -1736,13 +1736,13 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                 .map(|t| t.elapsed() >= std::time::Duration::from_secs(2))
                 .unwrap_or(false);
             if !retried && due {
-                let url = st.playing_url.lock().unwrap().clone();
+                let url = st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).clone();
                 if !url.is_empty() && !vqa_core::bridge::is_local(&url) {
-                    let q = st.probe_info.lock().unwrap().clone();
+                    let q = st.probe_info.lock().unwrap_or_else(|e| e.into_inner()).clone();
                     let opts = direct_load_opts(&url, q.as_ref());
                     let _ = m.loadfile_with_opts(&url, opts);
-                    *st.video_retry_done.lock().unwrap() = true;
-                    *st.loaded_at.lock().unwrap() = Some(std::time::Instant::now());
+                    *st.video_retry_done.lock().unwrap_or_else(|e| e.into_inner()) = true;
+                    *st.loaded_at.lock().unwrap_or_else(|e| e.into_inner()) = Some(std::time::Instant::now());
                     crate::events::ev(
                         "player",
                         &format!("首帧有音无画，自动重载一次（audio={}）", s.audio_codec),
@@ -1751,7 +1751,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                 }
             }
         } else if s.width > 0 {
-            *st.loaded_at.lock().unwrap() = None;
+            *st.loaded_at.lock().unwrap_or_else(|e| e.into_inner()) = None;
         }
     }
 
@@ -1760,9 +1760,9 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
     //      且持续 3 秒，自动重载一次；最多 3 次，避免源端长时间无数据时
     //      无限重连。文件播放正常 EOF 不走这条（时长 > 0）。
     if let (Some(s), Some(m)) = (snap.as_ref(), mpv_arc.as_ref()) {
-        let bridge_on = !st.bridge_note.lock().unwrap().is_empty();
-        let playing = !st.playing_url.lock().unwrap().is_empty();
-        let url = st.playing_url.lock().unwrap().clone();
+        let bridge_on = !st.bridge_note.lock().unwrap_or_else(|e| e.into_inner()).is_empty();
+        let playing = !st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).is_empty();
+        let url = st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).clone();
         let low = url.to_ascii_lowercase();
         let liveish = low.starts_with("udp://")
             || low.starts_with("rtp://")
@@ -1773,9 +1773,9 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
             || low.starts_with("mms://")
             || (!vqa_core::bridge::is_local(&url) && s.duration_ms <= 0.0);
         if !s.idle && s.width > 0 {
-            *st.live_had_picture.lock().unwrap() = true;
+            *st.live_had_picture.lock().unwrap_or_else(|e| e.into_inner()) = true;
         }
-        let had_picture = *st.live_had_picture.lock().unwrap();
+        let had_picture = *st.live_had_picture.lock().unwrap_or_else(|e| e.into_inner());
         // 4.3a) 半开连接/keep-open 场景：mpv 不回 idle，但播放时间停在
         //        最后一帧不再推进。连续 3 秒无推进就按断流处理。
         if playing
@@ -1784,32 +1784,32 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
             && had_picture
             && !s.idle
             && !s.paused
-            && !*st.preparing.lock().unwrap()
+            && !*st.preparing.lock().unwrap_or_else(|e| e.into_inner())
         {
             let t = s.time_ms.round() as i64;
-            let mut last = st.live_last_time.lock().unwrap();
-            let mut stall = st.live_stall_since.lock().unwrap();
+            let mut last = st.live_last_time.lock().unwrap_or_else(|e| e.into_inner());
+            let mut stall = st.live_stall_since.lock().unwrap_or_else(|e| e.into_inner());
             if t > *last {
                 *last = t;
                 *stall = None;
             } else if t > 0 {
                 let start = stall.get_or_insert_with(std::time::Instant::now);
                 if start.elapsed() >= std::time::Duration::from_secs(3)
-                    && *st.live_retry_left.lock().unwrap() > 0
+                    && *st.live_retry_left.lock().unwrap_or_else(|e| e.into_inner()) > 0
                 {
-                    *st.live_retry_left.lock().unwrap() -= 1;
+                    *st.live_retry_left.lock().unwrap_or_else(|e| e.into_inner()) -= 1;
                     *stall = None;
-                    let q = st.probe_info.lock().unwrap().clone();
+                    let q = st.probe_info.lock().unwrap_or_else(|e| e.into_inner()).clone();
                     let opts = direct_load_opts(&url, q.as_ref());
                     let _ = m.loadfile_with_opts(&url, opts);
-                    *st.loaded_at.lock().unwrap() = Some(std::time::Instant::now());
-                    *st.video_retry_done.lock().unwrap() = false;
+                    *st.loaded_at.lock().unwrap_or_else(|e| e.into_inner()) = Some(std::time::Instant::now());
+                    *st.video_retry_done.lock().unwrap_or_else(|e| e.into_inner()) = false;
                     st.set_hint_for("直播画面停止推进，正在自动重连…", 8);
                     crate::events::ev(
                         "player",
                         &format!(
                             "直播 t={t}ms 停止推进，自动重连（剩余 {} 次）",
-                            *st.live_retry_left.lock().unwrap()
+                            *st.live_retry_left.lock().unwrap_or_else(|e| e.into_inner())
                         ),
                     );
                 }
@@ -1826,24 +1826,24 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
             && had_picture
             && !s.idle
             && !s.paused
-            && !*st.preparing.lock().unwrap()
-            && *st.auto_scale_w.lock().unwrap() > 0
+            && !*st.preparing.lock().unwrap_or_else(|e| e.into_inner())
+            && *st.auto_scale_w.lock().unwrap_or_else(|e| e.into_inner()) > 0
         {
             let t = s.time_ms.round() as i64;
-            let mut last = st.live_last_time.lock().unwrap();
-            let mut stall = st.live_stall_since.lock().unwrap();
+            let mut last = st.live_last_time.lock().unwrap_or_else(|e| e.into_inner());
+            let mut stall = st.live_stall_since.lock().unwrap_or_else(|e| e.into_inner());
             if t > *last {
                 *last = t;
                 *stall = None;
             } else if t > 0 {
                 let start = stall.get_or_insert_with(std::time::Instant::now);
                 if start.elapsed() >= std::time::Duration::from_secs(3)
-                    && *st.bridge_auto_restarts.lock().unwrap() < 1
+                    && *st.bridge_auto_restarts.lock().unwrap_or_else(|e| e.into_inner()) < 1
                 {
-                    *st.bridge_auto_restarts.lock().unwrap() += 1;
+                    *st.bridge_auto_restarts.lock().unwrap_or_else(|e| e.into_inner()) += 1;
                     *stall = None;
-                    let scale = *st.auto_scale_w.lock().unwrap();
-                    let nic = st.last_nic_ip.lock().unwrap().clone();
+                    let scale = *st.auto_scale_w.lock().unwrap_or_else(|e| e.into_inner());
+                    let nic = st.last_nic_ip.lock().unwrap_or_else(|e| e.into_inner()).clone();
                     drop(last);
                     drop(stall);
                     st.set_hint_for("8K 转码桥无输出，正在重启…", 8);
@@ -1852,7 +1852,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                         &format!("8K 桥 t={t}ms 无推进，自动重启（宽度 {scale}）"),
                     );
                     if let Err(e) = start_auto_bridge(&st, &url, &nic, scale) {
-                        *st.err.lock().unwrap() = Some(format!("8K 桥重启失败：{e}"));
+                        *st.err.lock().unwrap_or_else(|e| e.into_inner()) = Some(format!("8K 桥重启失败：{e}"));
                     }
                 }
             } else {
@@ -1864,47 +1864,47 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
             && liveish
             && had_picture
             && s.idle
-            && !*st.preparing.lock().unwrap()
+            && !*st.preparing.lock().unwrap_or_else(|e| e.into_inner())
         {
-            let mut since = st.live_idle_since.lock().unwrap();
+            let mut since = st.live_idle_since.lock().unwrap_or_else(|e| e.into_inner());
             let start = since.get_or_insert_with(std::time::Instant::now);
             if start.elapsed() >= std::time::Duration::from_secs(3)
-                && *st.live_retry_left.lock().unwrap() > 0
+                && *st.live_retry_left.lock().unwrap_or_else(|e| e.into_inner()) > 0
             {
-                *st.live_retry_left.lock().unwrap() -= 1;
+                *st.live_retry_left.lock().unwrap_or_else(|e| e.into_inner()) -= 1;
                 *since = None;
-                let q = st.probe_info.lock().unwrap().clone();
+                let q = st.probe_info.lock().unwrap_or_else(|e| e.into_inner()).clone();
                 let opts = direct_load_opts(&url, q.as_ref());
                 let _ = m.loadfile_with_opts(&url, opts);
-                *st.loaded_at.lock().unwrap() = Some(std::time::Instant::now());
-                *st.video_retry_done.lock().unwrap() = false;
+                *st.loaded_at.lock().unwrap_or_else(|e| e.into_inner()) = Some(std::time::Instant::now());
+                *st.video_retry_done.lock().unwrap_or_else(|e| e.into_inner()) = false;
                 st.set_hint_for("直播流中断，正在自动重连…", 8);
                 crate::events::ev(
                     "player",
                     &format!(
                         "直播回 idle，自动重连（剩余 {} 次）",
-                        *st.live_retry_left.lock().unwrap()
+                        *st.live_retry_left.lock().unwrap_or_else(|e| e.into_inner())
                     ),
                 );
             }
         } else if !s.idle {
-            *st.live_idle_since.lock().unwrap() = None;
+            *st.live_idle_since.lock().unwrap_or_else(|e| e.into_inner()) = None;
         }
     }
 
     // 4.5) 诊断采样：每 5s 一条（avsync / 丢帧 / 码率 / 帧率），丢帧突增单独记事件
     if let Some(s) = snap.as_ref() {
-        let playing_now = !st.playing_url.lock().unwrap().is_empty();
+        let playing_now = !st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).is_empty();
         if playing_now && !s.idle {
             let due = {
-                let last = st.last_sample.lock().unwrap();
+                let last = st.last_sample.lock().unwrap_or_else(|e| e.into_inner());
                 last.map(|t| t.elapsed() >= std::time::Duration::from_secs(5))
                     .unwrap_or(true)
             };
             if due {
-                *st.last_sample.lock().unwrap() = Some(std::time::Instant::now());
+                *st.last_sample.lock().unwrap_or_else(|e| e.into_inner()) = Some(std::time::Instant::now());
                 let drop = s.render_drop.max(0) + s.decoder_drop.max(0);
-                let prev = *st.last_drop.lock().unwrap();
+                let prev = *st.last_drop.lock().unwrap_or_else(|e| e.into_inner());
                 if drop > prev + 5 {
                     crate::events::ev(
                         "drops",
@@ -1917,7 +1917,7 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                         ),
                     );
                 }
-                *st.last_drop.lock().unwrap() = drop;
+                *st.last_drop.lock().unwrap_or_else(|e| e.into_inner()) = drop;
                 crate::events::sample(format!(
                     "t={:.1}s avsync={:+.1}ms 丢帧={}/{} {:.2}Mbps vf_fps={:.2} 硬解={} {}x{}",
                     s.time_ms / 1000.0,
@@ -1941,17 +1941,17 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
         .filter(|(_, t, d)| t.elapsed() <= *d)
         .map(|(s, _, _)| s);
     // 桥转码的"目标格式"（前端在播放器页下方画一条 源 → 目标 的说明条）
-    let bridge_mode_now = st.bridge.lock().unwrap().as_ref().map(|b| b.mode()).unwrap_or_default();
+    let bridge_mode_now = st.bridge.lock().unwrap_or_else(|e| e.into_inner()).as_ref().map(|b| b.mode()).unwrap_or_default();
     let bridge_to = if bridge_mode_now.is_empty() {
         serde_json::Value::Null
     } else {
-        let enc = st.bridge_enc.lock().unwrap().clone();
+        let enc = st.bridge_enc.lock().unwrap_or_else(|e| e.into_inner()).clone();
         // chain10 固定压到 25fps（davs2 软解 4K 10-bit 只有 ~41fps，
         // 不降帧会"播几秒停几秒"，见 bridge.rs 注释）；8K 自动降级
         // 单链桥也固定 25fps；分片桥保持源帧率
         let fps = if bridge_mode_now.contains("chain10")
-            || *st.auto_scale_w.lock().unwrap() > 0
-            || st.bridge_note.lock().unwrap().contains("25fps")
+            || *st.auto_scale_w.lock().unwrap_or_else(|e| e.into_inner()) > 0
+            || st.bridge_note.lock().unwrap_or_else(|e| e.into_inner()).contains("25fps")
         {
             "25".to_string()
         } else {
@@ -1970,16 +1970,16 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
         })
     };
     serde_json::json!({
-        "playing": !st.playing_url.lock().unwrap().is_empty(),
-        "err": *st.err.lock().unwrap(),
+        "playing": !st.playing_url.lock().unwrap_or_else(|e| e.into_inner()).is_empty(),
+        "err": *st.err.lock().unwrap_or_else(|e| e.into_inner()),
         "hint": hint,
-        "loop": *st.loop_file.lock().unwrap(),
+        "loop": *st.loop_file.lock().unwrap_or_else(|e| e.into_inner()),
         "bridge_to": bridge_to,
-        "bridge_note": *st.bridge_note.lock().unwrap(),
-        "bridge_stderr_last": *st.bridge_stderr_last.lock().unwrap(),
-        "auto_decoder": *st.auto_decoder.lock().unwrap(),
-        "bridge_enc": *st.bridge_enc.lock().unwrap(),
-        "bridge": st.bridge.lock().unwrap().as_ref().map(|b| {
+        "bridge_note": *st.bridge_note.lock().unwrap_or_else(|e| e.into_inner()),
+        "bridge_stderr_last": *st.bridge_stderr_last.lock().unwrap_or_else(|e| e.into_inner()),
+        "auto_decoder": *st.auto_decoder.lock().unwrap_or_else(|e| e.into_inner()),
+        "bridge_enc": *st.bridge_enc.lock().unwrap_or_else(|e| e.into_inner()),
+        "bridge": st.bridge.lock().unwrap_or_else(|e| e.into_inner()).as_ref().map(|b| {
             serde_json::json!({
                 "mode": b.mode(),
                 "progress": b.progress(),
@@ -1987,9 +1987,9 @@ pub fn player_snapshot(st: State<PlayerState>) -> serde_json::Value {
                 "stderr_tail": b.stderr_tail(),
             })
         }),
-        "recording": *st.recording.lock().unwrap(),
-        "probe": st.probe_info.lock().unwrap().as_ref().map(probe_json),
-        "preparing": *st.preparing.lock().unwrap(),
+        "recording": *st.recording.lock().unwrap_or_else(|e| e.into_inner()),
+        "probe": st.probe_info.lock().unwrap_or_else(|e| e.into_inner()).as_ref().map(probe_json),
+        "preparing": *st.preparing.lock().unwrap_or_else(|e| e.into_inner()),
         "snap": snap.as_ref().map(|s| serde_json::json!({
             "time_ms": s.time_ms,
             "duration_ms": s.duration_ms,
@@ -2119,8 +2119,8 @@ pub fn player_settings_set(
     vqa_core::config::shared_set("player.default_nic", serde_json::json!(default_nic.trim()))
         .map_err(|e| format!("写配置失败：{e}"))?;
     // 默认循环立刻作用于当前播放器（mpv 未起时只记状态）
-    *st.loop_file.lock().unwrap() = default_loop;
-    if let Some(m) = st.mpv.lock().unwrap().as_ref() {
+    *st.loop_file.lock().unwrap_or_else(|e| e.into_inner()) = default_loop;
+    if let Some(m) = st.mpv.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
         let _ = m.set_prop(
             "loop-file",
             serde_json::Value::String(if default_loop { "inf" } else { "no" }.into()),
@@ -2193,20 +2193,20 @@ pub fn analysis_start(
     url: String,
     nic_ip: String,
 ) -> Result<(), String> {
-    let mut mode = ast.mode.lock().unwrap();
+    let mut mode = ast.mode.lock().unwrap_or_else(|e| e.into_inner());
     if *mode != 0 {
         return Ok(()); // 运行中忽略重复启动（Enter+按钮双触发）
     }
-    ast.live_err.lock().unwrap().take();
+    ast.live_err.lock().unwrap_or_else(|e| e.into_inner()).take();
     let cleaned = crate::clean_stream_url(&url);
     let is_live = cleaned.starts_with("udp://") || cleaned.starts_with("rtp://");
 
     if is_live {
-        match vqa_core::live::LiveSession::start(&cleaned, &nic_ip, &ast.overrides.lock().unwrap())
+        match vqa_core::live::LiveSession::start(&cleaned, &nic_ip, &ast.overrides.lock().unwrap_or_else(|e| e.into_inner()))
         {
             Ok(s) => {
-                *ast.live.lock().unwrap() = Some(s);
-                *ast.result.lock().unwrap() = None;
+                *ast.live.lock().unwrap_or_else(|e| e.into_inner()) = Some(s);
+                *ast.result.lock().unwrap_or_else(|e| e.into_inner()) = None;
                 *mode = 2;
                 ast.log_push(format!("实时分析已启动：{cleaned}"));
                 crate::events::ev("analysis", &format!("实时分析启动 {cleaned}"));
@@ -2215,18 +2215,18 @@ pub fn analysis_start(
             Err(e) => {
                 let msg = format!("{e:#}");
                 crate::events::ev("analysis-err", &format!("实时分析启动失败：{msg}"));
-                *ast.live_err.lock().unwrap() = Some(msg.clone());
+                *ast.live_err.lock().unwrap_or_else(|e| e.into_inner()) = Some(msg.clone());
                 Err(msg)
             }
         }
     } else if std::path::Path::new(&cleaned).is_file() {
         let (tx, rx) = std::sync::mpsc::channel();
-        *ast.result_rx.lock().unwrap() = Some(rx);
-        *ast.result.lock().unwrap() = None;
-        *ast.progress.lock().unwrap() =
+        *ast.result_rx.lock().unwrap_or_else(|e| e.into_inner()) = Some(rx);
+        *ast.result.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        *ast.progress.lock().unwrap_or_else(|e| e.into_inner()) =
             (0, std::fs::metadata(&cleaned).map(|m| m.len()).unwrap_or(0));
         let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
-        *ast.stop_flag.lock().unwrap() = Some(Arc::clone(&stop));
+        *ast.stop_flag.lock().unwrap_or_else(|e| e.into_inner()) = Some(Arc::clone(&stop));
         let overrides = Arc::clone(&ast.overrides);
         let path = cleaned.clone();
         *mode = 1;
@@ -2242,7 +2242,7 @@ pub fn analysis_start(
                         PROG_TOTAL.store(t, Ordering::Relaxed);
                     }),
                     Some(&|| stop.load(Ordering::Relaxed)),
-                    &overrides.lock().unwrap(),
+                    &overrides.lock().unwrap_or_else(|e| e.into_inner()),
                 );
                 if res.not_ts {
                     let _ = tx.send(Err("不是 188/204 包长的 TS 流".into()));
@@ -2261,7 +2261,7 @@ pub fn analysis_start(
         Ok(())
     } else {
         let msg = format!("来源不存在或不支持：{cleaned}");
-        *ast.live_err.lock().unwrap() = Some(msg.clone());
+        *ast.live_err.lock().unwrap_or_else(|e| e.into_inner()) = Some(msg.clone());
         Err(msg)
     }
 }
@@ -2271,17 +2271,17 @@ static PROG_TOTAL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::
 
 #[tauri::command]
 pub fn analysis_stop(ast: State<AnalysisState>) {
-    let mut mode = ast.mode.lock().unwrap();
+    let mut mode = ast.mode.lock().unwrap_or_else(|e| e.into_inner());
     match *mode {
         2 => {
-            if let Some(l) = ast.live.lock().unwrap().take() {
+            if let Some(l) = ast.live.lock().unwrap_or_else(|e| e.into_inner()).take() {
                 l.stop();
             }
             ast.log_push("实时分析已停止");
             crate::events::ev("analysis", "实时分析停止");
         }
         _ => {
-            if let Some(f) = ast.stop_flag.lock().unwrap().as_ref() {
+            if let Some(f) = ast.stop_flag.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
                 f.store(true, Ordering::Relaxed);
             }
             ast.log_push("扫描中断");
@@ -2294,9 +2294,9 @@ pub fn analysis_stop(ast: State<AnalysisState>) {
 #[tauri::command]
 pub fn analysis_progress(ast: State<AnalysisState>) -> serde_json::Value {
     // 收割扫描线程（完成后回待机态、结果保留）
-    let mut mode = ast.mode.lock().unwrap();
+    let mut mode = ast.mode.lock().unwrap_or_else(|e| e.into_inner());
     if *mode == 1 {
-        let rx = ast.result_rx.lock().unwrap().take();
+        let rx = ast.result_rx.lock().unwrap_or_else(|e| e.into_inner()).take();
         if let Some(rx) = rx {
             match rx.try_recv() {
                 Ok(Ok(res)) => {
@@ -2307,7 +2307,7 @@ pub fn analysis_progress(ast: State<AnalysisState>) -> serde_json::Value {
                         res.bitrate_avg() / 1e6
                     ));
                     let path = res.path.clone();
-                    *ast.pkt.lock().unwrap() =
+                    *ast.pkt.lock().unwrap_or_else(|e| e.into_inner()) =
                         vqa_core::tsfile::PacketFile::open(std::path::Path::new(&path)).ok();
                     crate::events::ev(
                         "analysis",
@@ -2318,24 +2318,24 @@ pub fn analysis_progress(ast: State<AnalysisState>) -> serde_json::Value {
                             res.bitrate_avg() / 1e6
                         ),
                     );
-                    *ast.result.lock().unwrap() = Some(Arc::new(res));
+                    *ast.result.lock().unwrap_or_else(|e| e.into_inner()) = Some(Arc::new(res));
                     *mode = 0;
                 }
                 Ok(Err(e)) => {
                     crate::events::ev("analysis-err", &format!("扫描失败：{e}"));
-                    *ast.live_err.lock().unwrap() = Some(e);
+                    *ast.live_err.lock().unwrap_or_else(|e| e.into_inner()) = Some(e);
                     *mode = 0;
                 }
                 Err(_) => {
                     // 还没完：放回，下轮轮询再试
-                    *ast.result_rx.lock().unwrap() = Some(rx);
+                    *ast.result_rx.lock().unwrap_or_else(|e| e.into_inner()) = Some(rx);
                 }
             }
         }
     }
     drop(mode);
 
-    let mode_v = *ast.mode.lock().unwrap();
+    let mode_v = *ast.mode.lock().unwrap_or_else(|e| e.into_inner());
     let live_bytes = ast
         .live
         .lock()
@@ -2348,20 +2348,20 @@ pub fn analysis_progress(ast: State<AnalysisState>) -> serde_json::Value {
         "done": PROG_DONE.load(Ordering::Relaxed),
         "total": PROG_TOTAL.load(Ordering::Relaxed),
         "live_bytes": live_bytes,
-        "err": *ast.live_err.lock().unwrap(),
+        "err": *ast.live_err.lock().unwrap_or_else(|e| e.into_inner()),
     })
 }
 
 #[tauri::command]
 pub fn analysis_log(ast: State<AnalysisState>) -> Vec<String> {
-    ast.log.lock().unwrap().iter().cloned().collect()
+    ast.log.lock().unwrap_or_else(|e| e.into_inner()).iter().cloned().collect()
 }
 
 /// 扫描/实时结果（slim：码率抽稀 ≤1200、PCR 尾 100、SI 列表前 50 条）。
 #[tauri::command]
 pub fn analysis_result(ast: State<AnalysisState>) -> Option<serde_json::Value> {
     // 实时模式优先：现场从 LiveCore 提取
-    if let Some(l) = ast.live.lock().unwrap().as_ref() {
+    if let Some(l) = ast.live.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
         let v = l.with_core(|c| slim_result(&c.scanner.res));
         return v;
     }
@@ -2374,7 +2374,7 @@ pub fn analysis_result(ast: State<AnalysisState>) -> Option<serde_json::Value> {
 
 #[tauri::command]
 pub fn packet_rows(ast: State<AnalysisState>, start: u64, count: u64) -> serde_json::Value {
-    let pkt = ast.pkt.lock().unwrap();
+    let pkt = ast.pkt.lock().unwrap_or_else(|e| e.into_inner());
     let Some(f) = pkt.as_ref() else {
         return serde_json::json!({ "total": 0, "rows": [] });
     };

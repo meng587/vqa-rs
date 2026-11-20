@@ -491,6 +491,8 @@ export const api = {
   // 媒体信息（ffprobe 全量）
   mediaInfo: (path: string) => invoke<MediaInfo>("media_info", { path }),
   // 合规检测（依据 广电办发〔2024〕253 号）
+  complianceBasis: () => invoke<CBasis[]>("compliance_basis"),
+  complianceDoc: () => invoke<ComplianceDoc>("compliance_doc"),
   complianceCheck: (path: string, kind: string) =>
     invoke<ComplianceResult>("compliance_check", { path, kind }),
   complianceLiveStart: (url: string, nicIp: string, kind: string) =>
@@ -839,6 +841,16 @@ export interface CaptureSnapshot {
 export interface CBasis {
   code: string;
   name: string;
+}
+
+/** 合规说明页的静态表格（后端单一来源） */
+export interface ComplianceDoc {
+  basis: CBasis[];
+  prog: [string, string, string, string][];
+  net_iptv: [string, string, string, string][];
+  net_catv: [string, string, string, string][];
+  events: [string, string, string, string][];
+  limits: string[];
 }
 
 export interface ComplianceResult {

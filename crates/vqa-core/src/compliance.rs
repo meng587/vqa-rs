@@ -13,7 +13,7 @@
 //! 与 Python 版 `_add_row` 的 ✓ / ✗ / — 一致。
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 /// 检测依据：原文《广播电视和网络视听节目技术质量监督检测工作方案》三、检测依据。
 pub const BASIS: [(&str, &str); 15] = [
@@ -33,6 +33,167 @@ pub const BASIS: [(&str, &str); 15] = [
     ("新广电发〔2017〕230号", "关于规范和促进 4K 超高清电视发展的通知"),
     ("新广电发〔2014〕75号", "广播电视先进视频编解码（AVS+）技术应用实施指南"),
 ];
+
+/// 说明页表格：节目技术质量（表 1 / 表 2 序号 1~14）。
+pub const DOC_PROG: [(&str, &str, &str, &str); 11] = [
+    ("1", "分辨率", "1920×1080 / 3840×2160", "ffprobe 流信息"),
+    ("2", "帧率", "50i / 50p（高清 50i 或 25p，超高清 50p）", "ffprobe 流信息"),
+    ("3", "色域", "BT.709 / BT.2020", "码流 color_space"),
+    ("4", "量化精度", "8bit / 10bit", "bits_per_raw_sample、pix_fmt"),
+    ("5", "转换曲线", "电视伽马 / HLG 或 PQ", "码流 color_transfer"),
+    (
+        "6",
+        "视频编码方式",
+        "高清：AVS+、H.264、AVS2、H.265；超高清：AVS2、H.265",
+        "codec_name",
+    ),
+    (
+        "7~10",
+        "视频编码类和级",
+        "高清：AVS+ 广播类 6.0 级及以上；H.264 High Profile L4.1 及以上；AVS2 基准 8 位类 6.0.30 级及以上；H.265 Main Profile L4.0 及以上。超高清：AVS2 基准 10 位类 8.0.60 级及以上；H.265 Main10 Profile L5.1 及以上",
+        "profile / level",
+    ),
+    (
+        "11",
+        "视频编码码率",
+        "高清：电视台输出信号检测点 ≥11Mbps；有线前端输出点 / IPTV 网络传输信号检测点 AVS+、H.264 ≥8Mbps，AVS2、H.265 ≥6Mbps。超高清：≥36Mbps",
+        "流级 bit_rate，缺则取容器码率",
+    ),
+    (
+        "12",
+        "音频格式",
+        "MPEG-1 Layer2、AAC、AC-3（立体声或 5.1 环绕声；超高清可含三维声）",
+        "codec_name + 声道数",
+    ),
+    ("13", "音频采样率", "48kHz", "sample_rate"),
+    (
+        "14",
+        "音频编码码率",
+        "立体声 ≥256kbps、5.1 环绕声 ≥384kbps、三维声 ≥384kbps",
+        "音频流 bit_rate",
+    ),
+];
+
+/// 说明页表格：IPTV 网络传输质量（表 2 序号 15~18）。
+pub const DOC_NET_IPTV: [(&str, &str, &str, &str); 4] = [
+    ("15", "RTP 抖动", "不大于 50ms", "收流，2s 窗口"),
+    ("16", "RTP 丢包率", "不高于 10E-6（即 1×10⁻⁶）", "RTP 序号跳变统计"),
+    (
+        "17",
+        "MDI-DF 时延",
+        "以 5s 为计算周期，MDI-DF ≥100ms 的时间占比不大于 0.05%",
+        "收流，5s 窗口",
+    ),
+    (
+        "18",
+        "MDI-MLR 媒体丢包率",
+        "以 10s 为计算周期，MDI-MLR=0 的时间占比不小于 99.99%",
+        "收流，10s 窗口",
+    ),
+];
+
+/// 说明页表格：有线 RF 与 IP 信号（表 1 序号 16~17）。
+pub const DOC_NET_CATV: [(&str, &str, &str, &str); 3] = [
+    (
+        "16",
+        "QAM 调制信号",
+        "电平 50dBuV～75dBuV、MER 不低于 24dB、BER 纠错前不高于 10E-4 且纠错后不高于 10E-11，超门限持续小于 2s",
+        "需电平表 / 码流分析仪，软件不判",
+    ),
+    (
+        "17",
+        "MDI-DF（IP 信号）",
+        "单节目码流 DF 不高于 80ms，多节目复用码流不高于 40ms，超门限持续小于 2s",
+        "收流实测（平均包间隔偏差近似）",
+    ),
+    (
+        "17",
+        "MDI-MLR（IP 信号）",
+        "每秒丢包不超过 1 个 IP 包或 7 个 TS 包；每 15min 不超过 3 个 IP 包或 21 个 TS 包",
+        "收流实测（RTP 序号丢包 / 秒）",
+    ),
+];
+
+/// 说明页表格：音视频质量（事件类）。
+pub const DOC_EVENTS: [(&str, &str, &str, &str); 5] = [
+    (
+        "15（表 1）",
+        "视频质量要求",
+        "指定 PID 视频流丢包或无有效净荷 ≤2s；画面不应出现黑场、静帧、马赛克，异常持续 ≤2s",
+        "本版本按 TS PID 层判丢包/无净荷；画面异常需逐帧解码",
+    ),
+    (
+        "19（表 2）",
+        "音视频质量（一）视频连续无丢帧",
+        "无指定视频 PID 或无有效净荷 ≤2s",
+        "可判：离线按 TS PID 连续性实测",
+    ),
+    (
+        "20（表 2）",
+        "音视频质量（二）解码正确",
+        "有有效包但解码器无法还原帧 <2s",
+        "本版本未实现（需解码器）",
+    ),
+    (
+        "21（表 2）",
+        "音视频质量（三）声音连续无中断",
+        "无指定音频 PID 或无有效净荷 <2s",
+        "可判：离线按 TS PID 连续性实测",
+    ),
+    (
+        "22（表 2）",
+        "音视频质量（四）画面主观异常",
+        "马赛克、静帧、黑屏、可察觉音画不同步 <2s",
+        "本版本未实现",
+    ),
+];
+
+/// 说明页的判定口径与已知局限。
+pub const DOC_LIMITS: [&str; 7] = [
+    "事件类：表 2 序号 19 / 21 已按 TS 包头实测（连续性计数错误 = 丢包，仅适配字段 = 无有效净荷）；序号 20 解码正确、22 画面主观异常，以及表 1 序号 15 的画面部分，仍需逐帧解码与参考比对，标未标注。",
+    "表 1 序号 16 的电平 / MER / BER 属 QAM 射频层，需电平表与码流分析仪，软件不判。",
+    "视频码率优先用流级 bit_rate；TS 未给时取容器码率，含音频与节目 SI，读数会略高于纯视频码率。",
+    "AVS、AVS2 的 Profile / Level ffprobe 取不到（level = -99），该项显示未标注，需专业设备核对。",
+    "多数 TS 不写 color_space / color_transfer，色域与转换曲线常常只能显示未标注。",
+    "MDI-MLR 的「每 15min ≤3 个 IP 包」口径未单列，页面按每秒丢包数判定；样本时长不足 15min 时仅供参考。",
+    "表 3（互联网电视）、表 4（互联网视听平台）的主观评分与格式命名不在本页范围内。",
+];
+
+fn doc_rows(rows: &[(&str, &str, &str, &str)]) -> Vec<Value> {
+    rows.iter().map(|r| json!(r)).collect()
+}
+
+/// 合规说明页的全部静态数据：前端只取这一份，避免 TS 与 Rust 两套文案漂移。
+pub fn doc_json() -> Value {
+    let basis: Vec<Value> = BASIS
+        .iter()
+        .map(|(code, name)| json!({ "code": code, "name": name }))
+        .collect();
+    json!({
+        "basis": basis,
+        "prog": doc_rows(&DOC_PROG),
+        "net_iptv": doc_rows(&DOC_NET_IPTV),
+        "net_catv": doc_rows(&DOC_NET_CATV),
+        "events": doc_rows(&DOC_EVENTS),
+        "limits": DOC_LIMITS,
+    })
+}
+
+#[cfg(test)]
+mod doc_tests {
+    use super::*;
+
+    #[test]
+    fn doc_json_has_all_sections() {
+        let v = doc_json();
+        assert_eq!(v["basis"].as_array().unwrap().len(), 15);
+        assert_eq!(v["prog"].as_array().unwrap().len(), DOC_PROG.len());
+        assert_eq!(v["net_iptv"].as_array().unwrap().len(), DOC_NET_IPTV.len());
+        assert_eq!(v["net_catv"].as_array().unwrap().len(), DOC_NET_CATV.len());
+        assert_eq!(v["events"].as_array().unwrap().len(), DOC_EVENTS.len());
+        assert_eq!(v["limits"].as_array().unwrap().len(), DOC_LIMITS.len());
+    }
+}
 
 /// 检测场景：有线电视（表 1） / IPTV（表 2）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

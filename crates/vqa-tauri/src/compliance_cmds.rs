@@ -26,6 +26,18 @@ fn basis_list() -> Vec<serde_json::Value> {
         .collect()
 }
 
+/// 合规说明页的检测依据清单 —— Web 与桌面共用后端这一份，避免前端再抄一遍。
+#[tauri::command]
+pub fn compliance_basis() -> Vec<serde_json::Value> {
+    basis_list()
+}
+
+/// 合规说明页全部静态表格：依据、节目技术质量、网络、事件与局限。
+#[tauri::command]
+pub fn compliance_doc() -> serde_json::Value {
+    compliance::doc_json()
+}
+
 fn pack(items: &[Item], kind: Kind, source: &str, mode: &str) -> serde_json::Value {
     let summary: Summary = Summary::of(items);
     json!({
@@ -100,7 +112,7 @@ pub async fn compliance_live_start(
     kind: String,
 ) -> Result<(), String> {
     {
-        let mut mode = st.mode.lock().unwrap();
+        let mut mode = st.mode.lock().unwrap_or_else(|e| e.into_inner());
         if *mode != 0 {
             return Ok(()); // 收流中忽略重复点击
         }
@@ -110,15 +122,15 @@ pub async fn compliance_live_start(
     let overrides = vqa_core::tsfile::TrOverrides::new();
     match vqa_core::live::LiveSession::start(&cleaned, &nic_ip, &overrides) {
         Ok(s) => {
-            *st.live.lock().unwrap() = Some(s);
-            *st.err.lock().unwrap() = None;
-            *st.source.lock().unwrap() = (cleaned.clone(), kind.clone());
-            *st.items.lock().unwrap() = None;
+            *st.live.lock().unwrap_or_else(|e| e.into_inner()) = Some(s);
+            *st.err.lock().unwrap_or_else(|e| e.into_inner()) = None;
+            *st.source.lock().unwrap_or_else(|e| e.into_inner()) = (cleaned.clone(), kind.clone());
+            *st.items.lock().unwrap_or_else(|e| e.into_inner()) = None;
         }
         Err(e) => {
-            *st.mode.lock().unwrap() = 0;
+            *st.mode.lock().unwrap_or_else(|e| e.into_inner()) = 0;
             let msg = format!("{e:#}");
-            *st.err.lock().unwrap() = Some(msg.clone());
+            *st.err.lock().unwrap_or_else(|e| e.into_inner()) = Some(msg.clone());
             return Err(msg);
         }
     }
@@ -156,10 +168,10 @@ pub fn compliance_live_snapshot(
     st: State<'_, ComplianceState>,
     kind: String,
 ) -> serde_json::Value {
-    let mode = *st.mode.lock().unwrap();
+    let mode = *st.mode.lock().unwrap_or_else(|e| e.into_inner());
     let k = Kind::from_str(&kind);
     let (net, secs, alive) = {
-        let live = st.live.lock().unwrap();
+        let live = st.live.lock().unwrap_or_else(|e| e.into_inner());
         match live.as_ref() {
             Some(s) => {
                 let snap = s.with_core(|c| (c.mdi.snapshot(), c.mdi.elapsed().as_secs()));
@@ -172,14 +184,14 @@ pub fn compliance_live_snapshot(
         }
     };
 
-    let mut items: Vec<Item> = st.items.lock().unwrap().clone().unwrap_or_default();
+    let mut items: Vec<Item> = st.items.lock().unwrap_or_else(|e| e.into_inner()).clone().unwrap_or_default();
 
     // 收流模式下直接探 URL 常常探不到（RTP 无 SDP），改用开头那段裸 TS 样本落盘再探
-    if st.items.lock().unwrap().is_none() {
-        let pstate0 = st.probe_state.lock().unwrap().clone();
+    if st.items.lock().unwrap_or_else(|e| e.into_inner()).is_none() {
+        let pstate0 = st.probe_state.lock().unwrap_or_else(|e| e.into_inner()).clone();
         if pstate0 != "pending" && net.packets > 0 {
             let dump = {
-                let live = st.live.lock().unwrap();
+                let live = st.live.lock().unwrap_or_else(|e| e.into_inner());
                 live.as_ref().and_then(|s| s.take_dump(800_000))
             };
             if let Some(bytes) = dump {
@@ -222,10 +234,10 @@ pub fn compliance_live_snapshot(
     items.extend(compliance::evaluate_events(k, None));
     compliance::sort_items(&mut items);
     let summary = Summary::of(&items);
-    let src = st.source.lock().unwrap().0.clone();
-    let err = st.err.lock().unwrap().clone();
-    let probe_ready = st.items.lock().unwrap().is_some();
-    let probe_state = st.probe_state.lock().unwrap().clone();
+    let src = st.source.lock().unwrap_or_else(|e| e.into_inner()).0.clone();
+    let err = st.err.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let probe_ready = st.items.lock().unwrap_or_else(|e| e.into_inner()).is_some();
+    let probe_state = st.probe_state.lock().unwrap_or_else(|e| e.into_inner()).clone();
     json!({
         "mode": if mode == 2 { "live" } else { "idle" },
         "source": src,
@@ -244,10 +256,10 @@ pub fn compliance_live_snapshot(
 
 #[tauri::command]
 pub fn compliance_live_stop(st: State<'_, ComplianceState>) {
-    if let Some(l) = st.live.lock().unwrap().take() {
+    if let Some(l) = st.live.lock().unwrap_or_else(|e| e.into_inner()).take() {
         l.stop();
     }
-    *st.mode.lock().unwrap() = 0;
+    *st.mode.lock().unwrap_or_else(|e| e.into_inner()) = 0;
 }
 
 /// 导出合规报告（Markdown），默认落到视频分析已配的报告目录。

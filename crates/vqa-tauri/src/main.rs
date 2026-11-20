@@ -215,6 +215,8 @@ fn main() {
             commands::packet_rows,
             commands::export_report_md,
             // 合规检测
+            compliance_cmds::compliance_basis,
+            compliance_cmds::compliance_doc,
             compliance_cmds::compliance_check,
             compliance_cmds::compliance_live_start,
             compliance_cmds::compliance_live_snapshot,
@@ -297,33 +299,33 @@ fn shutdown(app: &tauri::AppHandle) {
     use tauri::Manager;
     web_server::shutdown(app);
     let pst = app.state::<state::PlayerState>();
-    *pst.playing_url.lock().unwrap() = String::new();
-    if let Some(m) = pst.mpv.lock().unwrap().take() {
+    *pst.playing_url.lock().unwrap_or_else(|e| e.into_inner()) = String::new();
+    if let Some(m) = pst.mpv.lock().unwrap_or_else(|e| e.into_inner()).take() {
         let _ = m.stop();
         drop(m); // Drop: quit → kill
     }
-    *pst.bridge.lock().unwrap() = None; // Drop: kill ffmpeg
-    if let Some(c) = pst.child.lock().unwrap().take() {
+    *pst.bridge.lock().unwrap_or_else(|e| e.into_inner()) = None; // Drop: kill ffmpeg
+    if let Some(c) = pst.child.lock().unwrap_or_else(|e| e.into_inner()).take() {
         c.destroy();
     }
     let ast = app.state::<state::AnalysisState>();
-    if let Some(f) = ast.stop_flag.lock().unwrap().as_ref() {
+    if let Some(f) = ast.stop_flag.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
         f.store(true, std::sync::atomic::Ordering::Relaxed);
     }
-    let live = ast.live.lock().unwrap().take();
+    let live = ast.live.lock().unwrap_or_else(|e| e.into_inner()).take();
     if let Some(l) = live {
         l.stop();
     }
     drop(ast);
     // 抓包线程退出前先把会话停掉，保证 pcap/TS 都 flush 到磁盘。
     let cst = app.state::<capture_cmds::CaptureState>();
-    if let Some(mut s) = cst.session.lock().unwrap().take() {
+    if let Some(mut s) = cst.session.lock().unwrap_or_else(|e| e.into_inner()).take() {
         s.stop();
     }
     drop(cst);
     // EasyTier 内核随工作站退出而停止，避免留下孤儿进程持续占用 TUN/RPC。
     let est = app.state::<easytier_cmds::EasytierState>();
-    if let Some(mut c) = est.child.lock().unwrap().take() {
+    if let Some(mut c) = est.child.lock().unwrap_or_else(|e| e.into_inner()).take() {
         let _ = c.kill();
         let _ = c.wait();
     };

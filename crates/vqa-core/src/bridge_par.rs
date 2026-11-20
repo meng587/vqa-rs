@@ -59,8 +59,6 @@ const LEAD_MAX: f64 = 3.0;
 /// 边转边播（False）：首片转完即开播，起播最快。
 /// 预转完再播（True）：安全但要把整片等完，用户明确要求"立即播放"，默认关。
 const PRELOAD_ALL: bool = false;
-const PREPARE_MS: u64 = 800; // 首片就绪后等 mpv 绑好端口再发
-const READY_S: f64 = 2.0; // 起播门槛（内容秒）＝一个分片；攒够一片就开播
 /// 边转边播的开播门槛（片数）：**2 片 ≈ 2.6s 内容**。
 /// 试过降到 1 片（以为 TCP 能饿着等就更早出画），实测**反而错位**：
 /// mpv 的 lavf 分析窗口要吃 0.6s 左右的流做探测，而首片本身就只有 0.6s，
@@ -68,7 +66,6 @@ const READY_S: f64 = 2.0; // 起播门槛（内容秒）＝一个分片；攒够
 /// 整段被丢掉（firstPlayTime 实测 2580/3060，正常应是 0）。
 /// 攒到 2 片，探测吃完还剩一片半，画面从 0 秒开始，起播也没变慢。
 const READY_CHUNKS: usize = 2;
-const SEND_DELAY_MS: u64 = 1200; // 读端（mpv）先绑 socket
 const SEND_TICK: f64 = 0.01; // 发送节流轮长（越小越平滑）
 const SEND_BURST_TICKS: u64 = 3; // 单跳最多几跳的量
 const CACHE_CAP_MAX: u64 = 2 * 1024 * 1024 * 1024; // 缓存上限基线（原 6 GB，改为按盘余量自适应）
@@ -148,7 +145,7 @@ impl ParBridge {
             let complete =
                 f.is_file() && m.is_file() && f.metadata().map(|x| x.len() > 0).unwrap_or(false);
             if complete {
-                *sh.lock().unwrap() = Shared {
+                *sh.lock().unwrap_or_else(|e| e.into_inner()) = Shared {
                     state: "running".into(),
                     mode: "cache".into(),
                     ..Default::default()
@@ -181,7 +178,6 @@ impl ParBridge {
                 (tmp.join(key.clone() + ".ts"), tmp.join(key + ".done"))
             }
         };
-        let cap_dir = out.parent().map(|p| p.to_path_buf()).unwrap_or_else(crate::config::scratch_dir);
         // ★ 缓存淘汰也丢后台：扫目录+按时间排序+删旧缓存同样要占用起播时间
         {
             let pdir = out.parent().map(|p| p.to_path_buf());
@@ -281,7 +277,7 @@ impl ParBridge {
         }
 
         {
-            let mut s = sh.lock().unwrap();
+            let mut s = sh.lock().unwrap_or_else(|e| e.into_inner());
             s.total_chunks = chunks.len();
             s.plan_s = acc.max(1.0);
         }
@@ -340,13 +336,13 @@ impl ParBridge {
             .name("vqa-par-send".into())
             .spawn(move || send_loop(&sh_s, &stop_s, &out_s, listener))
             .map_err(|e| format!("发送线程起不来：{e}"))?;
-        *bridge.threads.lock().unwrap() = vec![t_coord, t_send];
+        *bridge.threads.lock().unwrap_or_else(|e| e.into_inner()) = vec![t_coord, t_send];
         Ok(bridge)
     }
 
     /// 给播放器读的地址：命中缓存是文件路径，否则回环 UDP。
     pub fn url(&self) -> String {
-        let s = self.sh.lock().unwrap();
+        let s = self.sh.lock().unwrap_or_else(|e| e.into_inner());
         if s.state == "error" {
             return String::new();
         }
@@ -364,7 +360,7 @@ impl ParBridge {
     }
 
     pub fn mode(&self) -> String {
-        self.sh.lock().unwrap().mode.clone()
+        self.sh.lock().unwrap_or_else(|e| e.into_inner()).mode.clone()
     }
 
     /// mpv 已经把 UDP 端口打开：放开发送。
@@ -373,16 +369,16 @@ impl ParBridge {
     /// 表现为时长比源少 2 秒、音频/视频各自的起点对不上（avsync 一度 10 秒）。
     /// 同样的数据走缓存播则是 avsync≈0、零丢帧，可见产物没问题，错在起播时序。
     pub fn go(&self) {
-        self.sh.lock().unwrap().go = true;
+        self.sh.lock().unwrap_or_else(|e| e.into_inner()).go = true;
     }
 
     pub fn is_file(&self) -> bool {
-        self.sh.lock().unwrap().mode == "cache"
+        self.sh.lock().unwrap_or_else(|e| e.into_inner()).mode == "cache"
     }
 
     /// 给人看的一行进度（「桥」chip 用）。
     pub fn progress(&self) -> String {
-        let s = self.sh.lock().unwrap();
+        let s = self.sh.lock().unwrap_or_else(|e| e.into_inner());
         if s.mode == "cache" {
             return "缓存".into();
         }
@@ -413,7 +409,7 @@ impl ParBridge {
     }
 
     pub fn error(&self) -> String {
-        self.sh.lock().unwrap().error.clone()
+        self.sh.lock().unwrap_or_else(|e| e.into_inner()).error.clone()
     }
 
     pub fn stderr_tail(&self) -> String {
@@ -422,7 +418,7 @@ impl ParBridge {
 
     pub fn alive(&self) -> usize {
         let mut n = 0;
-        for ps in self.inflight.lock().unwrap().values_mut() {
+        for ps in self.inflight.lock().unwrap_or_else(|e| e.into_inner()).values_mut() {
             for p in ps.iter_mut() {
                 if p.try_wait().map(|s| s.is_none()).unwrap_or(true) {
                     n += 1;
@@ -434,7 +430,7 @@ impl ParBridge {
 
     pub fn stop(&self) {
         self.stopped.store(true, Ordering::SeqCst);
-        self.sh.lock().unwrap().stop = true;
+        self.sh.lock().unwrap_or_else(|e| e.into_inner()).stop = true;
         if let Ok(mut map) = self.inflight.lock() {
             for ps in map.values_mut() {
                 for p in ps.iter_mut() {
@@ -444,16 +440,16 @@ impl ParBridge {
             }
             map.clear();
         }
-        let st = self.sh.lock().unwrap().state.clone();
-        if self.sh.lock().unwrap().mode == "par" && st != "done" && st != "error" {
+        let st = self.sh.lock().unwrap_or_else(|e| e.into_inner()).state.clone();
+        if self.sh.lock().unwrap_or_else(|e| e.into_inner()).mode == "par" && st != "done" && st != "error" {
             // 没转完的输出直接删（免得当下次缓存）
             let _ = std::fs::remove_file(&self.out);
             let _ = std::fs::remove_file(&self.mark);
         }
-        if let Some(d) = self.segdir.lock().unwrap().take() {
+        if let Some(d) = self.segdir.lock().unwrap_or_else(|e| e.into_inner()).take() {
             let _ = std::fs::remove_dir_all(d);
         }
-        if let Some(d) = self.fragdir.lock().unwrap().take() {
+        if let Some(d) = self.fragdir.lock().unwrap_or_else(|e| e.into_inner()).take() {
             let _ = std::fs::remove_dir_all(d);
         }
     }
@@ -540,7 +536,7 @@ fn split_segments(
                         (p.clone(), if d > 0.0 { d } else { 0.0 }, 0)
                     }
                 };
-                *slots[i].lock().unwrap() = Some(row);
+                *slots[i].lock().unwrap_or_else(|e| e.into_inner()) = Some(row);
             });
         }
     });
@@ -732,7 +728,7 @@ fn coord_loop(
     let mut fout = match std::fs::File::create(out) {
         Ok(f) => f,
         Err(e) => {
-            let mut s = sh.lock().unwrap();
+            let mut s = sh.lock().unwrap_or_else(|e| e.into_inner());
             s.error = format!("输出文件打不开：{e}");
             s.state = "error".into();
             return;
@@ -786,11 +782,11 @@ fn coord_loop(
             })();
             match spawned {
                 Ok(ps) => {
-                    inflight.lock().unwrap().insert(idx, ps);
+                    inflight.lock().unwrap_or_else(|e| e.into_inner()).insert(idx, ps);
                     nxt_start += 1;
                 }
                 Err(e) => {
-                    let mut s = sh.lock().unwrap();
+                    let mut s = sh.lock().unwrap_or_else(|e| e.into_inner());
                     s.error = e;
                     s.state = "error".into();
                     let _ = fout.flush();
@@ -808,7 +804,7 @@ fn coord_loop(
         //   错在拼装顺序——这才是边转边播音画不同步的根因。
         {
             let t = frag_path(fragdir, nxt_append);
-            let mut s = sh.lock().unwrap();
+            let mut s = sh.lock().unwrap_or_else(|e| e.into_inner());
             s.bind = (
                 appended,
                 if nxt_append < total { Some(t) } else { None },
@@ -816,7 +812,7 @@ fn coord_loop(
         }
         // 等当前该拼的这段收工（编码段退出码 0 = 成功）
         {
-            let mut map = inflight.lock().unwrap();
+            let mut map = inflight.lock().unwrap_or_else(|e| e.into_inner());
             let ps = match map.get_mut(&nxt_append) {
                 Some(ps) => ps,
                 None => break,
@@ -826,7 +822,7 @@ fn coord_loop(
                 match p.wait() {
                     Ok(st) => {
                         if !st.success() && p.id() == enc_pid {
-                            let mut s = sh.lock().unwrap();
+                            let mut s = sh.lock().unwrap_or_else(|e| e.into_inner());
                             s.error = err_tail(errs.get(&nxt_append))
                                 .unwrap_or_else(|| "转码段失败".into());
                             s.state = "error".into();
@@ -834,7 +830,7 @@ fn coord_loop(
                         }
                     }
                     Err(_) => {
-                        let mut s = sh.lock().unwrap();
+                        let mut s = sh.lock().unwrap_or_else(|e| e.into_inner());
                         s.error = "等待转码段失败".into();
                         s.state = "error".into();
                         return;
@@ -842,7 +838,7 @@ fn coord_loop(
                 }
             }
         }
-        inflight.lock().unwrap().remove(&nxt_append);
+        inflight.lock().unwrap_or_else(|e| e.into_inner()).remove(&nxt_append);
         let frag = frag_path(fragdir, nxt_append);
         let mut n: u64 = 0;
         if let Ok(mut f) = std::fs::File::open(&frag) {
@@ -852,7 +848,7 @@ fn coord_loop(
                     Ok(0) => break,
                     Ok(k) => {
                         if fout.write_all(&buf[..k]).is_err() {
-                            let mut s = sh.lock().unwrap();
+                            let mut s = sh.lock().unwrap_or_else(|e| e.into_inner());
                             s.error = "写输出文件失败".into();
                             s.state = "error".into();
                             return;
@@ -865,7 +861,7 @@ fn coord_loop(
             let _ = fout.flush();
         }
         {
-            let mut s = sh.lock().unwrap();
+            let mut s = sh.lock().unwrap_or_else(|e| e.into_inner());
             s.frags.push((chunks[nxt_append].1, chunks[nxt_append].2, n));
             appended += n;
             // 下一段接上来（文件可能还没生成，发送线程会按 0 长度等着）
@@ -890,7 +886,7 @@ fn coord_loop(
     if let Ok(md) = std::fs::metadata(out) {
         let _ = std::fs::write(mark, format!("{}\n", md.len()));
     }
-    sh.lock().unwrap().state = "done".into();
+    sh.lock().unwrap_or_else(|e| e.into_inner()).state = "done".into();
 }
 
 // ------------------------------------------------------------ 发送线程
@@ -915,7 +911,7 @@ fn send_loop(sh: &Arc<Mutex<Shared>>, stop: &Arc<AtomicBool>, out: &Path, listen
             // 起播门槛：PRELOAD_ALL 时等全片转完（state=done）；
             // 否则沿用旧的"攒够 3 秒内容就开播"。
             let (ready, st) = {
-                let s = sh.lock().unwrap();
+                let s = sh.lock().unwrap_or_else(|e| e.into_inner());
                 let ok = if PRELOAD_ALL {
                     s.state == "done"
                 } else {
@@ -938,7 +934,7 @@ fn send_loop(sh: &Arc<Mutex<Shared>>, stop: &Arc<AtomicBool>, out: &Path, listen
             //   （旧顺序是先睡 PREPARE_MS 等 mpv 绑 socket，可 mpv 打开空 UDP
             //   读到 0 字节就直接放弃、之后永不重试，等于一条死路。）
             t0 = Some(Instant::now());
-            sh.lock().unwrap().state = "running".into();
+            sh.lock().unwrap_or_else(|e| e.into_inner()).state = "running".into();
         }
         // ★ 回环 TCP：没连上之前根本没有字节可发（accept 之前不存在连接）。
         //   于是"mpv 打开时落在流中间、丢开头 2 秒"这个老毛病从根上消失——
@@ -950,7 +946,7 @@ fn send_loop(sh: &Arc<Mutex<Shared>>, stop: &Arc<AtomicBool>, out: &Path, listen
                     // 写超时只作兜底：回环正常不会卡；真卡住宁可断流，
                     // 也不要把发送线程永久挂在 write 上（那会让 stop 收不了尾）。
                     let _ = s.set_write_timeout(Some(Duration::from_millis(2000)));
-                    sh.lock().unwrap().go = true;
+                    sh.lock().unwrap_or_else(|e| e.into_inner()).go = true;
                     conn = Some(s);
                 }
                 Err(_) => {
@@ -960,7 +956,7 @@ fn send_loop(sh: &Arc<Mutex<Shared>>, stop: &Arc<AtomicBool>, out: &Path, listen
             }
         }
         let (appended, tail) = {
-            let s = sh.lock().unwrap();
+            let s = sh.lock().unwrap_or_else(|e| e.into_inner());
             s.bind.clone()
         };
         let mut avail = appended;
@@ -969,7 +965,7 @@ fn send_loop(sh: &Arc<Mutex<Shared>>, stop: &Arc<AtomicBool>, out: &Path, listen
         }
         if sent >= avail {
             let (st, all_done) = {
-                let s = sh.lock().unwrap();
+                let s = sh.lock().unwrap_or_else(|e| e.into_inner());
                 (
                     s.state.clone(),
                     s.total_chunks > 0 && s.done_chunks >= s.total_chunks,
@@ -1003,8 +999,8 @@ fn send_loop(sh: &Arc<Mutex<Shared>>, stop: &Arc<AtomicBool>, out: &Path, listen
         }
         empty_hits = 0;
         let elapsed = t0.unwrap().elapsed().as_secs_f64();
-        let lead = content_s(&sh.lock().unwrap(), sent) - elapsed;
-        sh.lock().unwrap().lead = lead;
+        let lead = content_s(&sh.lock().unwrap_or_else(|e| e.into_inner()), sent) - elapsed;
+        sh.lock().unwrap_or_else(|e| e.into_inner()).lead = lead;
         if lead > LEAD_MAX {
             std::thread::sleep(Duration::from_millis(100));
             continue;
@@ -1091,19 +1087,6 @@ fn cached_handle<'a>(
     holder.as_mut().map(|(_, f)| f)
 }
 
-fn ready_s(s: &Shared) -> f64 {
-    READY_S.min((s.plan_s * 0.6).max(0.5))
-}
-
-fn buffered_s(s: &Shared) -> f64 {
-    let mut base: f64 = s.frags.iter().map(|(_, d, _)| d).sum();
-    if let Some(t) = s.bind.1.as_ref() {
-        let sz = std::fs::metadata(t).map(|m| m.len()).unwrap_or(0);
-        base += sz as f64 / avg_bps_locked(s);
-    }
-    base
-}
-
 fn content_s(s: &Shared, nbytes: u64) -> f64 {
     let mut left = nbytes;
     let mut acc = 0.0;
@@ -1125,13 +1108,13 @@ fn content_s(s: &Shared, nbytes: u64) -> f64 {
 }
 
 fn avg_bps(sh: &Arc<Mutex<Shared>>) -> f64 {
-    avg_bps_locked(&sh.lock().unwrap())
+    avg_bps_locked(&sh.lock().unwrap_or_else(|e| e.into_inner()))
 }
 
 fn avg_bps_locked(s: &Shared) -> f64 {
     let tb: u64 = s.frags.iter().map(|(_, _, n)| n).sum();
     let ts: f64 = s.frags.iter().map(|(_, d, _)| d).sum();
-    if tb <= 0 || ts <= 0.0 {
+    if tb == 0 || ts <= 0.0 {
         // 第一段没转完没有实测码率：用 4K50 的保守估计（4 MB/s）。
         // 偏大只会让领先量被高估 → 发送更保守，不会灌爆播放端。
         return 4.0 * 1024.0 * 1024.0;

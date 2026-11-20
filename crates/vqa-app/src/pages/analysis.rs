@@ -128,7 +128,7 @@ impl AnalysisPage {
         // 本地文件 → 文件扫描线程；udp/rtp → 实时会话
         let is_live = cleaned.starts_with("udp://") || cleaned.starts_with("rtp://");
         if is_live {
-            let overrides = self.overrides.lock().unwrap().clone();
+            let overrides = self.overrides.lock().unwrap_or_else(|e| e.into_inner()).clone();
             match LiveSession::start(&cleaned, &nic_ip, &overrides) {
                 Ok(s) => {
                     self.live = Some(s);
@@ -150,7 +150,7 @@ impl AnalysisPage {
             self.running_flag = Arc::clone(&stop);
             let done = Arc::clone(&self.progress_done);
             let total = Arc::clone(&self.progress_total);
-            let ov = self.overrides.lock().unwrap().clone();
+            let ov = self.overrides.lock().unwrap_or_else(|e| e.into_inner()).clone();
             let path = cleaned.clone();
             self.progress_total
                 .store(std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0), Ordering::Relaxed);

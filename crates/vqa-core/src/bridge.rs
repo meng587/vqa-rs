@@ -304,7 +304,7 @@ impl RealtimeBridge {
                     let mut s = se;
                     let mut local = String::new();
                     if std::io::Read::read_to_string(&mut s, &mut local).is_ok() {
-                        *sink.lock().unwrap() = local;
+                        *sink.lock().unwrap_or_else(|e| e.into_inner()) = local;
                     }
                 });
             }
@@ -494,7 +494,7 @@ impl RealtimeBridge {
         }
         let procs = std::sync::Arc::new(Mutex::new(Vec::<Child>::new()));
         if let Some(p) = p1 {
-            procs.lock().unwrap().push(p);
+            procs.lock().unwrap_or_else(|e| e.into_inner()).push(p);
         }
         // stderr 收集：davs2/编码段的报错必须被读走（否则 4KB 管道缓冲
         // 写满会把进程堵死——工作站实测纪律），失败时留证可查
@@ -506,7 +506,7 @@ impl RealtimeBridge {
         //   塞满阻塞、cmd3 读 B 永远空——三段链整体死锁（实测 0.05fps 假象
         //   与"已播完"皆源于此）。
         let davs2_y4m = p2.stdout.take().unwrap();
-        procs.lock().unwrap().push(p2);
+        procs.lock().unwrap_or_else(|e| e.into_inner()).push(p2);
         if let Some(mut se) = davs2_stderr {
             let buf2 = std::sync::Arc::clone(&stderr_buf);
             std::thread::spawn(move || {
@@ -514,7 +514,7 @@ impl RealtimeBridge {
                 let mut buf = String::new();
                 let _ = se.read_to_string(&mut buf);
                 if !buf.trim().is_empty() {
-                    *buf2.lock().unwrap() = format!("[davs2] {}", buf.trim());
+                    *buf2.lock().unwrap_or_else(|e| e.into_inner()) = format!("[davs2] {}", buf.trim());
                     eprintln!("[bridge/davs2] ====== {}", buf.trim());
                 }
             });
@@ -557,13 +557,13 @@ impl RealtimeBridge {
                     let mut buf = String::new();
                     let _ = se.read_to_string(&mut buf);
                     if !buf.trim().is_empty() {
-                        *buf3.lock().unwrap() = format!("[nvenc] {}", buf.trim());
+                        *buf3.lock().unwrap_or_else(|e| e.into_inner()) = format!("[nvenc] {}", buf.trim());
                         eprintln!("[bridge/nvenc] ====== {}", buf.trim());
                     }
                 });
             }
             // p3 交给 procs：正常结束自己退出；用户中途停止时 stop() kill
-            procs.lock().unwrap().push(p3);
+            procs.lock().unwrap_or_else(|e| e.into_inner()).push(p3);
             // 读端就绪窗口：TCP listen 随 spawn 就绪，mpv 在 Outcome 收割后才连接，
             // 这里只需给首包留一点余量——原 1200ms 是白等（起播慢的直接原因之一）。
             std::thread::sleep(Duration::from_millis(400));
@@ -590,7 +590,7 @@ impl RealtimeBridge {
                                 let mut buf = String::new();
                                 let _ = se.read_to_string(&mut buf);
                                 if !buf.trim().is_empty() {
-                                    *stderr_buf3.lock().unwrap() = format!("[nvenc] {}", buf.trim());
+                                    *stderr_buf3.lock().unwrap_or_else(|e| e.into_inner()) = format!("[nvenc] {}", buf.trim());
                                     eprintln!("[bridge/nvenc] ====== {}", buf.trim());
                                 }
                             });
@@ -612,13 +612,13 @@ impl RealtimeBridge {
 
     /// 桥各段 stderr 尾部（诊断日志用）。
     pub fn stderr_tail(&self) -> String {
-        self.stderr_buf.lock().unwrap().clone()
+        self.stderr_buf.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// 桥各段进程的存活数（诊断用；链完整 = 3）。
     pub fn alive(&self) -> usize {
         let mut n = 0;
-        for p in self.procs.lock().unwrap().iter_mut() {
+        for p in self.procs.lock().unwrap_or_else(|e| e.into_inner()).iter_mut() {
             if p.try_wait().map(|s| s.is_none()).unwrap_or(true) {
                 n += 1;
             }

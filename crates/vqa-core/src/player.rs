@@ -152,10 +152,10 @@ fn route_line(
             if let (Some(id), Some(data)) =
                 (obj.get("id").and_then(Value::as_u64), obj.get("data"))
             {
-                props.lock().unwrap().insert(id as u32, data.clone());
+                props.lock().unwrap_or_else(|e| e.into_inner()).insert(id as u32, data.clone());
             }
         }
-        Some(_) => events.lock().unwrap().push_back(obj.clone()),
+        Some(_) => events.lock().unwrap_or_else(|e| e.into_inner()).push_back(obj.clone()),
         None => {} // 响应行：只由 command() 的等待循环消费，这里丢弃迟到者
     }
 }
@@ -318,7 +318,7 @@ impl Mpv {
 
     /// 排空管道（UI 每帧调用，保活必需）。
     pub fn poll(&self) {
-        let mut guard = self.conn.lock().unwrap();
+        let mut guard = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(c) = guard.as_mut() {
             let _ = c.drain(&self.props, &self.events);
         }
@@ -327,7 +327,7 @@ impl Mpv {
     /// 发命令并同步等响应（响应只回到本连接；等待期间路由事件行）。
     pub fn command(&self, cmd: Value) -> Result<Value, String> {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
-        let mut guard = self.conn.lock().unwrap();
+        let mut guard = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let conn = guard
             .as_mut()
             .ok_or_else(|| "IPC 连接未建立".to_string())?;
@@ -388,7 +388,7 @@ impl Mpv {
     /// 与后续命令不匹配，command() 会把它当"迟到的旧响应"丢掉，安全）。
     fn command_async(&self, cmd: Value) -> Result<(), String> {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
-        let mut guard = self.conn.lock().unwrap();
+        let mut guard = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let conn = guard
             .as_mut()
             .ok_or_else(|| "IPC 连接未建立".to_string())?;
@@ -453,7 +453,7 @@ impl Mpv {
             _ => None,
         };
         if let Some(id) = id {
-            self.props.lock().unwrap().insert(id, Value::Bool(v));
+            self.props.lock().unwrap_or_else(|e| e.into_inner()).insert(id, Value::Bool(v));
         }
         Ok(v)
     }
@@ -517,12 +517,12 @@ impl Mpv {
     }
 
     pub fn take_events(&self) -> Vec<Value> {
-        let mut q = self.events.lock().unwrap();
+        let mut q = self.events.lock().unwrap_or_else(|e| e.into_inner());
         q.drain(..).collect()
     }
 
     pub fn snapshot(&self) -> Snapshot {
-        let p = self.props.lock().unwrap();
+        let p = self.props.lock().unwrap_or_else(|e| e.into_inner());
         let f = |id: u32| num(p.get(&id));
         let s = |id: u32| str_of(p.get(&id));
         Snapshot {
@@ -560,7 +560,7 @@ impl Drop for Mpv {
                 // ★ 不 flush：FlushFileBuffers 会阻塞到对端读完（见模块注释）
             }
         }
-        if let Some(mut c) = self.child.lock().unwrap().take() {
+        if let Some(mut c) = self.child.lock().unwrap_or_else(|e| e.into_inner()).take() {
             let deadline = std::time::Instant::now() + Duration::from_secs(1);
             while c.try_wait().map(|s| s.is_none()).unwrap_or(false)
                 && std::time::Instant::now() < deadline
