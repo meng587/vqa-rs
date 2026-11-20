@@ -1,11 +1,11 @@
 {
-    "version":  "0.2.58",
-    "notes":  "界面字体口径调整：频道列表中文使用楷体，左侧功能模块中文使用宋体；其余功能不变。",
-    "pub_date":  "2026-11-20T08:15:12Z",
-    "platforms":  {
-                      "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW43RHp3V3B0MkVGT0QreFAzRU82MlBBODgrRXkyNmFIWTNCNUJTaUEyMGhrRmE2NEpaMGhWQTFpRGZvRVgxamdPRnMvaFFRakJIb2lGVlR6RzFUV3dJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MTYyNTExCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi41OF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjU4ClNiZkRzRmd6K3VnMkFlelJmV01valBuWG9vZUxNZytwL3ZBbDlGOUpUV3NVUGczR21RVSt1MFY5c1pjQW5SZFM4Kzh3NHJpcG13Z2xKMnJObnUwOUFRPT0K",
-                                             "url":  "https://github.com/meng587/vqa-rs/releases/download/v0.2.58/vqa-workbench-0.2.58-setup.exe"
-                                         }
-                  }
+  "version": "0.2.59",
+  "notes": "左侧功能模块字体族改为方正朝歌圆（需系统安装该字体，未安装时回退宋体）；微突发检测每次开始检测先清零上一轮统计，避免读数误导。",
+  "pub_date": "2026-11-20T08:38:55Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXBDWGVTQVY2UjZDTmw5M0VOQVl3cEFldng3MU5qZmlYTmh6b0pQeG9NWWVVc0tGT3ZDM0FZNEUxdnhiWjhtUG0xQjJHWjZHVG1QbE5ZL2JPVU45OFFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MTYzOTM0CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi41OV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjU5Cmt3YytMenFZRVhjZGpJZVV3dExrSktwN1V5YnFaNTZVaVcwdVJzelJEaGQ5WWNvTnJhOVJPdks4QVlkMXZ1alNuZmJhQnRaemRPYlpaVDhiNEhGMEJnPT0K",
+      "url": "https://github.com/meng587/vqa-rs/releases/download/v0.2.59/vqa-workbench-0.2.59-setup.exe"
+    }
+  }
 }
