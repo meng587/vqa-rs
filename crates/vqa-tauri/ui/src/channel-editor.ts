@@ -1,9 +1,9 @@
-//! 频道列表编辑页：播放器 / 视频分析 / 合规检测 / 微突发 / 音画同步共用一份本机频道库。
+//! 频道列表编辑页：每个功能模块编辑和维护自己的独立频道库。
 //!
 //! 列表本身不在这里持有，页面只负责“打开编辑页 → 改名称/地址/启用 →
-//! 保存并广播 channels-changed”，各业务页收到后重新拉取列表。
+//! 保存并广播 channels-changed(module)”，对应模块收到后重新拉取自己的列表。
 
-import { api, Channel } from "./api";
+import { type Channel } from "./api";
 import { normalizeAddressText } from "./address";
 import {
   ALL_GROUPS,
@@ -12,14 +12,22 @@ import {
   groupMatches,
   groupNames,
   groupOf,
-  GROUPS_KEY,
   normalizeGroup,
 } from "./channel-groups";
+import {
+  loadModuleChannels,
+  loadModuleGroups,
+  MODULE_LABELS,
+  saveModuleChannels,
+  saveModuleGroups,
+  type ChannelModule,
+} from "./channel-store";
 
 const $ = <T extends HTMLElement>(id: string): T | null =>
   document.getElementById(id) as T | null;
 
 let built = false;
+let currentModule: ChannelModule = "player";
 let draft: Channel[] = [];
 let groups: string[] = [DEFAULT_GROUP];
 let filter = "";
@@ -44,7 +52,7 @@ function ensure() {
       <div class="che-head">
         <div class="che-titlewrap">
           <b id="che-title">频道列表编辑</b>
-          <span>播放器 / 视频分析 / 合规检测 / 微突发 / 音画同步共用 · 保存后立即同步到各页面</span>
+          <span id="che-subtitle">当前模块独立使用 · 保存后只刷新本模块</span>
         </div>
         <div class="che-headacts">
           <button class="che-mini" id="che-close" type="button">关闭</button>
@@ -427,16 +435,10 @@ function render() {
 
 async function loadDraft() {
   let list: Channel[] = [];
-  let savedGroups: unknown = null;
   try {
-    list = await api.channelsGet();
+    list = await loadModuleChannels(currentModule);
   } catch {
     list = [];
-  }
-  try {
-    savedGroups = await api.uiGet(GROUPS_KEY);
-  } catch {
-    savedGroups = null;
   }
   const seen = new Set<string>();
   draft = (list || [])
@@ -452,10 +454,7 @@ async function loadDraft() {
       seen.add(k);
       return true;
     });
-  const saved = Array.isArray(savedGroups)
-    ? savedGroups.filter((g): g is string => typeof g === "string")
-    : [];
-  groups = groupNames(draft, saved);
+  groups = await loadModuleGroups(currentModule, draft);
   groupFilter = ALL_GROUPS;
   filter = "";
   const search = $<HTMLInputElement>("che-search");
@@ -466,8 +465,11 @@ async function loadDraft() {
   render();
 }
 
-export async function openChannelEditor() {
+export async function openChannelEditor(module: ChannelModule) {
   ensure();
+  currentModule = module;
+  const title = $<HTMLElement>("che-title");
+  if (title) title.textContent = `${MODULE_LABELS[module]} · 频道列表编辑`;
   const overlay = $<HTMLElement>("che-overlay");
   if (!overlay) return;
   overlay.hidden = false;
@@ -498,19 +500,19 @@ async function save() {
   }
   groups = groupNames(cleaned, groups);
   try {
-    await api.channelsSave(cleaned);
+    await saveModuleChannels(currentModule, cleaned);
   } catch (e: any) {
     setMsg(`保存失败：${String(e)}`, true);
     return;
   }
   let groupSaveFailed = false;
   try {
-    await api.uiSet(GROUPS_KEY, groups);
+    await saveModuleGroups(currentModule, groups);
   } catch {
     groupSaveFailed = true;
   }
   draft = cleaned;
-  window.dispatchEvent(new CustomEvent("channels-changed"));
+  window.dispatchEvent(new CustomEvent("channels-changed", { detail: currentModule }));
   if (groupSaveFailed) {
     setMsg("频道已保存，但分组清单保存失败", true);
   } else {

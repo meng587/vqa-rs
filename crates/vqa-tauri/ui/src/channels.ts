@@ -1,9 +1,9 @@
-//! 通用频道列表：播放器 / 视频分析 / 合规检测 / 微突发 / 音画同步共用一份配置和同一套列表组件。
+//! 通用频道列表组件：各功能模块使用自己的频道库，列表交互共用同一套实现。
 //!
 //! 页面只提供「怎么跑一条」和「怎么预览一条」，列表本身的状态、选中、
 //! 增删、持久化都在这里，避免两页各写一套。
 
-import { api, Channel } from "./api";
+import { Channel } from "./api";
 import { normalizeAddressText } from "./address";
 import {
   ALL_GROUPS,
@@ -11,9 +11,14 @@ import {
   groupMatches,
   groupNames,
   groupOf,
-  loadChannelGroups,
   normalizeGroup,
 } from "./channel-groups";
+import {
+  loadModuleChannels,
+  loadModuleGroups,
+  saveModuleChannels,
+  type ChannelModule,
+} from "./channel-store";
 import { openChannelEditor } from "./channel-editor";
 
 export interface RunOutcome {
@@ -27,6 +32,8 @@ export interface RunOutcome {
 export interface ChannelHooks {
   /** 预览槽位名：av / consist / burst */
   owner: string;
+  /** 当前模块的独立频道库键 */
+  module: ChannelModule;
   /** 列表标题 */
   title?: string;
   /** 初始并发度（1 = 逐条） */
@@ -99,7 +106,10 @@ export class ChannelBoard {
     this.hooks = hooks;
     this.host.classList.toggle("is-picker", hooks.picker === true);
     this.conc = hooks.sequential ? 1 : clampConc(hooks.conc ?? 1);
-    window.addEventListener("channels-changed", () => void this.load());
+    window.addEventListener("channels-changed", (ev) => {
+      const changed = (ev as CustomEvent).detail;
+      if (!changed || changed === this.hooks.module) void this.load();
+    });
   }
 
   setConc(n: number) {
@@ -117,7 +127,7 @@ export class ChannelBoard {
     const prevUrl = this.sel >= 0 ? this.chans[this.sel]?.url || "" : "";
     this.sel = -1;
     try {
-      const list = await api.channelsGet();
+      const list = await loadModuleChannels(this.hooks.module);
       // 老版本重复导入留下的同地址行在这里合并掉
       const seen = new Set<string>();
       this.chans = (list || [])
@@ -133,7 +143,7 @@ export class ChannelBoard {
           seen.add(k);
           return true;
         });
-      this.groups = await loadChannelGroups(this.chans);
+      this.groups = await loadModuleGroups(this.hooks.module, this.chans);
     } catch {
       this.chans = [];
       this.groups = [DEFAULT_GROUP];
@@ -259,7 +269,7 @@ export class ChannelBoard {
       else if (a === "add-ok") this.commitAdd();
       else if (a === "import-ok") this.commitImport();
       else if (a === "del") this.deleteSelected();
-      else if (a === "edit") void openChannelEditor();
+      else if (a === "edit") void openChannelEditor(this.hooks.module);
       else if (a === "prev") this.previewSelected();
       else if (a === "one") this.runSelected();
       else if (a === "all") this.runAll();
@@ -656,7 +666,7 @@ export class ChannelBoard {
   }
 
   private persist() {
-    api.channelsSave(this.chans).catch(() => {});
+    saveModuleChannels(this.hooks.module, this.chans).catch(() => {});
   }
 
   getChannels(): Channel[] {

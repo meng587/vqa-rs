@@ -36,7 +36,6 @@ const TARGETS: FlowTargetMeta[] = [
   { id: "player", name: "播放器", hint: "载入并开始播放" },
   { id: "analysis", name: "视频分析", hint: "按当前参数开始扫描" },
   { id: "compliance", name: "合规检测", hint: "按当前依据开始检测" },
-  { id: "transcode", name: "直播转码", hint: "按当前参数开始转码" },
   { id: "burst", name: "微突发检测", hint: "按当前时间窗开始检测" },
   { id: "avsync", name: "音画同步", hint: "按当前采样参数开始检测" },
 ];

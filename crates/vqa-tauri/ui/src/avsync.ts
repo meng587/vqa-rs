@@ -365,6 +365,7 @@ export function initAvSync() {
     setChannelCollapsed(true, false);
     board = new ChannelBoard(host, {
       owner: "av",
+      module: "avsync",
       title: "频道列表",
       sequential: true,
       compact: true,

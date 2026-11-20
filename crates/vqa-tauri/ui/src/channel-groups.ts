@@ -1,12 +1,10 @@
 //! 频道分组的共用口径：旧数据没有 group 时统一归入「未分组」。
 
-import { api, type Channel } from "./api";
+import type { Channel } from "./api";
 
 export const DEFAULT_GROUP = "未分组";
 /** 筛选器里代表“不限分组”的内部值，不会作为真实分组保存 */
 export const ALL_GROUPS = "__all__";
-/** 频道编辑页保存的分组清单；检测页也读它，保证各页类别一致 */
-export const GROUPS_KEY = "channels.groups";
 
 export function normalizeGroup(raw: string | undefined | null): string {
   const name = (raw || "").replace(/\s+/g, " ").trim().slice(0, 24);
@@ -35,16 +33,4 @@ export function countInGroup(chans: Channel[], group: string): number {
 
 export function groupMatches(ch: Channel, filter: string): boolean {
   return filter === ALL_GROUPS || groupOf(ch) === filter;
-}
-
-/** 读取频道编辑页保存的分组清单，再与频道实际分组合并；各检测页共用同一份类别。 */
-export async function loadChannelGroups(chans: Channel[]): Promise<string[]> {
-  let saved: string[] = [];
-  try {
-    const raw = await api.uiGet(GROUPS_KEY);
-    if (Array.isArray(raw)) saved = raw.filter((g): g is string => typeof g === "string");
-  } catch {
-    /* 首次运行或旧数据没有分组清单 */
-  }
-  return groupNames(chans, saved);
 }

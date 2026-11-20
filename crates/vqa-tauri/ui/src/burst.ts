@@ -791,6 +791,7 @@ export function initBurst() {
   if (host) {
     board = new ChannelBoard(host, {
       owner: "burst",
+      module: "burst",
       title: "频道列表",
       sequential: true,
       compact: true,

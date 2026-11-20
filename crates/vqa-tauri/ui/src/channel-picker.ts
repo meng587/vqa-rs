@@ -5,10 +5,11 @@
 
 import { api, type Channel } from "./api";
 import { ChannelBoard, type RowState } from "./channels";
+import type { ChannelModule } from "./channel-store";
 
 interface PickerOptions {
   /** ChannelBoard owner，用于日志和预览槽位区分 */
-  page: string;
+  page: ChannelModule;
   hostId: string;
   bodyId: string;
   railId: string;
@@ -62,6 +63,7 @@ export function initChannelPicker(opts: PickerOptions): ChannelBoard | null {
   host.classList.toggle("is-picker", !runMode);
   const board = new ChannelBoard(host, {
     owner: opts.page,
+    module: opts.page,
     title: "频道列表",
     compact: true,
     sequential: runMode || undefined,
