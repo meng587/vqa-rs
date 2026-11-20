@@ -11,6 +11,7 @@ import { flags } from "./flags";
 import { initChannelPicker } from "./channel-picker";
 import type { ChannelBoard } from "./channels";
 import { registerFlowTarget } from "./transfer";
+import { initMultiView, type MultiViewCtl } from "./multiview";
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -180,6 +181,7 @@ export function initPlayer() {
   let polling = false;
   let pollStop = false;
   let pollSecs = 30;
+  let multiCtl: MultiViewCtl | null = null;
 
   channelBoard = initChannelPicker({
     page: "player",
@@ -504,6 +506,8 @@ export function initPlayer() {
   }
 
   async function startPlay(u: string) {
+    // 从多路同看切回单路：先停掉多路的 mpv/子窗，避免两套画面和声音叠在一起
+    if (multiCtl?.blocksSingle()) await multiCtl.exitForSingle();
     await api.pushSourceHistory("player", u);
     resetAb(u);
     await api.play(u, nic.value, flags.forceBridge);
@@ -739,7 +743,7 @@ export function initPlayer() {
     //   首次起播时 snapCache 还是空的，若子窗仍在屏幕外，mpv 会在一个
     //   不可见的宿主窗里创建 8K 视频输出，部分机器会只出声音不出画。
     //   running 在 go() 里点下播放就置 true，停止/播完才回落。
-    const visible = onPage && running;
+    const visible = onPage && running && !multiCtl?.blocksSingle();
     api
       .placeVideo(
         Math.round(r.left * dpr),
@@ -870,12 +874,17 @@ export function initPlayer() {
         osdRefreshAt = Date.now();
         showOsd();
       }
-      // nav 状态灯 + 页脚引擎灯
-      setNavLamp(
-        "player",
-        st.err ? "error" : st.playing && !st.snap?.idle ? "running" : "idle",
-      );
-      setEngineLamp(!!st.snap || !st.err);
+      // nav 状态灯 + 页脚引擎灯：多路同看时以后端实际出画为准
+      if (multiCtl?.isActive()) {
+        setNavLamp("player", multiCtl.anyPlaying() ? "running" : "idle");
+        setEngineLamp(true);
+      } else {
+        setNavLamp(
+          "player",
+          st.err ? "error" : st.playing && !st.snap?.idle ? "running" : "idle",
+        );
+        setEngineLamp(!!st.snap || !st.err);
+      }
     } catch {
       /* 后端未就绪时静默 */
     }
@@ -907,6 +916,22 @@ export function initPlayer() {
     },
     () => running || polling,
   );
+
+  multiCtl = initMultiView({
+    nicIp: () => nic.value,
+    currentUrl: () => url.value.trim(),
+    stopSingle: async () => {
+      if (polling) stopPolling();
+      // 不能用 `if (running)` 判断：起播前 `running` 会被后端 idle 快照按回 false，
+      // 此时单路可能仍在探测/预热。多路开播前无条件收一次单路，避免两套声音并存。
+      await api.stop().catch(() => undefined);
+      running = false;
+      ab = null;
+      setActUi(false);
+      placeChild();
+    },
+  });
+  (window as any).__multiView = multiCtl;
 }
 
 // ═══════════════════════════ 渲染 ═══════════════════════════

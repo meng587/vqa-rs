@@ -18,6 +18,22 @@ use tauri::Emitter;
 /// Windows 侧的拖放路径出口：wndproc 是静态函数，拿不到 AppHandle，用全局存一份。
 static APP: std::sync::OnceLock<tauri::AppHandle> = std::sync::OnceLock::new();
 
+/// 多路视频子窗收到的单击/双击：(槽位 0..=3, 是否双击)。
+/// 子窗会吃掉鼠标命中，不能依赖 WebView 的 DOM click；这里排队，由
+/// `multi_snapshot` 每 150ms 取走并回给前端，避免 Tauri 事件监听兼容问题。
+static CLICKS: std::sync::Mutex<Vec<(usize, bool)>> = std::sync::Mutex::new(Vec::new());
+
+pub fn take_clicks() -> Vec<(usize, bool)> {
+    std::mem::take(&mut *CLICKS.lock().unwrap_or_else(|e| e.into_inner()))
+}
+
+fn push_click(slot: usize, dbl: bool) {
+    CLICKS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .push((slot, dbl));
+}
+
 pub fn set_app_handle(app: tauri::AppHandle) {
     let _ = APP.set(app);
 }
@@ -110,21 +126,27 @@ pub struct VideoChild {
 
 impl VideoChild {
     pub fn create(parent: isize) -> Option<VideoChild> {
+        Self::create_slot(parent, 0)
+    }
+
+    /// `slot_id` 写入 HWND 的 USERDATA：0 = 单路播放器，1..=4 = 多路第 1..4 格。
+    /// 多路子窗会吃掉鼠标命中（WS_EX_TRANSPARENT 只影响绘制，不保证子窗点击穿透），
+    /// 所以在 wndproc 里把单击/双击翻译成 Tauri 事件，前端据此切声/放大。
+    pub fn create_slot(parent: isize, slot_id: usize) -> Option<VideoChild> {
         use windows::Win32::Foundation::HWND;
         use windows::Win32::Graphics::Gdi::{GetStockObject, BLACK_BRUSH, HBRUSH};
         use windows::Win32::UI::WindowsAndMessaging::*;
         unsafe {
             let wc = WNDCLASSW {
+                style: CS_DBLCLKS, // 让系统给子窗发 WM_LBUTTONDBLCLK
                 lpfnWndProc: Some(video_wnd_proc),
                 lpszClassName: windows::core::w!("vqa_video_tauri"),
                 hbrBackground: HBRUSH(GetStockObject(BLACK_BRUSH).0),
                 ..Default::default()
             };
             let _ = RegisterClassW(&wc); // 重复注册失败没关系
-            // WS_EX_TRANSPARENT：本窗不做命中测试，鼠标/拖放落到后面的 WebView2 兄弟窗上。
-            // 起因：视频区被本子窗盖住时，文件拖放事件全被子窗吃掉，WebView2 收不到
-            // （Tauri 的拖放事件挂在 WebView2 上）。视频区本身 pointer-events:none，
-            // 让过去也不会误触；mpv 只负责渲染，不需要接收鼠标。
+            // WS_EX_TRANSPARENT：尽量让鼠标落到后面的 WebView2；Windows 对子窗
+            // 并不保证点击穿透，真正可靠的兜底是 wndproc 的 multi-click 事件。
             // WS_EX_NOACTIVATE：点画面不会把键盘焦点从 WebView2 抢走，
             // 否则播放中按 Tab（媒体信息浮层）会被 mpv 窗口吃掉。
             let hwnd = CreateWindowExW(
@@ -138,6 +160,7 @@ impl VideoChild {
                 None, None, None,
             )
             .ok()?;
+            let _ = SetWindowLongPtrW(hwnd, GWLP_USERDATA, slot_id as isize);
             // 让本窗（含 mpv 子窗）接收文件拖放，绕开"WebView2 被盖住收不到 drop"
             DragAcceptFiles(hwnd.0, 1);
             Some(VideoChild { hwnd: hwnd.0 as isize, last: None })
@@ -191,6 +214,22 @@ unsafe extern "system" fn video_wnd_proc(
 ) -> windows::Win32::Foundation::LRESULT {
     use windows::Win32::Foundation::LRESULT;
     const WM_DROPFILES: u32 = 0x0233;
+    const WM_LBUTTONUP: u32 = 0x0202;
+    const WM_LBUTTONDBLCLK: u32 = 0x0203;
+    let slot_id = unsafe {
+        windows::Win32::UI::WindowsAndMessaging::GetWindowLongPtrW(
+            hwnd,
+            windows::Win32::UI::WindowsAndMessaging::GWLP_USERDATA,
+        )
+    } as usize;
+    if slot_id > 0 && msg == WM_LBUTTONUP {
+        push_click(slot_id - 1, false);
+        return LRESULT(0);
+    }
+    if slot_id > 0 && msg == WM_LBUTTONDBLCLK {
+        push_click(slot_id - 1, true);
+        return LRESULT(0);
+    }
     if msg == WM_DROPFILES {
         let hdrop = wp.0 as *mut core::ffi::c_void;
         let paths = unsafe { parse_hdrop(hdrop) };

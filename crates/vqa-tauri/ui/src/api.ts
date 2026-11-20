@@ -187,6 +187,41 @@ export interface BridgeTo {
   container: string;
 }
 
+/** 多路同看：一格的状态（后端 multi_snapshot 返回）。 */
+export interface MultiSlotState {
+  index: number;
+  url: string;
+  status: string;
+  error: string | null;
+  playing: boolean;
+  paused: boolean;
+  idle: boolean;
+  width: number;
+  height: number;
+  video_codec: string;
+  audio_codec: string;
+  volume: number;
+  mute: boolean;
+  avsync: number;
+  v_bitrate: number;
+  time_ms: number;
+  duration_ms: number;
+  /** 原生子窗在本轮快照前收到单击（播放器用于切声） */
+  click: boolean;
+  /** 原生子窗在本轮快照前收到双击（播放器用于放大） */
+  dblclick: boolean;
+}
+
+/** 多路视频子窗的物理像素矩形（父窗口客户区相对）。 */
+export interface MultiRect {
+  slot: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  visible: boolean;
+}
+
 export interface PlayerStateJson {
   playing: boolean;
   err: string | null;
@@ -444,6 +479,16 @@ export const api = {
   recordToggle: () => invoke<string>("player_record_toggle"),
   placeVideo: (x: number, y: number, w: number, h: number, visible: boolean) =>
     invoke<void>("place_video", { x, y, w, h, visible }),
+  // 多路同看（最多 4 路，每路独立 mpv + 原生视频子窗）
+  multiStart: (urls: string[], nicIp: string) =>
+    invoke<MultiSlotState[]>("multi_start", { urls, nicIp }),
+  multiSnapshot: () => invoke<MultiSlotState[]>("multi_snapshot"),
+  multiSelect: (index: number) => invoke<void>("multi_select", { index }),
+  multiTogglePause: (index: number) => invoke<boolean>("multi_toggle_pause", { index }),
+  multiSetVolume: (index: number, volume: number) =>
+    invoke<void>("multi_set_volume", { index, volume }),
+  multiPlace: (rects: MultiRect[]) => invoke<void>("multi_place", { rects }),
+  multiStop: () => invoke<void>("multi_stop"),
   // 分析
   analysisStart: (url: string, nicIp: string) =>
     invoke<void>("analysis_start", { url, nicIp }),

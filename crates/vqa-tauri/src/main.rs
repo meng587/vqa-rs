@@ -19,6 +19,7 @@ mod easytier_cmds;
 mod events;
 mod mediainfo;
 mod mpv_host;
+mod multi_cmds;
 mod state;
 mod sync_cmds;
 mod preview;
@@ -135,6 +136,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(state::PlayerState::new())
+        .manage(state::MultiState::new())
         .manage(state::AnalysisState::new())
         .manage(state::ComplianceState::new())
         .manage(state::XcodeState::new())
@@ -157,6 +159,21 @@ fn main() {
                         .child
                         .lock()
                         .unwrap() = child;
+
+                    // 多路同看固定 4 格：每个格一个独立的原生视频子窗。
+                    // 先全部建好并移出屏幕，避免用户第一次点「开始同看」时
+                    // 在命令里创建窗口（Tauri 命令线程拿主窗口 HWND 不方便）。
+                    let multi_state = app.state::<state::MultiState>();
+                    let mut mslots = multi_state
+                        .slots
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner());
+                    for i in 0..4 {
+                        if let Some(c) = mpv_host::VideoChild::create_slot(hwnd.0 as isize, i + 1) {
+                            mslots.push(state::MultiSlot::new(c));
+                        }
+                    }
+                    drop(mslots);
                 }
             }
             // 局域网 Web 访问按上次保存的开关自动恢复。
@@ -206,6 +223,14 @@ fn main() {
             commands::player_snapshot,
             commands::player_snapshot_save,
             commands::player_record_toggle,
+            // 多路同看
+            multi_cmds::multi_start,
+            multi_cmds::multi_snapshot,
+            multi_cmds::multi_select,
+            multi_cmds::multi_toggle_pause,
+            multi_cmds::multi_set_volume,
+            multi_cmds::multi_place,
+            multi_cmds::multi_stop,
             // 分析
             commands::analysis_start,
             commands::analysis_stop,

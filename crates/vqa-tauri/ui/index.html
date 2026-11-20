@@ -131,6 +131,7 @@
         <select class="nic progsel" id="p-prog" hidden title="多节目 TS 切换节目"></select>
         <div class="vsep"></div>
         <button class="gradbtn" id="p-act"><span data-ic="play"></span>开始播放</button>
+        <button class="iconbtn ghost txtbtn tb-multi" id="p-multi" title="多路同看（最多 4 路同时播放）" type="button"><span data-ic="grid2x2"></span><span class="btxt">多路同看</span></button>
         <div class="vsep"></div>
         <div class="icogroup">
           <button class="iconbtn ghost txtbtn tb-flow" id="p-flow" data-flow="player" title="把当前来源流转到其它模块" type="button"><span data-ic="route"></span><span class="btxt">流转</span></button>
@@ -152,6 +153,14 @@
 
       <div class="vcard" id="vcard">
         <div id="v-rect" style="position:absolute;left:0;top:0;right:0;bottom:52px;pointer-events:none;"></div>
+        <div class="mv-grid" id="mv-grid" hidden></div>
+        <div class="mv-bar" id="mv-bar" hidden>
+          <span class="mv-sel" id="mv-sel">第 1 路出声</span>
+          <span class="mv-bar-hint">点击切换声音 · 双击放大播放</span>
+          <button class="mv-bar-btn" id="mv-pause" type="button">暂停</button>
+          <button class="mv-bar-btn" id="mv-edit" type="button">重新输入</button>
+          <button class="mv-bar-btn stop" id="mv-stop" type="button">退出同看</button>
+        </div>
         <span class="tag tl" id="tag-tl"></span>
         <span class="pill tr" id="tag-tr" hidden></span>
         <div class="drophint" id="v-drophint" hidden>松手即播放</div>
@@ -181,6 +190,41 @@
           <div class="speed">
             <button id="c-speedbtn" type="button"><span class="btxt">倍速</span><span id="c-speedval">1x</span><span class="caret">▾</span></button>
             <div class="menu" id="c-speedmenu" hidden></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 多路同看：全屏放大页（双击任意一路进入，Esc/返回宫格退出） -->
+      <div class="mv-zoom" id="mv-zoom" hidden>
+        <div class="mv-zoom-head">
+          <div class="mv-zoom-title"><span class="mv-zoom-kicker">放大播放</span><b id="mv-zoom-name">第 1 路</b></div>
+          <div class="mv-zoom-acts">
+            <button class="mv-bar-btn" id="mv-zoom-back" type="button">返回宫格</button>
+            <button class="mv-bar-btn stop" id="mv-zoom-close" type="button">退出同看</button>
+          </div>
+        </div>
+        <div class="mv-zoom-stage" id="mv-zoom-stage"><div class="mv-zoom-rect" id="mv-zoom-rect"></div></div>
+      </div>
+
+      <!-- 多路同看：输入弹窗 -->
+      <div class="bst-modal" id="mv-panel" hidden>
+        <div class="bst-mask" id="mv-panel-mask"></div>
+        <div class="bst-dialog mv-dialog" role="dialog" aria-modal="true" aria-labelledby="mv-panel-title">
+          <div class="bst-dialog-head">
+            <div><b id="mv-panel-title">多路同看</b><span>最多 4 路同时播放；选中哪一路，就只有那一路出声</span></div>
+            <button class="bst-x" id="mv-panel-x" type="button" aria-label="关闭">关闭</button>
+          </div>
+          <div class="bst-dialog-body">
+            <label class="mv-field-label" for="mv-urls">来源地址</label>
+            <textarea class="mv-urls" id="mv-urls" rows="5" spellcheck="false" placeholder="每行一个地址，最多 4 路&#10;udp://@239.x.x.x:port&#10;http://…&#10;D:\videos\sample.ts"></textarea>
+            <div class="bst-setnote">
+              第 1 路默认出声。开始后点击任意画面切换声音；双击任意画面进入放大页。按 Esc 可返回宫格。
+            </div>
+            <div class="mv-count" id="mv-count">已填写 0 路</div>
+          </div>
+          <div class="bst-dialog-foot">
+            <button class="txtbtn" id="mv-panel-cancel" type="button">取消</button>
+            <button class="gradbtn" id="mv-start" type="button"><span data-ic="grid2x2"></span>开始同看</button>
           </div>
         </div>
       </div>

@@ -97,6 +97,49 @@ impl BridgeHandle for vqa_core::bridge_par::ParBridge {
     }
 }
 
+/// 多路同看的一格：独占一个 mpv 进程和一个原生视频子窗。
+/// 与单路播放器完全隔离，避免多路启停把单路正在播的状态/桥句柄踩掉。
+pub struct MultiSlot {
+    pub child: VideoChild,
+    pub mpv: Option<Arc<Mpv>>,
+    pub url: String,
+    pub status: String,
+    pub err: Option<String>,
+}
+
+impl MultiSlot {
+    pub fn new(child: VideoChild) -> Self {
+        Self {
+            child,
+            mpv: None,
+            url: String::new(),
+            status: "待机".into(),
+            err: None,
+        }
+    }
+}
+
+/// 多路同看状态。最多 4 格，子窗在主窗口 setup 阶段一次建好。
+pub struct MultiState {
+    pub slots: Mutex<Vec<MultiSlot>>,
+    pub active: Mutex<usize>,
+}
+
+impl MultiState {
+    pub fn new() -> Self {
+        Self {
+            slots: Mutex::new(Vec::new()),
+            active: Mutex::new(0),
+        }
+    }
+}
+
+impl Default for MultiState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// 播放器链路。
 pub struct PlayerState {
     pub child: Mutex<Option<VideoChild>>,
