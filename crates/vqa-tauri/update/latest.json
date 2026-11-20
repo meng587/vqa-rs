@@ -1,11 +1,11 @@
 {
-    "version":  "0.2.51",
-    "notes":  "新增 AI 检测助手：用自然语言编排抓包、TS 分析、合规检测、微突发、音画同步、播放器抽检与 Markdown/HTML 报告；支持规则/本机/云端三种模式，模型文件由用户自行导入，应用只提示升级，不自动下载。新增抓包分析页：UDP/RTP 单路收流、pcap/TS 样本、MDI/丢包/抖动统计，并支持送分析/播放。新增 EasyTier 组网页与内置内核；保留来源流转、频道快选与轮询汇总。",
-    "pub_date":  "2026-11-20T00:46:09Z",
-    "platforms":  {
-                      "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW40MnN0VEUzdndvQ0k4a1lhcFpHUE9XVlpGdUdxUGduay9lOTRBeVphYTFrU0Vrd2hxQWxnODRkeFBIM3ZtVkpnVWp0K0lxRTcyMUY4c1lwc09xR0FjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MTM1NTY4CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi41MV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjUxCnBpZk04b3d4VTNibUVMYzJBTEZURFJ4SzlVMFFBR3VFM280bkc2cnFzWS9wekQ1eVFqNHAvVXViVkhCNnNqYzcxVHMvMTNYbGp1Yy9ic1VOa09BV0JnPT0K",
-                                             "url":  "https://github.com/meng587/vqa-rs/releases/download/v0.2.51/vqa-workbench-0.2.51-setup.exe"
-                                         }
-                  }
+  "version": "0.2.54",
+  "notes": "补齐微突发/音画同步来源历史，历史按钮显示汉字；抓包分析增加设置抽屉并修复图标；Web 端配置写入与网卡锁定收紧；累积包含 0.2.53 Web 会话安全修复。",
+  "pub_date": "2026-11-20T03:56:43Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXFNbitQekdRdEJJZndjcjhSakNlbVp6N09BQWRIOWJXVC9yWUJLaXdIN1VsSjlRbW1FY1pRQzB5MGhZanNIU0svcjZUV2ZFaXFSdTExellsVWV4Q1FRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MTQ3MDAzCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi41NF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjU0CmJsRVMrVlEzZCtPZ1YveXRxRjU1WmppZUZTcTJCNzdvQkc4czhoMFFJaGdaYWJEOTkrMlhUUUR1SkVXR0ZTcUtLTmovay8wWDZxOTJNazVDN1M5dERnPT0K",
+      "url": "https://github.com/meng587/vqa-rs/releases/download/v0.2.54/vqa-workbench-0.2.54-setup.exe"
+    }
+  }
 }
