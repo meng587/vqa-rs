@@ -1,11 +1,11 @@
 {
-  "version": "0.2.54",
-  "notes": "补齐微突发/音画同步来源历史，历史按钮显示汉字；抓包分析增加设置抽屉并修复图标；Web 端配置写入与网卡锁定收紧；累积包含 0.2.53 Web 会话安全修复。",
-  "pub_date": "2026-11-20T03:56:43Z",
-  "platforms": {
-    "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZXFNbitQekdRdEJJZndjcjhSakNlbVp6N09BQWRIOWJXVC9yWUJLaXdIN1VsSjlRbW1FY1pRQzB5MGhZanNIU0svcjZUV2ZFaXFSdTExellsVWV4Q1FRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MTQ3MDAzCWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi41NF94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjU0CmJsRVMrVlEzZCtPZ1YveXRxRjU1WmppZUZTcTJCNzdvQkc4czhoMFFJaGdaYWJEOTkrMlhUUUR1SkVXR0ZTcUtLTmovay8wWDZxOTJNazVDN1M5dERnPT0K",
-      "url": "https://github.com/meng587/vqa-rs/releases/download/v0.2.54/vqa-workbench-0.2.54-setup.exe"
-    }
-  }
+    "version":  "0.2.55",
+    "notes":  "播放器新增多路同看：一次输入最多 4 路来源，同一界面同时播放；点击任意一路切换为唯一出声，双击进入放大播放页；单路与多路互斥，切换时自动停止另一套。",
+    "pub_date":  "2026-11-20T05:22:36Z",
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRVVFHSmtoRi9LZW9LS1RuOWhJaGpnT0NvM29PVWRBbjZXamlUQkQzVHFlVnNDbEdxcmlKVW8rN2UyQ2dOdGNZV212cXYvL3hjbGdRWi9VdGFva2pqWEREZVFJYmphdGdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MTUyMTU2CWZpbGU66KeG5ZCs6LSo6YeP5qOA5rWL5bel5L2c56uZXzAuMi41NV94NjQtc2V0dXAuZXhlCXZlcnNpb246MC4yLjU1CkdTUHJoTklRMGd6UVMxSFZac3hzNUNjLzFjNXRCYXNITk8zelJIanpkTmdndmNHNFlPekRGekhtS05wNEZva2NoVWZRanJGd2QwMVpYbVMxbFBXMUFRPT0K",
+                                             "url":  "https://github.com/meng587/vqa-rs/releases/download/v0.2.55/vqa-workbench-0.2.55-setup.exe"
+                                         }
+                  }
 }
