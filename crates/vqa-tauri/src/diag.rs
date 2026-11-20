@@ -189,6 +189,14 @@ pub fn resolve_token() -> Option<String> {
 /// 上传到仓库 `logs/` 目录（Gitee Contents API；token 存 shared config `diag_token`）。
 /// 日志文件直接进仓库，维护者 git pull 即可阅读分析。
 pub fn upload_issue(token: &str, name: &str, content: &str) -> Result<String, String> {
+    if name.is_empty()
+        || name.len() > 120
+        || name.contains('/')
+        || name.contains('\\')
+        || name.contains("..")
+    {
+        return Err("诊断包文件名不合法".into());
+    }
     let url = format!(
         "https://gitee.com/api/v5/repos/meng587/vqa-rs/contents/logs/{name}"
     );

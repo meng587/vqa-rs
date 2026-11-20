@@ -46,6 +46,8 @@ const ENABLED_KEY: &str = "web.enabled";
 const PORT_KEY: &str = "web.port";
 const LOGIN_WINDOW: Duration = Duration::from_secs(600);
 const LOGIN_MAX_FAILS: u32 = 10;
+const SESSION_TTL: Duration = Duration::from_secs(12 * 60 * 60);
+const SESSION_MAX: usize = 1024;
 const UPLOAD_RETENTION_DAYS: u64 = 7;
 const UPLOAD_EXTS: &[&str] = &[
     "ts", "mpg", "mpeg", "mp4", "mkv", "avi", "flv", "m2t", "m2ts", "mts", "mov", "webm", "wmv",
@@ -57,6 +59,7 @@ pub struct WebState {
     running: Arc<AtomicBool>,
     port: Arc<AtomicU16>,
     code: Arc<RwLock<String>>,
+    sessions: Arc<Mutex<HashMap<String, Instant>>>,
     error: Arc<Mutex<Option<String>>>,
     shutdown: Mutex<Option<oneshot::Sender<()>>>,
 }
@@ -67,6 +70,7 @@ impl WebState {
             running: Arc::new(AtomicBool::new(false)),
             port: Arc::new(AtomicU16::new(DEFAULT_PORT)),
             code: Arc::new(RwLock::new(String::new())),
+            sessions: Arc::new(Mutex::new(HashMap::new())),
             error: Arc::new(Mutex::new(None)),
             shutdown: Mutex::new(None),
         }
@@ -91,9 +95,57 @@ impl WebState {
         let _ = vqa_core::config::shared_set(CODE_KEY, json!(code));
     }
 
+    fn clear_sessions(&self) {
+        self.sessions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+    }
+
     fn set_error(&self, e: Option<String>) {
         *self.error.lock().unwrap_or_else(|x| x.into_inner()) = e;
     }
+}
+
+/// 会话只保存随机 token，不把访问码写进 Cookie；服务重启/关闭/重置口令都会清空。
+fn new_session_token() -> String {
+    format!(
+        "{:032x}{:032x}",
+        rand::random::<u128>(),
+        rand::random::<u128>()
+    )
+}
+
+fn issue_session(sessions: &Mutex<HashMap<String, Instant>>) -> String {
+    let mut guard = sessions.lock().unwrap_or_else(|e| e.into_inner());
+    let now = Instant::now();
+    guard.retain(|_, until| now < *until);
+    if guard.len() >= SESSION_MAX {
+        guard.clear();
+    }
+    let token = new_session_token();
+    guard.insert(token.clone(), now + SESSION_TTL);
+    token
+}
+
+fn session_valid(sessions: &Mutex<HashMap<String, Instant>>, token: &str) -> bool {
+    let mut guard = sessions.lock().unwrap_or_else(|e| e.into_inner());
+    let now = Instant::now();
+    match guard.get(token) {
+        Some(until) if now < *until => true,
+        Some(_) => {
+            guard.remove(token);
+            false
+        }
+        None => false,
+    }
+}
+
+fn revoke_session(sessions: &Mutex<HashMap<String, Instant>>, token: &str) {
+    sessions
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .remove(token);
 }
 
 fn new_code() -> String {
@@ -125,7 +177,7 @@ fn status_of(st: &WebState) -> WebStatus {
         Some(ip) => format!("http://{ip}:{port}"),
         None => format!("http://127.0.0.1:{port}"),
     };
-    let login_url = format!("{url}/login?code={code}");
+    let login_url = format!("{url}/login");
     let enabled: bool = vqa_core::config::shared_get_or(ENABLED_KEY, false);
     WebStatus {
         running: st.running.load(Ordering::Relaxed),
@@ -210,6 +262,7 @@ fn lan_ip() -> Option<String> {
 struct Ctx {
     app: AppHandle,
     code: Arc<RwLock<String>>,
+    sessions: Arc<Mutex<HashMap<String, Instant>>>,
     login_fails: Mutex<HashMap<IpAddr, (u32, Instant)>>,
 }
 
@@ -278,6 +331,7 @@ async fn start_server(app: AppHandle, port: u16) -> Result<WebStatus, String> {
     let ctx = Arc::new(Ctx {
         app: app.clone(),
         code: st.code.clone(),
+        sessions: st.sessions.clone(),
         login_fails: Mutex::new(HashMap::new()),
     });
     let router = build_router(ctx.clone()).layer(DefaultBodyLimit::max(2 * 1024 * 1024 * 1024));
@@ -313,6 +367,7 @@ fn stop_server(app: &AppHandle) {
         let _ = tx.send(());
     }
     st.running.store(false, Ordering::Relaxed);
+    st.clear_sessions();
 }
 
 pub fn autostart(app: &AppHandle) {
@@ -385,6 +440,7 @@ pub async fn web_apply(
 pub fn web_reset_code(st: State<'_, WebState>) -> String {
     let code = new_code();
     st.set_code(code.clone());
+    st.clear_sessions();
     st.set_error(None);
     code
 }
@@ -395,7 +451,7 @@ pub fn web_open(st: State<'_, WebState>) -> Result<(), String> {
     if !s.running {
         return Err("Web 访问尚未开启".into());
     }
-    let url = format!("{}/login?code={}", s.local_url, s.code);
+    let url = format!("{}/", s.local_url);
     #[cfg(windows)]
     {
         let mut c = std::process::Command::new("cmd");
@@ -527,9 +583,10 @@ async fn auth(
     if is_exempt(&path) || addr.ip().is_loopback() {
         return next.run(req).await;
     }
-    let want = ctx.code();
-    if cookie_value(req.headers()).as_deref() == Some(want.as_str()) {
-        return next.run(req).await;
+    if let Some(token) = cookie_value(req.headers()) {
+        if session_valid(&ctx.sessions, &token) {
+            return next.run(req).await;
+        }
     }
     if path.starts_with("/api/") {
         return (
@@ -563,27 +620,12 @@ async fn security_headers(req: Request, next: Next) -> Response {
     resp
 }
 
-#[derive(Deserialize)]
-struct LoginQuery {
-    code: Option<String>,
-}
-
 async fn login_get(
     AxumState(ctx): AxumState<Arc<Ctx>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    Query(q): Query<LoginQuery>,
 ) -> Response {
     if ctx.login_blocked(addr.ip()) {
         return too_many_logins();
-    }
-    let want = ctx.code();
-    if let Some(code) = q.code {
-        if code == want {
-            ctx.clear_login_fails(addr.ip());
-            return with_cookie(Redirect::to("/"), &want);
-        }
-        ctx.note_login_fail(addr.ip());
-        return Html(login_page(true)).into_response();
     }
     Html(login_page(false)).into_response()
 }
@@ -591,6 +633,17 @@ async fn login_get(
 #[derive(Deserialize)]
 struct LoginForm {
     code: String,
+}
+
+fn code_eq(a: &str, b: &str) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (x, y) in a.bytes().zip(b.bytes()) {
+        diff |= x ^ y;
+    }
+    diff == 0
 }
 
 async fn login_post(
@@ -602,9 +655,10 @@ async fn login_post(
         return too_many_logins();
     }
     let want = ctx.code();
-    if f.code.trim() == want {
+    if code_eq(f.code.trim(), &want) {
         ctx.clear_login_fails(addr.ip());
-        with_cookie(Redirect::to("/"), &want)
+        let token = issue_session(&ctx.sessions);
+        with_cookie(Redirect::to("/"), &token)
     } else {
         ctx.note_login_fail(addr.ip());
         Html(login_page(true)).into_response()
@@ -624,7 +678,10 @@ fn too_many_logins() -> Response {
         .into_response()
 }
 
-async fn logout() -> Response {
+async fn logout(AxumState(ctx): AxumState<Arc<Ctx>>, headers: axum::http::HeaderMap) -> Response {
+    if let Some(token) = cookie_value(&headers) {
+        revoke_session(&ctx.sessions, &token);
+    }
     let mut r = Redirect::to("/login").into_response();
     if let Ok(v) = HeaderValue::from_str(
         "vqa_web=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT",
@@ -634,10 +691,10 @@ async fn logout() -> Response {
     r
 }
 
-fn with_cookie(resp: Redirect, code: &str) -> Response {
+fn with_cookie(resp: Redirect, token: &str) -> Response {
     let mut r = resp.into_response();
     if let Ok(v) = HeaderValue::from_str(&format!(
-        "vqa_web={code}; HttpOnly; SameSite=Strict; Path=/"
+        "vqa_web={token}; HttpOnly; SameSite=Strict; Path=/"
     )) {
         r.headers_mut().insert(header::SET_COOKIE, v);
     }
@@ -975,7 +1032,22 @@ async fn api_invoke(AxumState(ctx): AxumState<Arc<Ctx>>, Json(req): Json<InvokeR
     }
 }
 
+fn is_web_write_denied(cmd: &str) -> bool {
+    matches!(
+        cmd,
+        "diag_upload"
+            | "channels_save"
+            | "thresholds_set"
+            | "player_settings_set"
+            | "analysis_settings_set"
+            | "alarm_settings_set"
+    )
+}
+
 async fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, String> {
+    if is_web_write_denied(cmd) {
+        return Err("Web 端不开放本机配置写入或诊断上传，请回到桌面端操作".into());
+    }
     let out = match cmd {
         // ── 通用 / 配置 ──
         "app_version" => json!(commands::app_version()),
@@ -1029,11 +1101,6 @@ async fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, Str
             app.state::<crate::state::AnalysisState>(),
         ),
         "diag_has_token" => json!(commands::diag_has_token()),
-        "diag_upload" => json!(commands::diag_upload(
-            None,
-            s(args, "name"),
-            s(args, "content"),
-        )?),
 
         // ── 视频分析 ──
         "analysis_start" => {

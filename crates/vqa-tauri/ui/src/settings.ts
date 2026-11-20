@@ -205,7 +205,7 @@ function buildDrawers() {
       </div>
 
       <div class="web-actions">
-        <button class="md-export" id="dr-g-copy" type="button">复制访问链接</button>
+        <button class="md-export" id="dr-g-copy" type="button">复制访问地址</button>
         <button class="md-export" id="dr-g-open" type="button">本机打开</button>
         <button class="md-export" id="dr-g-reset" type="button">重置口令</button>
         <button class="md-export" id="dr-g-firewall" type="button" disabled>放行防火墙</button>
@@ -216,7 +216,7 @@ function buildDrawers() {
 
       <div class="drsec">说明</div>
       <div class="drhint">
-        本机访问（127.0.0.1）免口令；局域网访问需要 8 位访问码。访问码重置或关闭开关后，已登录浏览器立即失效。
+        本机访问（127.0.0.1）免口令；局域网访问需要 8 位访问码，登录状态最长 12 小时。关闭开关、修改端口或重置访问码后，所有已登录浏览器立即失效。
         请仅在可信局域网内开启，不要直接映射到公网。若另一台电脑打不开，请检查 Windows 防火墙是否放行本程序或对应 TCP 端口（域/专用网络）。
       </div>
     </div>
@@ -713,7 +713,6 @@ function wireGlobalDrawer() {
       const c = await api.webResetCode();
       if (current) {
         current.code = c;
-        current.login_url = current.login_url.replace(/code=[0-9]+/, `code=${c}`);
       }
       code.innerHTML = `口令 <strong>${c}</strong>`;
       code.hidden = false;

@@ -538,6 +538,12 @@ if (isWebMode) {
   if (upInstall) upInstall.hidden = true;
   const upStatus = document.getElementById("up-status");
   if (upStatus) upStatus.textContent = "Web 检测端不支持在线更新，请在桌面端升级";
+  // 诊断包导出/上传会落本机或带凭据上传仓库，Web 端不开放。
+  for (const id of ["dg-export", "dg-upload"]) {
+    const b = document.getElementById(id);
+    if (b) b.hidden = true;
+  }
+  if (dgStatus) dgStatus.textContent = "Web 检测端不提供诊断包导出/上传，请回桌面端操作。";
   const engineTitle = document.getElementById("engine-title");
   if (engineTitle) engineTitle.textContent = "检测服务在线";
   const engineSub = document.getElementById("engine-sub");
